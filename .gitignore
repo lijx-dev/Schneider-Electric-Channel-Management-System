@@ -1,0 +1,60 @@
+# Local dependencies
+node_modules/
+**/node_modules/
+venv/
+ve/
+.venv/
+env/
+ENV/
+faq-backend/venv/
+faq-backend/ve/
+
+# Python generated files
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+pytest-cache-files-*/
+**/pytest-cache-files-*/
+.coverage
+htmlcov/
+
+# Local environment and logs
+.env
+.env.local
+.env.*.local
+*.log
+logs/
+
+# IDE and local tool state
+.idea/
+.vscode/
+.qoder/
+.worktrees/
+.codex-image-test/
+.codex-image-test-jpg/
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Generated or temporary project files
+tmp/
+outputs/
+faq-backend/tmp/
+faq-backend/faq-backend/
+faq-backend/.loadtest-deps/
+faq-backend/.test-deps/
+faq-backend/.pip-tmp/
+faq-backend/.tmp-pip/
+faq-backend/pytest-cache-files-*/
+
+# Local databases and runtime uploads
+faq-backend/faq_dev.db
+faq-backend/app/static/avatars/*
+
+# WeChat developer private settings
+faq-miniprogram/project.private.config.json
+
+# Local source assets used to prepare uploaded product images
+商品图/

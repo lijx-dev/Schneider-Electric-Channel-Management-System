@@ -1,0 +1,58 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test and cache artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+loadtests/data/
+loadtests/reports/
+pytest-cache-files-*/
+.loadtest-deps/
+.test-deps/
+.pip-tmp/
+.tmp-pip/
+
+# Logs
+*.log
+logs/
+
+# Local database and runtime files
+faq_dev.db
+app/static/avatars/*

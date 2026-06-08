@@ -1,0 +1,49 @@
+<view class="profile-page">
+  <view class="hero-card">
+    <view class="hero-backdrop"></view>
+    <view class="hero-content">
+      <view class="hero-copy">
+        <text class="hero-title">个人信息</text>
+        <text class="hero-subtitle">资料由系统统一维护，当前页面仅支持更换头像并同步到账号资料。</text>
+      </view>
+
+      <button class="hero-avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseWechatAvatar">
+        <image class="hero-avatar" src="{{userInfo.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+        <view class="hero-avatar-edit">更换头像</view>
+      </button>
+    </view>
+  </view>
+
+  <view class="info-card">
+    <view class="section-label">认证信息</view>
+
+    <view class="info-row readonly-row">
+      <view class="info-meta">
+        <text class="info-title">姓名</text>
+      </view>
+      <text class="readonly-value">{{realName || '-'}}</text>
+    </view>
+
+    <view class="divider"></view>
+
+    <view class="info-row readonly-row">
+      <view class="info-meta">
+        <text class="info-title">省份</text>
+      </view>
+      <text class="readonly-value">{{selectedProvince || '-'}}</text>
+    </view>
+
+    <view class="divider"></view>
+
+    <view class="info-row readonly-row">
+      <view class="info-meta">
+        <text class="info-title">公司</text>
+      </view>
+      <text class="readonly-value">{{selectedCompany || '-'}}</text>
+    </view>
+  </view>
+
+  <view class="actions">
+    <button class="save-btn" bindtap="saveProfile">保存头像</button>
+  </view>
+</view>

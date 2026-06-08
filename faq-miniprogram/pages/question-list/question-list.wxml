@@ -1,0 +1,128 @@
+<!-- pages/question-list/question-list.wxml - 答题模式 -->
+<view class="page-wrap">
+  <view class="top-bar">
+    <view class="progress-tag">{{currentIndex + 1}}/{{questions.length}}</view>
+    <view class="type-title">{{categoryName}}</view>
+    <view class="card-btn" bindtap="showAnswerCard">答题卡</view>
+  </view>
+
+  <view class="question-area" wx:if="{{currentQuestion}}">
+    <view class="question-tags">
+      <text class="question-tag">{{questionTypeLabels[currentQuestion.question_type] || '题目'}}</text>
+    </view>
+    <view class="q-content">{{currentQuestion.content}}</view>
+
+    <view class="options-list" wx:if="{{currentQuestion.options && currentQuestion.options.length > 0}}">
+      <view
+        class="option-item {{selectedMap[optIdx] ? 'selected' : ''}} {{submitted && correctMap[optIdx] ? 'correct' : ''}} {{submitted && selectedMap[optIdx] && !correctMap[optIdx] ? 'wrong' : ''}}"
+        wx:for="{{currentQuestion.options}}"
+        wx:for-item="opt"
+        wx:for-index="optIdx"
+        wx:key="optIdx"
+        bindtap="tapOption"
+        data-idx="{{optIdx}}"
+      >
+        <view class="opt-letter {{selectedMap[optIdx] ? 'letter-selected' : ''}} {{submitted && correctMap[optIdx] ? 'letter-correct' : ''}} {{submitted && selectedMap[optIdx] && !correctMap[optIdx] ? 'letter-wrong' : ''}}">
+          {{optLabels[optIdx]}}
+        </view>
+        <text class="opt-text">{{opt}}</text>
+      </view>
+    </view>
+
+    <view class="input-area" wx:if="{{currentQuestion.question_type === 'fill_blank'}}">
+      <view class="fill-group" wx:for="{{blankInputs}}" wx:key="index" wx:for-index="bIdx">
+        <text class="fill-label">空{{bIdx + 1}}：</text>
+        <input
+          class="fill-input {{submitted ? (blankCorrects[bIdx] ? 'input-correct' : 'input-wrong') : ''}}"
+          placeholder="请输入第{{bIdx + 1}}个空的答案"
+          value="{{item}}"
+          data-idx="{{bIdx}}"
+          bindinput="onBlankInput"
+          disabled="{{submitted}}"
+        />
+      </view>
+    </view>
+
+    <view class="input-area" wx:if="{{currentQuestion.question_type === 'short_answer'}}">
+      <view class="reference-panel">
+        <view class="reference-head">参考答案</view>
+        <view class="correct-answer">
+          <text class="correct-value">{{correctAnswer || currentQuestion.answer}}</text>
+        </view>
+        <view class="analysis-block" wx:if="{{currentExplanation}}">
+          <view class="analysis-label">解析</view>
+          <view class="analysis-text">{{currentExplanation}}</view>
+          <button class="knowledge-save-btn {{knowledgeSaved ? 'saved' : ''}}" loading="{{knowledgeSaving}}" disabled="{{knowledgeSaving || knowledgeSaved}}" bindtap="saveCurrentExplanation">
+            {{knowledgeSaved ? '已加入' : '加入知识集'}}
+          </button>
+        </view>
+        <view class="reference-tip">题库简答题默认直接展示答案，不需要逐字作答。</view>
+      </view>
+    </view>
+
+    <view class="result-section" wx:if="{{submitted && currentQuestion.question_type !== 'short_answer'}}">
+      <view class="result-banner {{isCorrect ? 'result-correct' : 'result-wrong'}}">
+        <text class="result-icon">{{isCorrect ? '✓' : '✕'}}</text>
+        <text class="result-text">{{isCorrect ? '回答正确' : '回答错误'}}</text>
+      </view>
+
+      <view class="wrong-detail" wx:if="{{!isCorrect}}">
+        <view class="correct-answer">
+          <text class="correct-label">正确答案：</text>
+          <text class="correct-value">{{correctAnswer}}</text>
+        </view>
+      </view>
+
+      <view class="analysis-block" wx:if="{{currentExplanation}}">
+        <view class="analysis-label">解析</view>
+        <view class="analysis-text">{{currentExplanation}}</view>
+        <button class="knowledge-save-btn {{knowledgeSaved ? 'saved' : ''}}" loading="{{knowledgeSaving}}" disabled="{{knowledgeSaving || knowledgeSaved}}" bindtap="saveCurrentExplanation">
+          {{knowledgeSaved ? '已加入' : '加入知识集'}}
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <view class="bottom-bar">
+    <view class="bar-action" bindtap="skipQuestion">
+      <view class="skip-icon">
+        <view class="skip-triangle"></view>
+        <view class="skip-bar"></view>
+      </view>
+      <text class="bar-label">跳过</text>
+    </view>
+    <view class="bar-action" bindtap="prevQuestion">
+      <view class="prev-icon"></view>
+      <text class="bar-label">上一题</text>
+    </view>
+    <view wx:if="{{currentQuestion && currentQuestion.question_type !== 'short_answer' && !submitted}}" class="bar-submit bar-next" bindtap="submitAnswer">
+      确定
+    </view>
+    <view wx:else class="bar-submit bar-next" bindtap="nextQuestion">
+      下一题
+    </view>
+  </view>
+
+  <view class="card-mask" wx:if="{{cardVisible}}" bindtap="hideAnswerCard">
+    <view class="card-panel" catchtap="">
+      <view class="card-header">
+        <text class="card-title">答题卡</text>
+        <text class="card-close" bindtap="hideAnswerCard">×</text>
+      </view>
+      <view class="card-legend">
+        <view class="legend-item"><view class="legend-dot dot-default"></view><text>未答</text></view>
+        <view class="legend-item"><view class="legend-dot dot-correct"></view><text>正确</text></view>
+        <view class="legend-item"><view class="legend-dot dot-wrong"></view><text>错误</text></view>
+      </view>
+      <view class="card-grid">
+        <view
+          class="grid-item {{answerStatus[index] || 'default'}}"
+          wx:for="{{questions}}"
+          wx:key="id"
+          bindtap="jumpToQuestion"
+          data-index="{{index}}"
+        >{{index + 1}}</view>
+      </view>
+    </view>
+  </view>
+</view>

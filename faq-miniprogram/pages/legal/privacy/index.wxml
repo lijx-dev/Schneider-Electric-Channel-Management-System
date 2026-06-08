@@ -1,0 +1,58 @@
+<scroll-view class="legal-page" scroll-y>
+  <view class="legal-hero">
+    <text class="legal-kicker">Privacy Policy</text>
+    <text class="legal-title">隐私政策</text>
+    <text class="legal-meta">更新日期：{{updatedAt}}</text>
+  </view>
+
+  <view class="legal-card">
+    <text class="legal-lead">
+      欢迎使用广东承中科技有限公司提供的“分销商学堂”小程序服务。我们非常重视您的个人信息和隐私保护，请您在使用本小程序前，仔细阅读并充分理解本隐私政策。
+    </text>
+
+    <view class="legal-section">
+      <text class="legal-heading">一、我们收集的信息</text>
+      <text class="legal-paragraph">为了向您提供服务，我们可能会收集和使用以下信息：微信头像和昵称、手机号、姓名、省份、公司信息、答题记录、学习记录、积分/能量值、排行榜数据、兑换记录、头像图片，以及您在母线豆包中提交的内容。</text>
+    </view>
+
+    <view class="legal-section">
+      <text class="legal-heading">二、我们如何使用您的信息</text>
+      <text class="legal-paragraph">我们收集您的信息，主要用于完成注册登录和身份验证、展示个人资料和学习数据、记录答题学习与兑换行为、进行排行榜统计和活动运营、提供母线豆包服务、保障系统安全和优化产品体验。</text>
+    </view>
+
+    <view class="legal-section">
+      <text class="legal-heading">三、我们如何存储您的信息</text>
+      <text class="legal-paragraph">1. 您的信息将存储于服务器中。</text>
+      <text class="legal-paragraph">2. 我们会在实现服务目的所必要的期限内保存您的信息，保存期限一般为小程序存在的期限。</text>
+      <text class="legal-paragraph">3. 超过保存期限后，我们会根据适用法律法规要求删除或匿名化处理您的信息。</text>
+    </view>
+
+    <view class="legal-section">
+      <text class="legal-heading">四、我们如何共享、转让、公开披露您的信息</text>
+      <text class="legal-paragraph">1. 我们不会向无关第三方出售您的个人信息。</text>
+      <text class="legal-paragraph">2. 在实现服务过程中，我们可能会接入第三方服务支持，包括但不限于腾讯云云托管/对象存储服务，以及第三方 AI 服务。</text>
+      <text class="legal-paragraph">3. 我们仅会在合法、正当、必要、特定、明确的范围内共享必要信息。</text>
+      <text class="legal-paragraph">4. 除法律法规另有规定或获得您明确授权外，我们不会公开披露您的个人信息。</text>
+    </view>
+
+    <view class="legal-section">
+      <text class="legal-heading">五、您享有的权利</text>
+      <text class="legal-paragraph">您有权访问和查看您的个人资料，更新您的头像等可修改信息，申请更正不准确的信息，申请注销账号或删除相关信息，并可在法律法规允许范围内撤回授权。</text>
+    </view>
+
+    <view class="legal-section">
+      <text class="legal-heading">六、未成年人保护</text>
+      <text class="legal-paragraph">如您为未成年人，请在监护人指导下阅读并使用本小程序服务。若您是未成年人的监护人，请关注您监护的未成年人是否在取得您的授权同意后使用本服务。</text>
+    </view>
+
+    <view class="legal-section">
+      <text class="legal-heading">七、隐私政策的更新</text>
+      <text class="legal-paragraph">我们可能会根据业务变化、法律法规要求对本隐私政策进行更新。更新后的政策将在小程序内发布，并在必要时通过显著方式提示您。</text>
+    </view>
+
+    <view class="legal-section legal-section-last">
+      <text class="legal-heading">八、生效时间</text>
+      <text class="legal-paragraph">本隐私政策自即日起生效。</text>
+    </view>
+  </view>
+</scroll-view>

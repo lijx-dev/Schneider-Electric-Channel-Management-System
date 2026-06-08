@@ -1,0 +1,164 @@
+<view class="flex-col page">
+  <view class="flex-col group">
+    <view class="flex-col">
+      <view class="flex-row justify-between items-center group_2">
+        <view class="flex-row items-center">
+          <view class="flex-col justify-start items-center relative group_3">
+            <image
+              class="image"
+              src="{{rankData.avatar || '../../images/default-avatar.svg'}}"
+            />
+            <image
+              class="image_3 pos"
+              src="../../图标/头像旁小图标.png"
+            />
+          </view>
+          <view class="ml-8 flex-col items-start">
+            <text class="font">你好，{{rankData.nickname || '分销伙伴'}}</text>
+            <text class="font_3 text_3 mt-5">{{rankData.company || '登录后查看更多信息'}}</text>
+          </view>
+        </view>
+
+        <view class="flex-row items-center section">
+          <image
+            class="shrink-0 image_2"
+            src="../../图标/排行榜速览小图标.png"
+          />
+          <text class="ml-8 text">{{rankData.available_energy || 0}}</text>
+          <text class="ml-8 font_2 text_2">可用能量值</text>
+        </view>
+      </view>
+
+      <view class="flex-col section_3">
+        <view class="flex-row justify-between self-stretch relative group_4">
+          <text class="self-start font_4 text_4">本周答题进度</text>
+          <view class="flex-col justify-start items-end relative group_5">
+            <view class="section_2"></view>
+            <view class="flex-col justify-start items-center text-wrapper custom-top-offset">
+              <text class="text_5">全国排名 {{rankData.rank || '-'}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="flex-row justify-between items-end self-stretch group_6">
+          <view class="flex-row items-baseline">
+            <text class="text_6">{{answeredProgress}}</text>
+            <text class="text_7 text_8">%</text>
+          </view>
+          <text class="font_3 text_7 text_9">本周已答 {{quizRes.answered_count || 0}}/{{quizRes.total_count || 10}}</text>
+        </view>
+
+        <view class="flex-col justify-start items-start self-start section_4">
+          <view class="shrink-0 section_5" style="width: {{answeredProgress}}%;"></view>
+        </view>
+
+        <view class="flex-row items-center self-start group_7">
+          <text class="font_2 text_7 text_10"></text>
+        </view>
+      </view>
+    </view>
+
+    <view
+      wx:if="{{lotteryNotice}}"
+      class="flex-row items-center lottery-notice"
+      bindtap="goToRewardRecordFromNotice"
+    >
+      <view class="lottery-notice-dot"></view>
+      <text class="lottery-notice-text">{{lotteryNotice.text}}</text>
+    </view>
+
+    <view class="flex-row equal-division">
+      <view class="flex-col items-center section_6 equal-division-item feature-card" bindtap="goToDaily">
+        <view class="weekly-quiz-badge" wx:if="{{showWeeklyQuizBadge}}">
+          <text class="weekly-quiz-badge-mark">!</text>
+        </view>
+        <view class="feature-icon-wrap">
+          <image
+            class="image_5"
+            src="../../图标/每日答题图标.png"
+          />
+        </view>
+        <text class="mt-8 font_3 text_12 feature-title">每周答题</text>
+        <text class="feature-subtitle">每周一 9:00 刷新 10 题</text>
+      </view>
+
+      <view class="flex-col items-center section_6 equal-division-item feature-card" bindtap="goToQuestionBank">
+        <view class="feature-icon-wrap">
+          <image
+            class="image_5"
+            src="../../图标/题库练习图标.png"
+          />
+        </view>
+        <text class="mt-8 font_3 text_12 feature-title">题库练习</text>
+        <text class="feature-subtitle">按专题快速巩固知识点</text>
+      </view>
+
+      <view class="flex-col items-center section_6 equal-division-item feature-card" bindtap="goToKnowledge">
+        <view class="feature-icon-wrap feature-icon-knowledge">
+          <view class="knowledge-book-icon">
+            <view class="book-page left"></view>
+            <view class="book-page right"></view>
+          </view>
+        </view>
+        <text class="mt-8 font_3 text_12 feature-title">知识集</text>
+        <text class="feature-subtitle">收藏解析知识点</text>
+      </view>
+    </view>
+
+    <view class="flex-col group_9">
+      <view class="flex-row justify-between items-center">
+        <view class="flex-row">
+          <image
+            class="shrink-0 image_6"
+            src="../../图标/排行榜速览小图标.png"
+          />
+          <text class="ml-8 font">排行榜速览</text>
+        </view>
+        <view class="flex-row items-center" bindtap="goToLeaderboard">
+          <text class="font_5 text_13">查看全部</text>
+          <text class="home-arrow">></text>
+        </view>
+      </view>
+
+      <view class="flex-col mt-21">
+        <view class="flex-col list">
+          <view
+            class="flex-row justify-between items-center list-item"
+            wx:for="{{leaderboard}}"
+            wx:for-item="item"
+            wx:for-index="index"
+            wx:key="user_id"
+          >
+            <view class="flex-row items-center">
+              <view class="flex-col justify-start items-center" style="width: 40rpx; margin-right: 10rpx;">
+                <text class="font_5" style="color: {{index < 3 ? '#10b981' : '#94a3b8'}}">{{index + 1}}</text>
+              </view>
+              <image
+                class="ml-16 image_8"
+                src="{{item.avatar || '../../images/default-avatar.svg'}}"
+              />
+              <view class="ml-16 flex-col items-start">
+                <text class="font_5">{{item.nickname}}</text>
+              </view>
+            </view>
+            <view class="flex-col items-end group_10">
+              <text class="font_6 text_14">{{item.scoreText}}</text>
+              <text class="mt-6 font_2 text_16">{{item.timeText}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="mt-24 flex-col justify-start items-center relative section_7 section_7_local" bindtap="goToCertificateQuery">
+          <text class="promo-title pos_6">证书查询</text>
+          <text class="promo-subtitle pos_7">证书查询入口</text>
+          <text class="font_4 text_22 pos_6">新品分销策略</text>
+          <text class="font_3 text_23 pos_7">解锁 2024 年全新市场机会</text>
+          <view class="flex-col justify-start items-center text-wrapper_3 pos_8">
+            <text class="promo-btn-text">立即查询</text>
+            <text class="font_7 text_24">立即参与</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

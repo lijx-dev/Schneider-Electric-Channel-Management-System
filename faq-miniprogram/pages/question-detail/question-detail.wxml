@@ -1,0 +1,56 @@
+<!-- pages/question-detail/question-detail.wxml - 题目详情 -->
+<view class="container">
+
+  <view class="detail-card card" wx:if="{{question}}">
+    <!-- 题型 + 难度 -->
+    <view class="detail-header">
+      <view class="type-badge">{{typeLabel}}</view>
+      <view class="q-difficulty badge {{question.difficulty === 1 ? 'diff-easy' : (question.difficulty === 2 ? 'diff-medium' : 'diff-hard')}}">
+        {{question.difficulty_label || (question.difficulty === 1 ? '基础' : (question.difficulty === 2 ? '进阶' : '困难'))}}
+      </view>
+    </view>
+
+    <!-- 题干 -->
+    <view class="detail-content">
+      <text>{{question.content}}</text>
+    </view>
+
+    <!-- 选项（选择题/判断题） -->
+    <view class="detail-options" wx:if="{{question.options && question.options.length > 0}}">
+      <view
+        class="detail-option {{showAnswer && isCorrectOption(optIdx) ? 'option-correct' : ''}}"
+        wx:for="{{question.options}}"
+        wx:for-item="opt"
+        wx:for-index="optIdx"
+        wx:key="optIdx"
+      >
+        <view class="opt-circle {{showAnswer && isCorrectOption(optIdx) ? 'circle-correct' : ''}}">
+          {{optLabels[optIdx]}}
+        </view>
+        <text class="opt-content">{{opt}}</text>
+      </view>
+    </view>
+
+    <!-- 查看答案按钮 -->
+    <view class="show-answer-btn" bindtap="toggleAnswer" wx:if="{{!showAnswer}}">
+      <text class="btn-primary" style="display:block;text-align:center;">显示答案</text>
+    </view>
+
+    <!-- 答案区域 -->
+    <view class="answer-section" wx:if="{{showAnswer}}">
+      <view class="answer-label">正确答案</view>
+      <view class="answer-value">{{question.answer}}</view>
+
+      <view class="analysis-section" wx:if="{{question.explanation}}">
+        <view class="answer-label">解析</view>
+        <view class="answer-value">{{question.explanation}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+
+</view>

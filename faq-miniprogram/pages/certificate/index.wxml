@@ -1,0 +1,115 @@
+<view class="page">
+  <view wx:if="{{currentLevel !== 'companies'}}" class="top-bar">
+    <view class="back-pill" bindtap="goBack">
+      <text class="back-text">返回</text>
+    </view>
+    <view class="crumbs" wx:if="{{breadcrumbs.length}}">
+      <block wx:for="{{breadcrumbs}}" wx:key="index">
+        <text class="crumb">{{item}}</text>
+        <text wx:if="{{index < breadcrumbs.length - 1}}" class="crumb-separator">/</text>
+      </block>
+    </view>
+  </view>
+
+  <view wx:if="{{currentLevel === 'companies'}}" class="content">
+    <view class="section-head">
+      <text class="section-title">选择企业</text>
+      <text class="section-subtitle">查看对应企业的证书与资质资料</text>
+    </view>
+
+    <view class="company-list">
+      <view
+        wx:for="{{companies}}"
+        wx:key="id"
+        class="company-card"
+        data-id="{{item.id}}"
+        bindtap="onCompanyTap"
+      >
+        <view class="company-logo {{item.logoClass}}">
+          <image wx:if="{{item.logoUrl}}" class="company-logo-img" src="{{item.logoUrl}}" mode="aspectFit"></image>
+          <text wx:else class="company-logo-text">{{item.logoText}}</text>
+        </view>
+
+        <view class="company-copy">
+          <text class="company-name">{{item.name}}</text>
+        </view>
+
+      </view>
+    </view>
+  </view>
+
+  <view wx:elif="{{currentLevel === 'certTypes'}}" class="content">
+    <view class="section-head">
+      <text class="section-title">{{selectedCompany.name}}</text>
+      <text class="section-subtitle">请选择证书类别</text>
+    </view>
+
+    <view wx:if="{{loading}}" class="state-card">加载中...</view>
+    <view wx:elif="{{emptyText}}" class="state-card">{{emptyText}}</view>
+
+    <view wx:else class="option-list">
+      <view
+        wx:for="{{certTypes}}"
+        wx:key="id"
+        class="option-card"
+        data-id="{{item.id}}"
+        bindtap="onCertTypeTap"
+      >
+        <view class="option-icon cert-type-icon">
+          <image wx:if="{{item.logoUrl}}" class="cert-type-logo-img" src="{{item.logoUrl}}" mode="aspectFit"></image>
+          <text wx:else>{{item.shortName}}</text>
+        </view>
+        <view class="option-copy">
+          <text class="option-title">{{item.displayName || item.name}}</text>
+          <text class="option-desc">{{item.count}} 条记录</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:elif="{{currentLevel === 'models'}}" class="content">
+    <view class="section-head">
+      <text class="section-title">{{modelLevelTitle}}</text>
+      <text class="section-subtitle">请选择产品系列</text>
+    </view>
+
+    <view wx:if="{{loading}}" class="state-card">加载中...</view>
+    <view wx:elif="{{emptyText}}" class="state-card">{{emptyText}}</view>
+
+    <view wx:else class="model-grid">
+      <view
+        wx:for="{{models}}"
+        wx:key="id"
+        class="model-card"
+        data-id="{{item.id}}"
+        bindtap="onModelTap"
+      >
+        <text class="model-name">{{item.name}}</text>
+        <text class="model-count">{{item.count}} 条详情</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:elif="{{currentLevel === 'details'}}" class="content detail-page">
+    <view class="section-head">
+      <text class="section-title">{{selectedModel.name}}</text>
+      <text class="section-subtitle">{{detailPathText}}</text>
+    </view>
+
+    <view wx:if="{{loading}}" class="state-card">加载中...</view>
+    <view wx:elif="{{emptyText}}" class="state-card">{{emptyText}}</view>
+
+    <view wx:else class="detail-list">
+      <view wx:for="{{detailRecords}}" wx:key="id" class="detail-card">
+        <view class="detail-card-head">
+          <text class="detail-card-title">详情 {{index + 1}}</text>
+        </view>
+
+        <view class="detail-field" wx:for="{{item.detail_pairs}}" wx:for-item="field" wx:key="label">
+          <text class="detail-label">{{field.label}}</text>
+          <text class="detail-value">{{field.value}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

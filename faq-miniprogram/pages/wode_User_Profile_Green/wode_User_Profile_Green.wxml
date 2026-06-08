@@ -1,0 +1,124 @@
+<view class="flex-col page">
+  <view class="profile-card" bindtap="goToProfileEdit" hover-class="profile-card-hover">
+    <view class="profile-ornament"></view>
+    <view class="profile-main">
+      <view class="avatar-shell">
+        <image
+          class="shrink-0 image_2"
+          src="{{userData.avatar || '../../images/default-avatar.svg'}}"
+        />
+      </view>
+      <view class="profile-copy">
+        <view class="flex-row items-center name-row">
+          <text class="text_2">{{profileName || '分销商学堂'}}</text>
+          <image
+            class="ml-6 image_3"
+            src="../../图标/我的里面名字后面的小图标.png"
+          />
+        </view>
+        <view class="company-block" wx:if="{{profileCompany}}">
+          <text class="company-text">{{profileCompany}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="flex-row equal-division">
+    <view class="flex-col items-center section_4 equal-division-item">
+      <text class="font_4 text_3">可用能量值</text>
+      <text class="mt-14 font text_9">{{userData.available_energy || 0}}</text>
+    </view>
+    <view class="ml-12 flex-col items-center section_4 equal-division-item">
+      <text class="font_4 text_3">全国排名</text>
+      <text class="mt-14 font">No.{{userData.rank || '-'}}</text>
+    </view>
+    <view class="ml-12 flex-col items-center section_4 equal-division-item">
+      <text class="font_4 text_3">答题总数</text>
+      <text class="mt-14 font">{{userData.total_count || 0}}</text>
+    </view>
+  </view>
+
+  <view class="flex-col group_6">
+    <text class="self-start font_6 text_3 text_13">学习管理</text>
+    <view class="flex-col self-stretch section_5 mt-15">
+      <view class="flex-col">
+        <view class="flex-row justify-between items-center group_7" bindtap="goToStudyRecord">
+          <view class="flex-row items-center">
+            <image
+              class="shrink-0 image_4"
+              src="../../图标/学习记录小图标.png"
+            />
+            <text class="font_7 text_15 ml-17">学习记录</text>
+          </view>
+          <text class="arrow-icon">></text>
+        </view>
+        <view class="flex-row justify-between items-center group_7" bindtap="goToRedeemRecord">
+          <view class="flex-row items-center">
+            <image
+              class="shrink-0 image_4"
+              src="../../图标/兑换记录小图标.png"
+            />
+            <text class="font_7 ml-17">兑换记录</text>
+          </view>
+          <view class="flex-row items-center row-right">
+            <view class="count-badge" wx:if="{{redeemCount > 0}}">
+              <text class="count-badge-text">{{redeemCount > 99 ? '99+' : redeemCount}}</text>
+            </view>
+            <text class="arrow-icon">></text>
+          </view>
+        </view>
+        <view class="flex-row justify-between items-center group_7" bindtap="goToRewardRecord">
+          <view class="flex-row items-center">
+            <view class="shrink-0 image_4 reward-record-icon">
+              <view class="reward-trophy">
+                <view class="reward-trophy-cup"></view>
+                <view class="reward-trophy-stem"></view>
+                <view class="reward-trophy-base"></view>
+              </view>
+            </view>
+            <text class="font_7 ml-17">奖励记录</text>
+          </view>
+          <text class="arrow-icon">></text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="flex-col group_9">
+    <text class="self-start font_6 text_3 text_17">系统支持</text>
+    <view class="mt-16 flex-col self-stretch">
+      <view class="flex-col section_6">
+        <view class="flex-row justify-between items-center group_7" bindtap="goToHelpCenter">
+          <view class="flex-row items-center">
+            <image
+              class="shrink-0 image_4"
+              src="../../图标/帮助中心图标.png"
+            />
+            <text class="font_7 ml-17">帮助中心</text>
+          </view>
+          <text class="arrow-icon">></text>
+        </view>
+        <view class="flex-row justify-between items-center group_7" bindtap="goToAboutAcademy">
+          <view class="flex-row items-center">
+            <image
+              class="shrink-0 image_4"
+              src="../../图标/关于学院图标.png"
+            />
+            <text class="font_7 text_18 ml-17">关于学堂</text>
+          </view>
+          <text class="arrow-icon">></text>
+        </view>
+        <view class="flex-row justify-between items-center group_7" bindtap="logout">
+          <view class="flex-row items-center">
+            <image
+              class="shrink-0 image_4"
+              src="../../图标/退出登录图标.png"
+            />
+            <text class="font_7 text_18 ml-17">退出登录</text>
+          </view>
+          <text class="arrow-icon">></text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,132 @@
+/* pages/question-detail/question-detail.wxss - 题目详情样式 */
+
+.detail-card {
+  padding: 32rpx;
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.type-badge {
+  background: var(--primary-color);
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: 500;
+  padding: 6rpx 20rpx;
+  border-radius: 8rpx;
+}
+
+.diff-easy {
+  background: #E8F5E9;
+  color: #2E7D32;
+}
+
+.diff-medium {
+  background: #FFF3E0;
+  color: #E65100;
+}
+
+.diff-hard {
+  background: #FFEBEE;
+  color: #C62828;
+}
+
+/* 题干 */
+.detail-content {
+  font-size: 32rpx;
+  color: var(--text-primary);
+  line-height: 1.7;
+  margin-bottom: 32rpx;
+  padding: 24rpx;
+  background: #F8F9FA;
+  border-radius: 12rpx;
+}
+
+/* 选项 */
+.detail-options {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-bottom: 32rpx;
+}
+
+.detail-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+  padding: 20rpx 24rpx;
+  background: #F8F9FA;
+  border-radius: 12rpx;
+  border: 2rpx solid transparent;
+  transition: all 0.3s;
+}
+
+.detail-option.option-correct {
+  background: #E8F5E9;
+  border-color: #4CAF50;
+}
+
+.opt-circle {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: var(--primary-light);
+  color: var(--primary-color);
+  font-size: 24rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.opt-circle.circle-correct {
+  background: #4CAF50;
+  color: #fff;
+}
+
+.opt-content {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  line-height: 48rpx;
+  flex: 1;
+}
+
+/* 显示答案按钮 */
+.show-answer-btn {
+  margin-top: 20rpx;
+}
+
+/* 答案区域 */
+.answer-section {
+  margin-top: 24rpx;
+  padding: 24rpx;
+  background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+  border-radius: 12rpx;
+  border-left: 8rpx solid #4CAF50;
+}
+
+.answer-label {
+  font-size: 24rpx;
+  color: #2E7D32;
+  font-weight: 600;
+  margin-bottom: 12rpx;
+}
+
+.answer-value {
+  font-size: 30rpx;
+  color: #1B5E20;
+  font-weight: 500;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.analysis-section {
+  margin-top: 24rpx;
+  padding-top: 20rpx;
+  border-top: 2rpx solid rgba(76, 175, 80, 0.28);
+}

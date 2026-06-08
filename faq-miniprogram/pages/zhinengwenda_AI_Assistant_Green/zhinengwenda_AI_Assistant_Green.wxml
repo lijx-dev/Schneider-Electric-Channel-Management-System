@@ -1,0 +1,332 @@
+<view class="page">
+  <scroll-view
+    class="chat-scroll"
+    scroll-y
+    enable-flex
+    scroll-top="{{scrollTop}}"
+    scroll-with-animation
+    scroll-into-view="{{scrollIntoView}}"
+  >
+    <view class="chat-list">
+      <view class="guide-card">
+        <view class="guide-head">
+          <text class="guide-title">{{guideHeaderTitle}}</text>
+          <text class="guide-hint">{{guideHeaderHint}}</text>
+        </view>
+
+        <view class="guide-option-card">
+          <view class="guide-breadcrumbs guide-breadcrumbs-inside">
+            <block wx:for="{{guideBreadcrumbs}}" wx:key="id">
+              <text
+                class="guide-breadcrumb {{item.isLast ? 'guide-breadcrumb-active' : ''}}"
+                data-depth="{{item.depth}}"
+                bindtap="onGuideBreadcrumbTap"
+              >{{item.label}}</text>
+              <text wx:if="{{!item.isLast}}" class="guide-breadcrumb-separator">/</text>
+            </block>
+          </view>
+
+          <view class="guide-option-head">
+            <text class="guide-option-title">{{guideOptionTitle}}</text>
+            <text class="guide-option-tip"></text>
+          </view>
+
+          <view class="guide-option-grid {{guideOptionsCompact ? 'guide-option-grid-compact' : ''}}">
+            <view
+              class="guide-option {{guideOptionsCompact ? 'guide-option-compact' : ''}} {{item.id === selectedGuideLeafId ? 'guide-option-active' : ''}}"
+              wx:for="{{guideOptions}}"
+              wx:key="id"
+              data-index="{{index}}"
+              bindtap="onGuideOptionTap"
+            >
+              <text class="guide-option-label">{{item.label}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <block wx:for="{{messages}}" wx:for-item="msg" wx:key="id">
+        <view
+          id="{{msg.id}}"
+          class="message-row {{msg.type === 'user' ? 'message-row-user' : 'message-row-ai'}} {{msg.thinkingStatus ? 'message-row-thinking' : ''}}"
+        >
+          <image
+            wx:if="{{msg.type === 'ai'}}"
+            class="assistant-avatar"
+            src="{{assistantAvatar}}"
+            mode="aspectFill"
+          />
+
+          <view class="message-main {{msg.type === 'user' ? 'message-main-user' : ''}} {{msg.type === 'ai' && msg.hasImageContent ? 'message-main-visual' : ''}}">
+            <text wx:if="{{msg.type === 'ai'}}" class="message-name">母线助手</text>
+
+            <view class="message-bubble {{msg.type === 'user' ? 'message-bubble-user' : 'message-bubble-ai'}} {{msg.type === 'ai' && msg.hasImageContent ? 'message-bubble-visual' : ''}} {{msg.thinkingStatus ? 'message-bubble-thinking' : ''}} {{msg.statusIndicator ? 'message-bubble-thinking-active' : ''}}">
+              <block wx:for="{{msg.displayNodes}}" wx:for-item="node" wx:key="index">
+                <view wx:if="{{node.type === 'text'}}" class="rich-block">
+                  <block wx:for="{{node.lines}}" wx:for-item="line" wx:key="index">
+                    <view class="message-line">
+                      <block wx:for="{{line.segments}}" wx:for-item="segment" wx:key="index">
+                        <text class="message-text {{segment.bold ? 'message-text-bold' : ''}} {{segment.code ? 'inline-code' : ''}}">{{segment.text}}</text>
+                      </block>
+                    </view>
+                  </block>
+                </view>
+
+                <view wx:elif="{{node.type === 'heading'}}" class="rich-block">
+                  <view class="heading heading-{{node.level}}">
+                    <block wx:for="{{node.segments}}" wx:for-item="segment" wx:key="index">
+                      <text class="heading-text {{segment.bold ? 'message-text-bold' : ''}} {{segment.code ? 'inline-code' : ''}}">{{segment.text}}</text>
+                    </block>
+                  </view>
+                </view>
+
+                <view wx:elif="{{node.type === 'list'}}" class="rich-block">
+                  <block wx:for="{{node.items}}" wx:for-item="listItem" wx:key="index">
+                    <view class="list-row">
+                      <text class="list-marker">{{node.ordered ? index + 1 + '.' : '*'}}</text>
+                      <view class="list-content">
+                        <block wx:for="{{listItem.segments}}" wx:for-item="segment" wx:key="index">
+                          <text class="message-text {{segment.bold ? 'message-text-bold' : ''}} {{segment.code ? 'inline-code' : ''}}">{{segment.text}}</text>
+                        </block>
+                      </view>
+                    </view>
+                  </block>
+                </view>
+
+                <view wx:elif="{{node.type === 'table'}}" class="rich-block">
+                  <scroll-view class="table-scroll" scroll-x enable-flex>
+                    <view class="table-wrap">
+                      <view class="table-row table-row-header">
+                        <block wx:for="{{node.headers}}" wx:for-item="header" wx:key="cellIndex">
+                          <view class="table-cell table-cell-header {{header.cellIndex === 0 ? 'table-cell-sticky table-cell-sticky-header' : ''}}">
+                            <text class="table-text table-text-header">{{header.text}}</text>
+                          </view>
+                        </block>
+                      </view>
+
+                      <block wx:for="{{node.rows}}" wx:for-item="row" wx:key="rowIndex">
+                        <view class="table-row {{row.rowIndex % 2 === 0 ? 'table-row-even' : 'table-row-odd'}}">
+                          <block wx:for="{{row.cells}}" wx:for-item="cell" wx:key="cellIndex">
+                            <view class="table-cell {{cell.cellIndex === 0 ? 'table-cell-sticky table-cell-sticky-body' : ''}}">
+                              <text class="table-text {{cell.cellIndex === 0 ? 'table-text-strong' : ''}}">{{cell.text}}</text>
+                            </view>
+                          </block>
+                        </view>
+                      </block>
+                    </view>
+                  </scroll-view>
+                </view>
+
+                <view wx:elif="{{node.type === 'code'}}" class="rich-block">
+                  <scroll-view class="code-scroll" scroll-x enable-flex>
+                    <view class="code-block">
+                      <text class="code-text">{{node.code}}</text>
+                    </view>
+                  </scroll-view>
+                </view>
+
+                <view wx:elif="{{node.type === 'image'}}" class="rich-block rich-block-image">
+                  <image
+                    class="message-image"
+                    src="{{node.url}}"
+                    mode="widthFix"
+                    data-url="{{node.url}}"
+                    bindtap="previewImage"
+                  />
+                </view>
+
+                <view wx:elif="{{node.type === 'file'}}" class="rich-block">
+                  <view
+                    class="file-card"
+                    data-url="{{node.url}}"
+                    data-title="{{node.title}}"
+                    data-filename="{{node.fileName}}"
+                    data-filetype="{{node.fileType}}"
+                    bindtap="openFileCard"
+                  >
+                    <view class="file-icon-wrap">
+                      <text class="file-icon-text">{{node.fileType || 'file'}}</text>
+                    </view>
+                    <view class="file-card-main">
+                      <text class="file-card-title">{{node.title}}</text>
+                      <text class="file-card-meta">{{node.fileName}}</text>
+                    </view>
+                    <view class="file-card-action">
+                      <text class="file-card-action-text">打开</text>
+                    </view>
+                  </view>
+                </view>
+
+                <view wx:elif="{{node.type === 'image_loading' || node.type === 'table_loading'}}" class="rich-block">
+                  <view class="parsing-card">
+                    <view class="parsing-dots">
+                      <view class="parsing-dot"></view>
+                      <view class="parsing-dot"></view>
+                      <view class="parsing-dot"></view>
+                    </view>
+                    <text class="parsing-label">{{node.label}}</text>
+                  </view>
+                </view>
+              </block>
+            </view>
+
+            <text
+              wx:if="{{msg.type === 'ai' && msg.responseStartText && !msg.thinkingStatus}}"
+              class="message-response-meta"
+            >{{msg.responseStartText}}  -----内容由AI生成，仅供参考</text>
+
+            <view
+              wx:if="{{msg.type === 'user' && msg.showUserActions}}"
+              class="message-actions message-actions-user"
+            >
+              <view class="message-action" data-id="{{msg.id}}" bindtap="onCopyMessage">
+                <image class="message-action-icon message-action-icon-copy" src="../../images/chat-action-copy.png" mode="aspectFit" />
+              </view>
+              <view class="message-action" data-id="{{msg.id}}" bindtap="onEditUserMessage">
+                <image class="message-action-icon message-action-icon-rewrite" src="../../images/chat-action-rewrite.png" mode="aspectFit" />
+              </view>
+            </view>
+
+            <view
+              wx:if="{{msg.type === 'ai' && msg.showAssistantActions && !msg.streaming && !msg.thinkingStatus}}"
+              class="message-actions"
+            >
+              <view class="message-action" data-id="{{msg.id}}" bindtap="onCopyMessage">
+                <image class="message-action-icon message-action-icon-copy" src="../../images/chat-action-copy.png" mode="aspectFit" />
+              </view>
+              <view class="message-action" data-id="{{msg.id}}" bindtap="onRegenerateMessage">
+                <image class="message-action-icon message-action-icon-regenerate" src="../../images/chat-action-regenerate.png" mode="aspectFit" />
+              </view>
+              <view class="message-action" data-id="{{msg.id}}" bindtap="onOpenFeedback">
+                <image class="message-action-icon message-action-icon-dislike" src="../../images/chat-action-dislike.svg" mode="aspectFit" />
+              </view>
+            </view>
+
+            <view
+              wx:if="{{editorVisible && editorTargetId === msg.id}}"
+              class="inline-editor"
+            >
+              <textarea
+                class="inline-editor-input"
+                auto-height
+                maxlength="-1"
+                cursor-spacing="24"
+                value="{{editorText}}"
+                focus="{{editorVisible && editorTargetId === msg.id}}"
+                bindinput="onInlineEditorInput"
+              />
+              <view class="inline-editor-actions">
+                <view class="inline-editor-btn" bindtap="cancelInlineEdit">取消</view>
+                <view
+                  class="inline-editor-btn inline-editor-btn-primary {{!editorText ? 'disabled' : ''}}"
+                  bindtap="submitInlineEdit"
+                >发送</view>
+              </view>
+            </view>
+          </view>
+
+          <image
+            wx:if="{{msg.type === 'user'}}"
+            class="user-avatar"
+            src="{{userInfo.avatar_url || '../../images/default-avatar.svg'}}"
+          />
+        </view>
+      </block>
+
+      <view wx:if="{{loading && !showDeepThinkingIndicator}}" class="message-row message-row-ai typing-row">
+        <image
+          class="assistant-avatar"
+          src="{{assistantAvatar}}"
+          mode="aspectFill"
+        />
+        <view class="message-main">
+          <text class="message-name thinking-name">母线助手</text>
+          <view class="thinking-wrap">
+            <view class="message-bubble message-bubble-ai typing-bubble">
+              <view class="typing-dots">
+                <view class="typing-dot"></view>
+                <view class="typing-dot"></view>
+                <view class="typing-dot"></view>
+              </view>
+            </view>
+            <text class="thinking-status">正在思考中</text>
+          </view>
+        </view>
+      </view>
+
+      <view id="chatBottomAnchor" class="chat-bottom-anchor"></view>
+    </view>
+  </scroll-view>
+
+  <view class="composer">
+    <view class="composer-toolbar">
+      <view class="clear-screen-btn" bindtap="onClearScreen">
+        <text class="clear-screen-btn-text">一键清屏</text>
+      </view>
+    </view>
+    <view class="composer-shell">
+      <view
+        class="voice-btn {{isVoiceRecording ? 'voice-btn-active' : ''}} {{!voiceSupported ? 'voice-btn-disabled' : ''}}"
+        bindtap="onVoiceTap"
+      >
+        <image class="voice-btn-icon" src="../../images/chat-action-voice.svg" mode="aspectFit" />
+      </view>
+      <textarea
+        class="composer-input"
+        auto-height
+        maxlength="-1"
+        cursor-spacing="24"
+        placeholder="{{isVoiceRecording ? '正在聆听，点击麦克风结束' : '请输入您的问题...'}}"
+        placeholder-class="composer-placeholder"
+        value="{{inputValue}}"
+        bindinput="onInput"
+        confirm-type="send"
+      />
+      <view class="composer-actions">
+        <view wx:if="{{isGenerating}}" class="stop-btn" bindtap="stopGeneration">
+          <view class="stop-icon"></view>
+        </view>
+        <view wx:else class="send-btn {{loading || !inputValue || isVoiceRecording ? 'disabled' : ''}}" bindtap="onSend">发送</view>
+      </view>
+    </view>
+    <text wx:if="{{voiceStatusText}}" class="voice-status {{isVoiceRecording ? 'voice-status-active' : ''}}">{{voiceStatusText}}</text>
+  </view>
+
+  <view wx:if="{{feedbackVisible}}" class="feedback-mask" catchtap="onCloseFeedback" catchtouchmove="noop">
+    <view class="feedback-modal" style="{{feedbackModalStyle}}" catchtap="noop" catchtouchmove="noop">
+      <view class="feedback-head">
+        <text class="feedback-title">请反馈你遇到的问题</text>
+        <text class="feedback-close" bindtap="onCloseFeedback">×</text>
+      </view>
+      <view class="feedback-options">
+        <view
+          class="feedback-option {{feedbackSelectedType === item ? 'feedback-option-active' : ''}}"
+          wx:for="{{feedbackOptions}}"
+          wx:key="*this"
+          data-type="{{item}}"
+          bindtap="onSelectFeedbackType"
+        >{{item}}</view>
+      </view>
+      <textarea
+        class="feedback-textarea"
+        fixed="{{true}}"
+        adjust-position="{{false}}"
+        disable-default-padding="{{true}}"
+        show-confirm-bar="{{false}}"
+        cursor-spacing="24"
+        maxlength="300"
+        value="{{feedbackDetail}}"
+        placeholder="请输入问题详情或期望回复"
+        placeholder-class="feedback-placeholder"
+        bindfocus="onFeedbackFocus"
+        bindblur="onFeedbackBlur"
+        bindinput="onFeedbackDetailInput"
+      />
+      <view class="feedback-count">{{feedbackDetail.length || 0}}/300</view>
+      <view
+        class="feedback-submit {{feedbackSubmitting || !feedbackSelectedType ? 'feedback-submit-disabled' : ''}}"
+        bindtap="onSubmitFeedback"
+      >{{feedbackSubmitting ? '提交中...' : '提交'}}</view>
+    </view>
+  </view>
+</view>

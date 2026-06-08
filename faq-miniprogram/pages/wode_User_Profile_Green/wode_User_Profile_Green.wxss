@@ -1,0 +1,429 @@
+.mt-21 {
+  margin-top: 38.79rpx;
+}
+.mt-15 {
+  margin-top: 27.71rpx;
+}
+.ml-17 {
+  margin-left: 31.4rpx;
+}
+.mt-3 {
+  margin-top: 5.54rpx;
+}
+.mt-5 {
+  margin-top: 9.24rpx;
+}
+.page {
+  background-color: #f6f6f8;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: 100%;
+}
+.profile-card {
+  position: relative;
+  margin: 24rpx 42rpx 0;
+  padding: 42rpx 34rpx;
+  background-color: #00B050;
+  border-radius: 40rpx;
+  filter: drop-shadow(0rpx 7.39rpx 5.54rpx #00B05033, 0rpx 18.47rpx 13.85rpx #00B05033);
+  overflow: hidden;
+}
+
+.profile-card-hover {
+  opacity: 0.94;
+  transform: scale(0.992);
+}
+
+.profile-main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+}
+
+.profile-ornament {
+  position: absolute;
+  right: -40rpx;
+  top: -36rpx;
+  width: 180rpx;
+  height: 180rpx;
+  border-radius: 999rpx;
+  background-color: #ffffff14;
+}
+
+.avatar-shell {
+  padding: 7.39rpx;
+  background-color: #ffffff1a;
+  border-radius: 18471.06rpx;
+  border: solid 7.39rpx #ffffff33;
+  width: 147.78rpx;
+  height: 147.78rpx;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.profile-copy {
+  margin-left: 26rpx;
+  min-width: 0;
+}
+
+.group {
+  padding: 44.33rpx;
+}
+.font {
+  font-size: 36.95rpx;
+  font-family: WenQuanYi Zen Hei;
+  line-height: 26.08rpx;
+  color: #0f172a;
+}
+.text {
+  line-height: 35.25rpx;
+}
+.image {
+  filter: drop-shadow(0rpx 1.85rpx 1.85rpx #0000000d);
+  border-radius: 18471.06rpx;
+  width: 73.89rpx;
+  height: 73.89rpx;
+}
+.section_2 {
+  margin: 24rpx 29.56rpx 0;
+  background-color: #10b981;
+  border-radius: 44.33rpx;
+  filter: drop-shadow(0rpx 7.39rpx 5.54rpx #10b98133, 0rpx 18.47rpx 13.85rpx #10b98133);
+  overflow: hidden;
+  height: 378.69rpx;
+}
+.group_2 {
+  margin-top: -42rpx;
+  padding-left: 44.33rpx;
+}
+.image-wrapper {
+  margin-top: 103.45rpx;
+  padding-top: 7.39rpx;
+  background-color: #ffffff1a;
+  border-radius: 18471.06rpx;
+  overflow: hidden;
+  width: 147.78rpx;
+  height: 147.78rpx;
+  border-left: solid 7.39rpx #ffffff33;
+  border-right: solid 7.39rpx #ffffff33;
+  border-top: solid 7.39rpx #ffffff33;
+  border-bottom: solid 7.39rpx #ffffff33;
+}
+.image_2 {
+  width: 100%;
+  height: 100%;
+  border-radius: 999rpx;
+}
+.group_3 {
+  margin-left: 29.56rpx;
+  margin-top: 118rpx;
+  display: flex;
+  align-items: center;
+}
+.name-row {
+  justify-content: flex-start;
+}
+.text_2 {
+  color: #ffffff;
+  font-size: 44.33rpx;
+  font-family: WenQuanYi Zen Hei;
+  line-height: 42.04rpx;
+  max-width: 340rpx;
+  text-align: left;
+}
+.image_3 {
+  width: 31.4rpx;
+  height: 29.56rpx;
+  flex-shrink: 0;
+}
+.company-block {
+  margin-top: 18rpx;
+  padding: 10rpx 26rpx;
+  max-width: 360rpx;
+  background-color: #ffffff26;
+  border-radius: 999rpx;
+  align-self: flex-start;
+}
+.font_2 {
+  font-size: 22rpx;
+  font-family: WenQuanYi Zen Hei;
+  line-height: 1.5;
+  color: #ffffff;
+}
+.company-text {
+  color: #ffffff;
+  font-size: 22rpx;
+  line-height: 1.5;
+  text-align: left;
+}
+.section {
+  margin-left: 14.78rpx;
+  background-color: #ffffff1a;
+  border-radius: 18471.06rpx 0 0 18471.06rpx;
+  width: 180rpx;
+  height: 220rpx;
+}
+.group_4 {
+  margin-left: -29.56rpx;
+  margin-bottom: -18rpx;
+  width: 676.11rpx;
+}
+.section_3 {
+  background-color: #ffffff0d;
+  border-radius: 18471.06rpx;
+  width: 177.34rpx;
+  height: 177.34rpx;
+}
+.group_5 {
+  padding: 18rpx 0 10rpx;
+  width: 520rpx;
+  border-top: solid 1.85rpx #ffffff1a;
+}
+.pos {
+  position: absolute;
+  left: 52rpx;
+  top: -8rpx;
+}
+.font_3 {
+  font-size: 22.17rpx;
+  font-family: WenQuanYi Zen Hei;
+  line-height: 21.8rpx;
+  color: #10b981;
+}
+.text_6 {
+  color: #ffffffb3;
+  line-height: 21.08rpx;
+}
+.text_8 {
+  color: #ffffff;
+  font-size: 25.86rpx;
+  font-family: Lexend;
+  font-weight: 700;
+  line-height: 28.69rpx;
+}
+.equal-division {
+  margin: 32rpx 29.56rpx 0;
+}
+.section_4 {
+  flex: 1 1 215.52rpx;
+}
+.equal-division-item {
+  padding: 24rpx 0 20rpx;
+  background-color: #ffffff;
+  border-radius: 44.33rpx;
+  filter: drop-shadow(0rpx 1.85rpx 1.85rpx #0000000d);
+  height: 148rpx;
+  border-left: solid 1.85rpx #f1f5f9;
+  border-right: solid 1.85rpx #f1f5f9;
+  border-top: solid 1.85rpx #f1f5f9;
+  border-bottom: solid 1.85rpx #f1f5f9;
+}
+.font_4 {
+  font-size: 20rpx;
+  font-family: WenQuanYi Zen Hei;
+  line-height: 1.4;
+  color: #64748b;
+  text-align: center;
+}
+.text_9 {
+  color: #0f172a;
+}
+.equal-division-item .font {
+  margin-top: 14rpx;
+  font-size: 42rpx;
+  line-height: 1.1;
+  text-align: center;
+}
+.font_5 {
+  font-size: 18.47rpx;
+  font-family: WenQuanYi Zen Hei;
+  line-height: 13.04rpx;
+}
+.text_10 {
+  color: #10b981;
+}
+.text_11 {
+  color: #10b981;
+  font-size: 18.47rpx;
+  font-family: Lexend;
+  font-weight: 700;
+  line-height: 13.04rpx;
+}
+.text_12 {
+  color: #94a3b8;
+}
+.group_6 {
+  margin-top: 62.81rpx;
+  padding: 0 29.56rpx;
+}
+.font_6 {
+  font-size: 25.86rpx;
+  font-family: WenQuanYi Zen Hei;
+  letter-spacing: 2.59rpx;
+  line-height: 26.08rpx;
+  color: #64748b;
+}
+.text_3 {
+  text-transform: uppercase;
+}
+.text_5 {
+  line-height: 17.92rpx;
+}
+.text_4 {
+  line-height: 18.03rpx;
+}
+.text_13 {
+  margin-left: 14.78rpx;
+  line-height: 24.53rpx;
+}
+.section_5 {
+  padding-bottom: 27.71rpx;
+  background-color: #ffffff;
+  border-radius: 44.33rpx;
+  overflow: hidden;
+  border-left: solid 1.85rpx #f1f5f9;
+  border-right: solid 1.85rpx #f1f5f9;
+  border-top: solid 1.85rpx #f1f5f9;
+  border-bottom: solid 1.85rpx #f1f5f9;
+}
+.group_7 {
+  padding: 29.56rpx;
+  border-bottom: solid 1.85rpx #f8fafc;
+}
+.image_4 {
+  border-radius: 29.56rpx;
+  width: 73.89rpx;
+  height: 73.89rpx;
+}
+.reward-record-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #eefcf4 0%, #d9f7e8 100%);
+}
+.reward-trophy {
+  position: relative;
+  width: 38rpx;
+  height: 38rpx;
+}
+.reward-trophy-cup {
+  position: absolute;
+  left: 8rpx;
+  top: 3rpx;
+  width: 22rpx;
+  height: 21rpx;
+  box-sizing: border-box;
+  border: 5rpx solid #00b050;
+  border-top-width: 6rpx;
+  border-radius: 5rpx 5rpx 10rpx 10rpx;
+}
+.reward-trophy-cup::before,
+.reward-trophy-cup::after {
+  content: '';
+  position: absolute;
+  top: 3rpx;
+  width: 10rpx;
+  height: 10rpx;
+  border: 4rpx solid #00b050;
+  border-radius: 50%;
+}
+.reward-trophy-cup::before {
+  left: -15rpx;
+  border-right-color: transparent;
+}
+.reward-trophy-cup::after {
+  right: -15rpx;
+  border-left-color: transparent;
+}
+.reward-trophy-stem {
+  position: absolute;
+  left: 16rpx;
+  top: 24rpx;
+  width: 6rpx;
+  height: 8rpx;
+  background: #00b050;
+  border-radius: 4rpx;
+}
+.reward-trophy-base {
+  position: absolute;
+  left: 9rpx;
+  bottom: 2rpx;
+  width: 20rpx;
+  height: 6rpx;
+  background: #00b050;
+  border-radius: 6rpx;
+}
+.font_7 {
+  font-size: 29.56rpx;
+  font-family: WenQuanYi Zen Hei;
+  line-height: 28.6rpx;
+  color: #334155;
+}
+.text_14 {
+  line-height: 28.87rpx;
+}
+.image_5 {
+  width: 12.93rpx;
+  height: 22.17rpx;
+}
+.arrow-icon {
+  color: #94a3b8;
+  font-size: 28rpx;
+  line-height: 1;
+  font-weight: 600;
+}
+.row-right {
+  gap: 16rpx;
+}
+.count-badge {
+  min-width: 42rpx;
+  height: 42rpx;
+  padding: 0 12rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #0ea972 0%, #10b981 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+.count-badge-text {
+  color: #ffffff;
+  font-size: 18rpx;
+  font-family: Lexend;
+  font-weight: 700;
+  line-height: 1;
+}
+.text_15 {
+  line-height: 28.02rpx;
+}
+.group_8 {
+  padding: 0 31.4rpx;
+}
+.text_16 {
+  line-height: 28.47rpx;
+}
+.group_9 {
+  margin-top: 55.42rpx;
+}
+.text_17 {
+  margin-left: 44.33rpx;
+  line-height: 25.22rpx;
+}
+.section_6 {
+  margin: 0 29.56rpx;
+  background-color: #ffffff;
+  border-radius: 44.33rpx;
+  overflow: hidden;
+  border-left: solid 1.85rpx #f1f5f9;
+  border-right: solid 1.85rpx #f1f5f9;
+  border-top: solid 1.85rpx #f1f5f9;
+  border-bottom: solid 1.85rpx #f1f5f9;
+}
+.group_10 {
+  padding: 29.56rpx;
+}
+.text_18 {
+  line-height: 28.73rpx;
+}

@@ -1,0 +1,77 @@
+<scroll-view class="legal-page" scroll-y>
+  <view class="legal-hero">
+    <text class="legal-kicker">Service Terms</text>
+    <text class="legal-title">服务协议</text>
+    <text class="legal-meta">更新日期：{{updatedAt}}</text>
+  </view>
+
+  <view class="legal-card">
+    <text class="legal-lead">
+      欢迎使用广东承中科技有限公司提供的“分销商学堂”小程序服务。为保障您和平台的合法权益，请您在使用本服务前，仔细阅读本协议。
+    </text>
+
+    <view class="legal-section">
+      <text class="legal-heading">一、协议的接受与适用</text>
+      <text class="legal-paragraph">1. 本协议是您与广东承中科技有限公司之间就“分销商学堂”小程序服务的使用所订立的协议。</text>
+      <text class="legal-paragraph">2. 当您注册、登录、使用本小程序服务时，即视为您已阅读、理解并同意接受本协议全部内容。</text>
+    </view>
+
+    <view class="legal-section">
+      <text class="legal-heading">二、服务内容</text>
+      <text class="legal-paragraph">1. 本小程序向用户提供学习、答题、排行榜、证书查询、母线豆包、能量商城兑换等服务。</text>
+      <text class="legal-paragraph">2. 平台有权根据业务发展情况，对服务内容进行调整、优化或下线。</text>
+    </view>
+
+    <view class="legal-section">
+      <text class="legal-heading">三、账号使用规则</text>
+      <text class="legal-paragraph">1. 您应保证注册和认证信息真实、准确、完整。</text>
+      <text class="legal-paragraph">2. 您应妥善保管账号信息，不得将账号借给他人使用。</text>
+      <text class="legal-paragraph">3. 因您自身原因导致账号泄露、被盗或损失的，由您自行承担相应后果。</text>
+    </view>
+
+    <view class="legal-section">
+      <text class="legal-heading">四、用户行为规范</text>
+      <text class="legal-paragraph">您在使用本服务时，不得提供虚假信息、冒用他人身份、利用系统漏洞或作弊方式获取积分、能量或排名，不得干扰平台正常运行，不得发布违法、侵权或不当内容。</text>
+    </view>
+
+    <view class="legal-section">
+      <text class="legal-heading">五、积分/能量与兑换规则</text>
+      <text class="legal-paragraph">1. 用户通过平台规则允许的学习、答题等行为获得能量值。</text>
+      <text class="legal-paragraph">2. 能量值仅可在平台规定范围内使用，不可提现、不可转让，平台另有说明的除外。</text>
+      <text class="legal-paragraph">3. 用户提交兑换申请后，平台有权根据商品状态、活动规则、审核结果进行处理。</text>
+      <text class="legal-paragraph">4. 如发现作弊、异常刷分、恶意兑换等行为，平台有权取消相关资格、追回奖励，并视情节限制账号使用。</text>
+    </view>
+
+    <view class="legal-section">
+      <text class="legal-heading">六、母线豆包与内容说明</text>
+      <text class="legal-paragraph">1. 平台提供的母线豆包功能仅用于学习辅助和信息参考。</text>
+      <text class="legal-paragraph">2. 母线豆包结果不构成法律、医疗、投资等专业建议。</text>
+      <text class="legal-paragraph">3. 用户应自行判断和承担基于问答结果采取行动的风险。</text>
+    </view>
+
+    <view class="legal-section">
+      <text class="legal-heading">七、知识产权</text>
+      <text class="legal-paragraph">本小程序中的页面设计、文字、图片、系统功能、数据内容等知识产权归平台或相关权利人所有。未经许可，任何单位或个人不得擅自复制、传播、修改或商业化使用。</text>
+    </view>
+
+    <view class="legal-section">
+      <text class="legal-heading">八、服务中断与责任限制</text>
+      <text class="legal-paragraph">因系统维护、网络故障、第三方服务异常、不可抗力等原因，平台可能出现服务中断或延迟。平台将在合理范围内尽力保障服务稳定，但不对因上述原因导致的间接损失承担责任。</text>
+    </view>
+
+    <view class="legal-section">
+      <text class="legal-heading">九、协议的变更与终止</text>
+      <text class="legal-paragraph">平台有权根据业务需要对本协议进行修改。修改后的协议将在小程序内公布，公布后即生效。若您继续使用本服务，则视为接受修改后的协议。</text>
+    </view>
+
+    <view class="legal-section">
+      <text class="legal-heading">十、法律适用与争议解决</text>
+      <text class="legal-paragraph">本协议的订立、生效、履行、解释及争议解决均适用中华人民共和国法律。因本协议引起的争议，双方应优先协商解决；协商不成的，提交广东承中科技有限公司所在地有管辖权的人民法院解决。</text>
+    </view>
+
+    <view class="legal-section legal-section-last">
+      <text class="legal-heading">十一、生效时间</text>
+      <text class="legal-paragraph">本协议自即日起生效。</text>
+    </view>
+  </view>
+</scroll-view>

@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>施耐德学堂后台管理</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <section class="login-panel" id="loginPanel">
+      <div class="brand-block">
+        <p class="eyebrow">Back Office</p>
+        <h1>施耐德学堂后台管理</h1>
+        <p>管理分销商账户、查看公司内排行榜，并统计每周与每月答题参与情况。</p>
+      </div>
+      <form id="loginForm" class="login-form">
+        <label>
+          <span>管理员账号</span>
+          <input name="username" autocomplete="username" required>
+        </label>
+        <label>
+          <span>管理员密码</span>
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <button class="primary-btn" type="submit">登录后台</button>
+        <p id="loginFeedback" class="feedback"></p>
+      </form>
+    </section>
+
+    <section class="dashboard hidden" id="dashboard">
+      <aside class="sidebar">
+        <div>
+          <p class="eyebrow">Schneider</p>
+          <h2>后台管理</h2>
+        </div>
+        <nav class="tabs" aria-label="后台模块">
+          <button class="tab-btn active" data-tab="leaderboard">公司排行榜</button>
+          <button class="tab-btn" data-tab="globalLeaderboard">全员排行榜</button>
+          <button class="tab-btn" data-tab="energyStats">学员能量统计</button>
+          <button class="tab-btn" data-tab="accounts">账户管理</button>
+          <button class="tab-btn" data-tab="orders">兑换订单<span class="order-dot hidden" id="ordersPendingDot"></span></button>
+          <button class="tab-btn" data-tab="rewards">奖励记录</button>
+          <button class="tab-btn" data-tab="participation">答题参与统计</button>
+        </nav>
+        <button id="logoutBtn" class="ghost-btn">退出登录</button>
+      </aside>
+
+      <section class="content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">API</p>
+            <h1>分销商培训运营看板</h1>
+          </div>
+          <div class="api-chip" id="apiBaseLabel"></div>
+        </header>
+
+        <section class="view active" id="leaderboardView">
+          <div class="section-head">
+            <div>
+              <h2>公司员工排行榜</h2>
+              <p>选择公司后查看该公司员工累计每日答题排行榜。</p>
+            </div>
+            <button class="ghost-btn" id="refreshLeaderboardBtn">刷新</button>
+          </div>
+          <div class="filters">
+            <label>
+              <span>省份</span>
+              <input id="leaderboardProvince" data-options="leaderboardProvinceOptions" placeholder="输入省份筛选" autocomplete="off">
+              <div class="search-options hidden" id="leaderboardProvinceOptions"></div>
+            </label>
+            <label>
+              <span>公司</span>
+              <input id="leaderboardCompany" data-options="leaderboardCompanyOptions" placeholder="输入公司关键词" autocomplete="off">
+              <div class="search-options hidden" id="leaderboardCompanyOptions"></div>
+            </label>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>排名</th>
+                  <th>员工</th>
+                  <th>岗位</th>
+                  <th>答对数</th>
+                  <th>答题数</th>
+                  <th>用时</th>
+                  <th>能量值</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboardBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="view" id="globalLeaderboardView">
+          <div class="section-head">
+            <div>
+              <h2>全员排行榜</h2>
+              <p>查看所有已答题员工的总榜和月榜，每页显示 20 人。</p>
+            </div>
+            <button class="ghost-btn" id="refreshGlobalLeaderboardBtn">刷新</button>
+          </div>
+          <div class="filters">
+            <label>
+              <span>榜单类型</span>
+              <select id="globalLeaderboardScope">
+                <option value="total">总榜</option>
+                <option value="month">月榜</option>
+              </select>
+            </label>
+            <label id="globalLeaderboardMonthWrap" class="hidden">
+              <span>月份</span>
+              <input id="globalLeaderboardMonth" type="month">
+            </label>
+            <label>
+              <span>搜索</span>
+              <input id="globalLeaderboardSearch" placeholder="姓名、手机号、公司">
+            </label>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead id="globalLeaderboardHead"></thead>
+              <tbody id="globalLeaderboardBody"></tbody>
+            </table>
+          </div>
+          <div class="pagination-bar">
+            <span id="globalLeaderboardSummary">共 0 人</span>
+            <div class="header-actions">
+              <button class="ghost-btn" id="prevGlobalLeaderboardPageBtn">上一页</button>
+              <span id="globalLeaderboardPageInfo">第 1 页</span>
+              <button class="ghost-btn" id="nextGlobalLeaderboardPageBtn">下一页</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="energyStatsView">
+          <div class="section-head">
+            <div>
+              <h2>学员能量统计</h2>
+              <p>查看所有学员历史累计获得的总能量，不扣减已兑换能量。</p>
+            </div>
+            <div class="header-actions">
+              <button class="ghost-btn" id="exportEnergyStatsBtn">导出Excel</button>
+              <button class="ghost-btn" id="refreshEnergyStatsBtn">刷新</button>
+            </div>
+          </div>
+          <div class="filters">
+            <label>
+              <span>省份</span>
+              <input id="energyProvince" data-options="energyProvinceOptions" placeholder="输入省份筛选" autocomplete="off">
+              <div class="search-options hidden" id="energyProvinceOptions"></div>
+            </label>
+            <label>
+              <span>公司</span>
+              <input id="energyCompany" data-options="energyCompanyOptions" placeholder="输入公司关键词" autocomplete="off">
+              <div class="search-options hidden" id="energyCompanyOptions"></div>
+            </label>
+            <label>
+              <span>搜索</span>
+              <input id="energySearch" placeholder="姓名、手机号、公司">
+            </label>
+            <button class="ghost-btn" id="searchEnergyStatsBtn">查询</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>排名</th>
+                  <th>学员</th>
+                  <th>公司</th>
+                  <th>岗位</th>
+                  <th>手机号</th>
+                  <th>已获得总能量</th>
+                  <th>答对数</th>
+                  <th>答题数</th>
+                </tr>
+              </thead>
+              <tbody id="energyStatsBody"></tbody>
+            </table>
+          </div>
+          <div class="pagination-bar">
+            <span id="energyStatsSummary">共 0 人</span>
+            <div class="header-actions">
+              <button class="ghost-btn" id="prevEnergyStatsPageBtn">上一页</button>
+              <span id="energyStatsPageInfo">第 1 页</span>
+              <button class="ghost-btn" id="nextEnergyStatsPageBtn">下一页</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="accountsView">
+          <div class="section-head">
+            <div>
+              <h2>新账户开通、修改、删除</h2>
+              <p>维护手机号、公司、岗位和认证状态。</p>
+            </div>
+            <div class="header-actions">
+              <button class="ghost-btn" id="exportUsersBtn">一键导出账户 XLSX</button>
+              <button class="ghost-btn" id="resetUserBtn">新增账户</button>
+            </div>
+          </div>
+
+          <form id="userForm" class="form-card">
+            <input type="hidden" name="id">
+            <div class="form-grid">
+              <label><span>姓名</span><input name="real_name" required></label>
+              <label><span>昵称</span><input name="nickname"></label>
+              <label><span>手机号</span><input name="phone"></label>
+              <label><span>省份</span><input name="province"></label>
+              <label><span>公司</span><input name="company" required></label>
+              <label><span>岗位</span><input name="job_role" placeholder="如：销售、技术、商务"></label>
+              <label class="checkbox-row">
+                <input type="checkbox" name="profile_verified">
+                <span>资料已认证</span>
+              </label>
+            </div>
+            <div class="form-actions">
+              <button class="primary-btn" type="submit">保存账户</button>
+              <p id="userFeedback" class="feedback"></p>
+            </div>
+          </form>
+
+          <div class="filters">
+            <label><span>省份筛选</span><select id="userProvinceFilter"></select></label>
+            <label><span>公司筛选</span><select id="userCompanyFilter"></select></label>
+            <label><span>岗位</span><select id="userRoleFilter"><option value="">全部</option></select></label>
+            <label><span>搜索</span><input id="userSearch" placeholder="姓名、手机号、账号、公司"></label>
+            <button class="ghost-btn" id="refreshUsersBtn">查询</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>姓名</th>
+                  <th>公司</th>
+                  <th>岗位</th>
+                  <th>手机号</th>
+                  <th>认证</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="usersBody"></tbody>
+            </table>
+          </div>
+          <div class="pagination-bar">
+            <span id="usersPagerSummary">共 0 条</span>
+            <div class="row-actions">
+              <button class="ghost-btn" id="prevUsersPageBtn">上一页</button>
+              <button class="ghost-btn" id="nextUsersPageBtn">下一页</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="ordersView">
+          <div class="section-head">
+            <div>
+              <h2>用户兑换订单</h2>
+              <p>查看兑换提交日期、收货信息、备注和数量，并同步更新小程序订单状态。</p>
+            </div>
+            <button class="ghost-btn" id="exportOrdersBtn">导出订单 XLSX</button>
+          </div>
+
+          <div class="filters">
+            <label><span>省份</span><select id="ordersProvince"></select></label>
+            <label><span>公司</span><select id="ordersCompany"></select></label>
+            <label>
+              <span>发货状态</span>
+              <select id="ordersStatus">
+                <option value="">全部状态</option>
+                <option value="pending">待处理</option>
+                <option value="approved">已确认</option>
+                <option value="delivered">已发货</option>
+                <option value="cancelled">已取消</option>
+              </select>
+            </label>
+            <label><span>开始日期</span><input id="ordersDateFrom" type="date"></label>
+            <label><span>结束日期</span><input id="ordersDateTo" type="date"></label>
+            <label><span>搜索</span><input id="ordersSearch" placeholder="姓名、手机号、商品、地址、备注"></label>
+            <button class="ghost-btn" id="loadOrdersBtn">查询</button>
+          </div>
+
+          <div id="ordersSummary" class="summary-line"></div>
+          <div class="table-wrap orders-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>提交日期</th>
+                  <th>用户</th>
+                  <th>公司</th>
+                  <th>商品</th>
+                  <th>数量</th>
+                  <th>能量</th>
+                  <th>收货信息</th>
+                  <th>备注</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody id="ordersBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="view" id="rewardsView">
+          <div class="section-head">
+            <div>
+              <h2>奖励记录</h2>
+              <p>按月份查看月底月榜奖励和月初幸运抽奖中奖情况。</p>
+            </div>
+            <div class="header-actions">
+              <button class="ghost-btn" id="exportRewardsBtn">导出奖励 XLSX</button>
+              <button class="ghost-btn" id="loadRewardsBtn">查询</button>
+            </div>
+          </div>
+
+          <div class="filters">
+            <label><span>月份</span><input id="rewardsMonth" type="month"></label>
+            <label>
+              <span>奖励类型</span>
+              <select id="rewardsType">
+                <option value="all">全部奖励</option>
+                <option value="monthly_rank_reward">月底奖励</option>
+                <option value="lottery_reward">月初抽奖</option>
+              </select>
+            </label>
+            <label><span>搜索</span><input id="rewardsSearch" placeholder="姓名、手机号、公司"></label>
+          </div>
+
+          <div id="rewardsSummary" class="summary-line"></div>
+          <div class="table-wrap orders-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>发放时间</th>
+                  <th>用户</th>
+                  <th>公司</th>
+                  <th>岗位</th>
+                  <th>奖励类型</th>
+                  <th>名次/奖项</th>
+                  <th>奖励能量</th>
+                  <th>说明</th>
+                </tr>
+              </thead>
+              <tbody id="rewardsBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="view" id="participationView">
+          <div class="section-head">
+            <div>
+              <h2>答题参与统计</h2>
+              <p>每周看参与公司和员工，每月统计员工参加了几个星期。</p>
+            </div>
+            <button class="ghost-btn" id="exportAllParticipationBtn">导出全部答题数据 XLSX</button>
+          </div>
+
+          <div class="report-grid">
+            <div class="report-panel">
+              <div class="panel-title">
+                <h3>周参与名单</h3>
+                <button class="ghost-btn" id="loadWeeklyBtn">查询</button>
+              </div>
+              <div class="filters single-line">
+                <label><span>周次</span><input id="weeklyWeek" type="week"></label>
+                <label><span>搜索</span><input id="weeklySearch" placeholder="姓名、手机号、公司"></label>
+                <label>
+                  <span>岗位（可多选）</span>
+                  <details class="multi-select" id="weeklyRolePicker">
+                    <summary id="weeklyRoleSummary">全部岗位</summary>
+                    <div class="multi-options" id="weeklyRoleOptions"></div>
+                  </details>
+                </label>
+                <button class="ghost-btn" id="exportWeeklyBtn">导出周报 XLSX</button>
+              </div>
+              <div id="weeklySummary" class="summary-line"></div>
+              <div class="table-wrap compact">
+                <table>
+                  <thead><tr><th>公司</th><th>员工</th><th>岗位</th><th>答题</th><th>答对</th></tr></thead>
+                  <tbody id="weeklyBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="report-panel">
+              <div class="panel-title">
+                <h3>月度参与统计</h3>
+                <button class="ghost-btn" id="loadMonthlyBtn">查询</button>
+              </div>
+              <div class="filters single-line">
+                <label><span>月份</span><input id="monthlyMonth" type="month"></label>
+                <label>
+                  <span>省份</span>
+                  <input id="monthlyProvince" data-options="monthlyProvinceOptions" placeholder="输入省份筛选" autocomplete="off">
+                  <div class="search-options hidden" id="monthlyProvinceOptions"></div>
+                </label>
+                <label>
+                  <span>公司</span>
+                  <input id="monthlyCompany" data-options="monthlyCompanyOptions" placeholder="输入公司关键词" autocomplete="off">
+                  <div class="search-options hidden" id="monthlyCompanyOptions"></div>
+                </label>
+                <label>
+                  <span>岗位（可多选）</span>
+                  <details class="multi-select" id="monthlyRolePicker">
+                    <summary id="monthlyRoleSummary">全部岗位</summary>
+                    <div class="multi-options" id="monthlyRoleOptions"></div>
+                  </details>
+                </label>
+                <button class="ghost-btn" id="exportMonthlyBtn">导出月报 XLSX</button>
+              </div>
+              <div id="monthlySummary" class="summary-line"></div>
+              <div class="table-wrap compact">
+                <table>
+                  <thead><tr><th>公司</th><th>员工</th><th>岗位</th><th>参加周数</th><th>周次</th><th>答题</th><th>答对</th></tr></thead>
+                  <tbody id="monthlyBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

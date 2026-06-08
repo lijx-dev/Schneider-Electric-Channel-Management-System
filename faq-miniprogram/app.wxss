@@ -1,0 +1,668 @@
+/* app.wxss - 全局样式 */
+
+/* 主题色变量 */
+page {
+  --primary-color: #2B5AED;
+  --primary-light: #E8EEFF;
+  --success-color: #07C160;
+  --error-color: #FA5151;
+  --warning-color: #FFC300;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-hint: #999999;
+  --bg-color: #F5F7FA;
+  --card-bg: #FFFFFF;
+  --border-color: #EEEEEE;
+  
+  height: 100%;
+  background-color: var(--bg-color);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 28rpx;
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+/* 通用容器 */
+.container {
+  padding: 30rpx;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* 卡片样式 */
+.card {
+  background-color: var(--card-bg);
+  border-radius: 20rpx;
+  padding: 30rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+/* 主按钮 */
+.btn-primary {
+  background: linear-gradient(135deg, #2B5AED 0%, #5B8DEF 100%);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 50rpx;
+  padding: 24rpx 60rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+  text-align: center;
+}
+
+.btn-primary:active {
+  opacity: 0.85;
+}
+
+/* 次要按钮 */
+.btn-secondary {
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+  border: none;
+  border-radius: 50rpx;
+  padding: 24rpx 60rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* 标题样式 */
+.page-title {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 30rpx;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 20rpx;
+}
+
+/* 徽章 */
+.badge {
+  display: inline-block;
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 22rpx;
+  font-weight: 500;
+}
+
+.badge-gold {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  color: #FFFFFF;
+}
+
+.badge-silver {
+  background: linear-gradient(135deg, #C0C0C0 0%, #A0A0A0 100%);
+  color: #FFFFFF;
+}
+
+.badge-bronze {
+  background: linear-gradient(135deg, #CD7F32 0%, #B87333 100%);
+  color: #FFFFFF;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100rpx 60rpx;
+  color: var(--text-hint);
+}
+
+.empty-state .icon {
+  font-size: 120rpx;
+  margin-bottom: 30rpx;
+}
+
+.empty-state .text {
+  font-size: 28rpx;
+}
+
+/* 加载状态 */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 60rpx;
+}
+
+/* 头像 */
+.avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background-color: var(--primary-light);
+}
+
+.avatar-large {
+  width: 120rpx;
+  height: 120rpx;
+}
+
+.avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+  background-color: #E0E0E0;
+}
+
+.avatar-large.avatar-placeholder {
+  font-size: 60rpx;
+}
+
+/* --- New Theme Utility Styles --- */
+view,
+image,
+text {
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.flex-row {
+  display: flex;
+  flex-direction: row;
+}
+
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.justify-start {
+  justify-content: flex-start;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.justify-around {
+  justify-content: space-around;
+}
+
+.justify-evenly {
+  justify-content: space-evenly;
+}
+
+.items-start {
+  align-items: flex-start;
+}
+
+.items-end {
+  align-items: flex-end;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.items-baseline {
+  align-items: baseline;
+}
+
+.items-stretch {
+  align-items: stretch;
+}
+
+.self-start {
+  align-self: flex-start;
+}
+
+.self-end {
+  align-self: flex-end;
+}
+
+.self-center {
+  align-self: center;
+}
+
+.self-baseline {
+  align-self: baseline;
+}
+
+.self-stretch {
+  align-self: stretch;
+}
+
+.flex-1 {
+  flex: 1 1 0%;
+}
+
+.flex-auto {
+  flex: 1 1 auto;
+}
+
+.grow {
+  flex-grow: 1;
+}
+
+.grow-0 {
+  flex-grow: 0;
+}
+
+.shrink {
+  flex-shrink: 1;
+}
+
+.shrink-0 {
+  flex-shrink: 0;
+}
+
+.relative {
+  position: relative;
+}
+
+.ml-2 {
+  margin-left: 3.69rpx;
+}
+
+.mt-2 {
+  margin-top: 3.69rpx;
+}
+
+.ml-4 {
+  margin-left: 7.39rpx;
+}
+
+.mt-4 {
+  margin-top: 7.39rpx;
+}
+
+.ml-6 {
+  margin-left: 11.08rpx;
+}
+
+.mt-6 {
+  margin-top: 11.08rpx;
+}
+
+.ml-8 {
+  margin-left: 14.78rpx;
+}
+
+.mt-8 {
+  margin-top: 14.78rpx;
+}
+
+.ml-10 {
+  margin-left: 18.47rpx;
+}
+
+.mt-10 {
+  margin-top: 18.47rpx;
+}
+
+.ml-12 {
+  margin-left: 22.17rpx;
+}
+
+.mt-12 {
+  margin-top: 22.17rpx;
+}
+
+.ml-14 {
+  margin-left: 25.86rpx;
+}
+
+.mt-14 {
+  margin-top: 25.86rpx;
+}
+
+.ml-16 {
+  margin-left: 29.56rpx;
+}
+
+.mt-16 {
+  margin-top: 29.56rpx;
+}
+
+.ml-18 {
+  margin-left: 33.25rpx;
+}
+
+.mt-18 {
+  margin-top: 33.25rpx;
+}
+
+.ml-20 {
+  margin-left: 36.95rpx;
+}
+
+.mt-20 {
+  margin-top: 36.95rpx;
+}
+
+.ml-22 {
+  margin-left: 40.64rpx;
+}
+
+.mt-22 {
+  margin-top: 40.64rpx;
+}
+
+.ml-24 {
+  margin-left: 44.33rpx;
+}
+
+.mt-24 {
+  margin-top: 44.33rpx;
+}
+
+.ml-26 {
+  margin-left: 48.03rpx;
+}
+
+.mt-26 {
+  margin-top: 48.03rpx;
+}
+
+.ml-28 {
+  margin-left: 51.72rpx;
+}
+
+.mt-28 {
+  margin-top: 51.72rpx;
+}
+
+.ml-30 {
+  margin-left: 55.42rpx;
+}
+
+.mt-30 {
+  margin-top: 55.42rpx;
+}
+
+.ml-32 {
+  margin-left: 59.11rpx;
+}
+
+.mt-32 {
+  margin-top: 59.11rpx;
+}
+
+.ml-34 {
+  margin-left: 62.81rpx;
+}
+
+.mt-34 {
+  margin-top: 62.81rpx;
+}
+
+.ml-36 {
+  margin-left: 66.5rpx;
+}
+
+.mt-36 {
+  margin-top: 66.5rpx;
+}
+
+.ml-38 {
+  margin-left: 70.2rpx;
+}
+
+.mt-38 {
+  margin-top: 70.2rpx;
+}
+
+.ml-40 {
+  margin-left: 73.89rpx;
+}
+
+.mt-40 {
+  margin-top: 73.89rpx;
+}
+
+.ml-42 {
+  margin-left: 77.59rpx;
+}
+
+.mt-42 {
+  margin-top: 77.59rpx;
+}
+
+.ml-44 {
+  margin-left: 81.28rpx;
+}
+
+.mt-44 {
+  margin-top: 81.28rpx;
+}
+
+.ml-46 {
+  margin-left: 84.98rpx;
+}
+
+.mt-46 {
+  margin-top: 84.98rpx;
+}
+
+.ml-48 {
+  margin-left: 88.67rpx;
+}
+
+.mt-48 {
+  margin-top: 88.67rpx;
+}
+
+.ml-50 {
+  margin-left: 92.36rpx;
+}
+
+.mt-50 {
+  margin-top: 92.36rpx;
+}
+
+.ml-52 {
+  margin-left: 96.06rpx;
+}
+
+.mt-52 {
+  margin-top: 96.06rpx;
+}
+
+.ml-54 {
+  margin-left: 99.75rpx;
+}
+
+.mt-54 {
+  margin-top: 99.75rpx;
+}
+
+.ml-56 {
+  margin-left: 103.45rpx;
+}
+
+.mt-56 {
+  margin-top: 103.45rpx;
+}
+
+.ml-58 {
+  margin-left: 107.14rpx;
+}
+
+.mt-58 {
+  margin-top: 107.14rpx;
+}
+
+.ml-60 {
+  margin-left: 110.84rpx;
+}
+
+.mt-60 {
+  margin-top: 110.84rpx;
+}
+
+.ml-62 {
+  margin-left: 114.53rpx;
+}
+
+.mt-62 {
+  margin-top: 114.53rpx;
+}
+
+.ml-64 {
+  margin-left: 118.23rpx;
+}
+
+.mt-64 {
+  margin-top: 118.23rpx;
+}
+
+.ml-66 {
+  margin-left: 121.92rpx;
+}
+
+.mt-66 {
+  margin-top: 121.92rpx;
+}
+
+.ml-68 {
+  margin-left: 125.62rpx;
+}
+
+.mt-68 {
+  margin-top: 125.62rpx;
+}
+
+.ml-70 {
+  margin-left: 129.31rpx;
+}
+
+.mt-70 {
+  margin-top: 129.31rpx;
+}
+
+.ml-72 {
+  margin-left: 133rpx;
+}
+
+.mt-72 {
+  margin-top: 133rpx;
+}
+
+.ml-74 {
+  margin-left: 136.7rpx;
+}
+
+.mt-74 {
+  margin-top: 136.7rpx;
+}
+
+.ml-76 {
+  margin-left: 140.39rpx;
+}
+
+.mt-76 {
+  margin-top: 140.39rpx;
+}
+
+.ml-78 {
+  margin-left: 144.09rpx;
+}
+
+.mt-78 {
+  margin-top: 144.09rpx;
+}
+
+.ml-80 {
+  margin-left: 147.78rpx;
+}
+
+.mt-80 {
+  margin-top: 147.78rpx;
+}
+
+.ml-82 {
+  margin-left: 151.48rpx;
+}
+
+.mt-82 {
+  margin-top: 151.48rpx;
+}
+
+.ml-84 {
+  margin-left: 155.17rpx;
+}
+
+.mt-84 {
+  margin-top: 155.17rpx;
+}
+
+.ml-86 {
+  margin-left: 158.87rpx;
+}
+
+.mt-86 {
+  margin-top: 158.87rpx;
+}
+
+.ml-88 {
+  margin-left: 162.56rpx;
+}
+
+.mt-88 {
+  margin-top: 162.56rpx;
+}
+
+.ml-90 {
+  margin-left: 166.26rpx;
+}
+
+.mt-90 {
+  margin-top: 166.26rpx;
+}
+
+.ml-92 {
+  margin-left: 169.95rpx;
+}
+
+.mt-92 {
+  margin-top: 169.95rpx;
+}
+
+.ml-94 {
+  margin-left: 173.65rpx;
+}
+
+.mt-94 {
+  margin-top: 173.65rpx;
+}
+
+.ml-96 {
+  margin-left: 177.34rpx;
+}
+
+.mt-96 {
+  margin-top: 177.34rpx;
+}
+
+.ml-98 {
+  margin-left: 181.03rpx;
+}
+
+.mt-98 {
+  margin-top: 181.03rpx;
+}
+
+.ml-100 {
+  margin-left: 184.73rpx;
+}
+
+.mt-100 {
+  margin-top: 184.73rpx;
+}

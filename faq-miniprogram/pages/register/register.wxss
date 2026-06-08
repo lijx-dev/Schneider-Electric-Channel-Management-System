@@ -1,0 +1,200 @@
+.register-page {
+  min-height: 100vh;
+  padding: 28rpx 28rpx 56rpx;
+  background:
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.18), transparent 34%),
+    linear-gradient(180deg, #eefbf5 0%, #f7fcf9 32%, #ffffff 100%);
+}
+
+.hero-card {
+  position: relative;
+  overflow: hidden;
+  padding: 34rpx 30rpx;
+  border-radius: 34rpx;
+  background: linear-gradient(145deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 22rpx 48rpx rgba(16, 185, 129, 0.22);
+}
+
+.hero-backdrop {
+  position: absolute;
+  top: -80rpx;
+  right: -30rpx;
+  width: 240rpx;
+  height: 240rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.hero-copy {
+  flex: 1;
+}
+
+.hero-title {
+  display: block;
+  color: #ffffff;
+  font-size: 40rpx;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.hero-subtitle {
+  display: block;
+  margin-top: 14rpx;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 24rpx;
+  line-height: 1.7;
+}
+
+.hero-avatar-btn {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  background: transparent;
+  line-height: normal;
+}
+
+.hero-avatar-btn::after {
+  border: none;
+}
+
+.hero-avatar {
+  width: 124rpx;
+  height: 124rpx;
+  border-radius: 50%;
+  border: 6rpx solid rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.hero-avatar-edit {
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  font-size: 22rpx;
+}
+
+.register-card {
+  margin-top: 24rpx;
+  padding: 10rpx 28rpx 14rpx;
+  border-radius: 30rpx;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 16rpx 34rpx rgba(15, 23, 42, 0.08);
+}
+
+.card-head {
+  padding: 24rpx 0 18rpx;
+}
+
+.card-title {
+  display: block;
+  color: #0f172a;
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.card-subtitle {
+  display: block;
+  margin-top: 10rpx;
+  color: #64748b;
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+
+.form-item {
+  display: flex;
+  align-items: center;
+  min-height: 112rpx;
+  border-top: 1rpx solid rgba(226, 232, 240, 0.95);
+}
+
+.form-item-picker {
+  justify-content: space-between;
+}
+
+.form-item.disabled {
+  opacity: 0.55;
+}
+
+.form-label {
+  width: 120rpx;
+  color: #0f172a;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.form-input {
+  flex: 1;
+  text-align: right;
+  color: #0f172a;
+  font-size: 30rpx;
+}
+
+.input-placeholder,
+.picker-value.placeholder {
+  color: #94a3b8;
+}
+
+.picker-value-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+  min-width: 0;
+}
+
+.picker-value {
+  color: #0f172a;
+  font-size: 30rpx;
+  text-align: right;
+  line-height: 1.5;
+}
+
+.picker-arrow {
+  margin-left: 14rpx;
+  color: #94a3b8;
+  font-size: 26rpx;
+}
+
+.form-note {
+  padding: 18rpx 0 8rpx;
+}
+
+.form-note-text {
+  color: #64748b;
+  font-size: 22rpx;
+  line-height: 1.6;
+}
+
+.submit-btn {
+  margin-top: 28rpx;
+  height: 96rpx;
+  padding: 0 24rpx;
+  border: none;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 18rpx 34rpx rgba(16, 185, 129, 0.2);
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 700;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.submit-btn::after {
+  border: none;
+}

@@ -1,0 +1,47 @@
+{
+  "description": "项目配置文件",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "newFeature": true,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": true,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "ignoreDevUnusedFiles": false,
+    "swc": false,
+    "disableSWC": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    },
+    "ignoreUploadUnusedFiles": true
+  },
+  "compileType": "miniprogram",
+  "simulatorType": "wechat",
+  "simulatorPluginLibVersion": {},
+  "appid": "wxd7edadeca9812162",
+  "projectname": "faq-miniprogram",
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "/minitest"
+      }
+    ],
+    "include": []
+  },
+  "editorSetting": {},
+  "libVersion": "3.14.1"
+}

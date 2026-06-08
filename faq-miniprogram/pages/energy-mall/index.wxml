@@ -1,0 +1,322 @@
+<view class="mall-page">
+  <view class="mall-topbar">
+    <view class="brand-wrap">
+      <view class="brand-mark"></view>
+      <text class="brand-text">能量商城</text>
+    </view>
+    <view class="topbar-actions">
+      <view class="topbar-pill" bindtap="goToRedeemRecord">
+        <text class="topbar-pill-text">兑换记录</text>
+      </view>
+      <view class="topbar-icon" bindtap="showRules">
+        <text class="topbar-icon-text">?</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="energy-hero">
+    <view class="hero-orb hero-orb-large"></view>
+    <text class="hero-eyebrow">可用能量</text>
+    <view class="hero-score-row">
+      <text class="hero-score">{{availableEnergy}}</text>
+      <text class="hero-unit">Energy</text>
+    </view>
+    <view class="hero-summary-row">
+      <text class="hero-summary-label">已兑换</text>
+      <text class="hero-summary-value">{{redeemedEnergy}}</text>
+    </view>
+  </view>
+
+  <view class="featured-swiper-shell" wx:if="{{featuredProducts.length}}">
+    <swiper
+      class="featured-swiper"
+      autoplay="true"
+      circular="{{featuredProducts.length > 1}}"
+      current="{{featuredSwiperIndex}}"
+      interval="5000"
+      duration="500"
+      bindchange="handleFeaturedSwiperChange"
+    >
+      <block wx:for="{{featuredProducts}}" wx:key="id">
+        <swiper-item>
+          <view class="featured-card">
+            <view class="featured-copy">
+              <view class="featured-badge">{{item.badge}}</view>
+              <text class="featured-title">{{item.name}}</text>
+              <text class="featured-desc">{{item.description}}</text>
+              <view class="featured-footer">
+                <text class="featured-cost">{{item.cost}} 能量</text>
+                <view wx:if="{{item.cartQuantity > 0}}" class="cart-stepper featured-stepper">
+                  <view class="cart-stepper-btn" data-product-id="{{item.id}}" bindtap="decreaseCartItem">-</view>
+                  <text class="cart-stepper-value">{{item.cartQuantity}}</text>
+                  <view class="cart-stepper-btn" data-product-id="{{item.id}}" bindtap="increaseCartItem">+</view>
+                </view>
+                <view wx:else class="cart-add-btn featured-add-btn" data-product-id="{{item.id}}" bindtap="increaseCartItem">+</view>
+              </view>
+            </view>
+            <view class="featured-art">
+              <view
+                wx:if="{{item.hasImage}}"
+                class="featured-art-panel featured-art-panel-image"
+                data-image-url="{{item.displayImageUrl}}"
+                bindtap="previewProductImage"
+              >
+                <image class="featured-art-image" mode="aspectFit" src="{{item.displayImageUrl}}"></image>
+              </view>
+              <view wx:else class="featured-art-panel">
+                <text class="featured-art-label">{{item.artLabel}}</text>
+              </view>
+            </view>
+          </view>
+        </swiper-item>
+      </block>
+    </swiper>
+    <view class="featured-dots" wx:if="{{featuredProducts.length > 1}}">
+      <block wx:for="{{featuredProducts}}" wx:key="id">
+        <view class="featured-dot {{index === featuredSwiperIndex ? 'featured-dot-active' : ''}}"></view>
+      </block>
+    </view>
+  </view>
+
+  <view wx:if="{{showTierSheet}}" class="tier-sheet-mask" bindtap="closeTierSheet">
+    <view class="tier-sheet" catchtap="noop">
+      <view class="tier-sheet-handle"></view>
+      <view class="tier-sheet-head">
+        <text class="tier-sheet-title">选择能量档次</text>
+        <text class="tier-sheet-close" bindtap="closeTierSheet">×</text>
+      </view>
+      <view class="tier-sheet-grid">
+        <view
+          wx:for="{{tierTabs}}"
+          wx:key="sectionId"
+          class="tier-sheet-option {{item.active ? 'tier-sheet-option-active' : ''}}"
+          data-target="{{item.sectionId}}"
+          bindtap="scrollToTier"
+        >
+          <text class="tier-sheet-option-text">{{item.label}}</text>
+          <text wx:if="{{item.active}}" class="tier-sheet-check">✓</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{showCartSheet}}" class="shipping-sheet-mask" bindtap="closeCartSheet">
+    <view class="shipping-sheet cart-sheet" catchtap="noop">
+      <view class="shipping-sheet-handle"></view>
+      <view class="shipping-sheet-head">
+        <view>
+          <text class="shipping-sheet-title">购物车</text>
+          <text class="shipping-sheet-subtitle">共{{cartTotalQuantity}}件商品 · {{cartTotalCost}} 能量</text>
+        </view>
+        <text class="shipping-sheet-close" bindtap="closeCartSheet">×</text>
+      </view>
+
+      <scroll-view class="shipping-form cart-sheet-body" scroll-y>
+        <view class="cart-line" wx:for="{{cartItems}}" wx:key="id">
+          <view class="cart-line-copy">
+            <text class="cart-line-name">{{item.name}}</text>
+            <text class="cart-line-meta">{{item.cost}} 能量/件</text>
+          </view>
+          <view class="cart-stepper">
+            <view class="cart-stepper-btn" data-product-id="{{item.id}}" bindtap="decreaseCartItem">-</view>
+            <text class="cart-stepper-value">{{item.quantity}}</text>
+            <view class="cart-stepper-btn" data-product-id="{{item.id}}" bindtap="increaseCartItem">+</view>
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="shipping-actions">
+        <view class="cart-sheet-total">合计 {{cartTotalCost}} 能量</view>
+        <button class="shipping-btn shipping-btn-submit" hover-class="none" bindtap="proceedToShippingFromCart">去兑换</button>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{showShippingSheet}}" class="shipping-sheet-mask" bindtap="closeShippingSheet">
+    <view class="shipping-sheet" catchtap="noop">
+      <view class="shipping-sheet-handle"></view>
+      <view class="shipping-sheet-head">
+        <view>
+          <text class="shipping-sheet-title">填写收货信息</text>
+          <text class="shipping-sheet-subtitle">共{{pendingBatchSummary.itemCount}}件商品 · {{pendingBatchSummary.totalCost}} 能量</text>
+        </view>
+        <text class="shipping-sheet-close" bindtap="closeShippingSheet">×</text>
+      </view>
+
+      <view class="shipping-form">
+        <view class="shipping-field">
+          <text class="shipping-label">收货人</text>
+          <input
+            class="shipping-input"
+            placeholder="请输入收货人姓名"
+            placeholder-class="shipping-placeholder"
+            value="{{shippingForm.receiverName}}"
+            data-field="receiverName"
+            bindinput="onShippingInput"
+          />
+        </view>
+
+        <view class="shipping-field">
+          <text class="shipping-label">联系电话</text>
+          <input
+            class="shipping-input"
+            type="number"
+            maxlength="20"
+            placeholder="请输入手机号"
+            placeholder-class="shipping-placeholder"
+            value="{{shippingForm.receiverPhone}}"
+            data-field="receiverPhone"
+            bindinput="onShippingInput"
+          />
+        </view>
+
+        <view class="shipping-field">
+          <text class="shipping-label">所在地区</text>
+          <picker mode="region" value="{{shippingForm.receiverRegionParts}}" bindchange="onShippingRegionChange">
+            <view class="shipping-picker {{shippingForm.receiverRegion ? 'shipping-picker-active' : ''}}">
+              <text class="shipping-picker-text">{{shippingForm.receiverRegion || '请选择省 / 市 / 区'}}</text>
+            </view>
+          </picker>
+        </view>
+
+        <view class="shipping-field">
+          <text class="shipping-label">详细地址</text>
+          <textarea
+            class="shipping-textarea"
+            maxlength="255"
+            placeholder="请输入详细地址，如街道、门牌号"
+            placeholder-class="shipping-placeholder"
+            value="{{shippingForm.receiverAddress}}"
+            data-field="receiverAddress"
+            bindinput="onShippingInput"
+          ></textarea>
+        </view>
+
+        <view class="shipping-field">
+          <text class="shipping-label">备注（选填）</text>
+          <input
+            class="shipping-input"
+            maxlength="255"
+            placeholder="如收货时间、楼层等"
+            placeholder-class="shipping-placeholder"
+            value="{{shippingForm.receiverNote}}"
+            data-field="receiverNote"
+            bindinput="onShippingInput"
+          />
+        </view>
+      </view>
+
+      <view class="shipping-actions">
+        <button class="shipping-btn shipping-btn-cancel" hover-class="none" bindtap="closeShippingSheet">取消</button>
+        <button
+          class="shipping-btn shipping-btn-submit"
+          hover-class="none"
+          loading="{{submittingRedemption}}"
+          disabled="{{submittingRedemption}}"
+          bindtap="submitRedeem"
+        >
+          提交兑换
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <view
+    class="tier-section"
+    wx:for="{{tierGroups}}"
+    wx:key="sectionId"
+    wx:for-item="group"
+    id="{{group.sectionId}}"
+  >
+    <view class="section-header">
+      <view>
+        <text class="section-title">{{group.title}}（{{group.tierLabel}}）</text>
+        <text class="section-subtitle">{{group.subtitle}}</text>
+      </view>
+    </view>
+
+    <view class="product-grid" wx:if="{{group.layout === 'grid'}}">
+      <view class="product-card" wx:for="{{group.products}}" wx:key="id" wx:for-item="product">
+        <view
+          class="card-art {{!product.hasImage ? product.artClass : ''}}"
+          data-image-url="{{product.displayImageUrl}}"
+          bindtap="previewProductImage"
+        >
+          <image wx:if="{{product.hasImage}}" class="product-image" mode="aspectFit" src="{{product.displayImageUrl}}"></image>
+          <text wx:else class="card-art-label">{{product.artLabel}}</text>
+        </view>
+        <view class="card-tag-row">
+          <text class="product-tag">{{product.tag}}</text>
+        </view>
+        <text class="product-name">{{product.name}}</text>
+        <text class="product-desc">{{product.description}}</text>
+        <view class="product-footer">
+          <text class="product-cost">{{product.cost}} 能量</text>
+          <view wx:if="{{product.cartQuantity > 0}}" class="cart-stepper">
+            <view class="cart-stepper-btn" data-product-id="{{product.id}}" bindtap="decreaseCartItem">-</view>
+            <text class="cart-stepper-value">{{product.cartQuantity}}</text>
+            <view class="cart-stepper-btn" data-product-id="{{product.id}}" bindtap="increaseCartItem">+</view>
+          </view>
+          <view wx:else class="cart-add-btn" data-product-id="{{product.id}}" bindtap="increaseCartItem">+</view>
+        </view>
+      </view>
+    </view>
+
+    <scroll-view class="product-scroll" scroll-x enable-flex wx:if="{{group.layout === 'carousel'}}">
+      <view class="product-scroll-inner">
+        <view class="wide-card" wx:for="{{group.products}}" wx:key="id" wx:for-item="product">
+          <view
+            class="wide-card-art {{!product.hasImage ? product.artClass : ''}}"
+            data-image-url="{{product.displayImageUrl}}"
+            bindtap="previewProductImage"
+          >
+            <image wx:if="{{product.hasImage}}" class="product-image" mode="aspectFit" src="{{product.displayImageUrl}}"></image>
+            <text wx:else class="wide-card-art-label">{{product.artLabel}}</text>
+          </view>
+          <text class="wide-card-name">{{product.name}}</text>
+          <text class="wide-card-desc">{{product.description}}</text>
+          <view class="wide-card-footer">
+            <text class="wide-card-cost">{{product.cost}} 能量</text>
+            <view wx:if="{{product.cartQuantity > 0}}" class="cart-stepper cart-stepper-compact">
+              <view class="cart-stepper-btn" data-product-id="{{product.id}}" bindtap="decreaseCartItem">-</view>
+              <text class="cart-stepper-value">{{product.cartQuantity}}</text>
+              <view class="cart-stepper-btn" data-product-id="{{product.id}}" bindtap="increaseCartItem">+</view>
+            </view>
+            <view wx:else class="cart-add-btn cart-add-btn-compact" data-product-id="{{product.id}}" bindtap="increaseCartItem">+</view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view class="pro-list" wx:if="{{group.layout === 'list'}}">
+      <view class="pro-list-card" wx:for="{{group.products}}" wx:key="id" wx:for-item="product">
+        <view
+          class="pro-list-art {{!product.hasImage ? product.artClass : ''}}"
+          data-image-url="{{product.displayImageUrl}}"
+          bindtap="previewProductImage"
+        >
+          <image wx:if="{{product.hasImage}}" class="product-image" mode="aspectFit" src="{{product.displayImageUrl}}"></image>
+          <text wx:else class="pro-list-art-label">{{product.artLabel}}</text>
+        </view>
+        <view class="pro-list-copy">
+          <text class="pro-list-name">{{product.name}}</text>
+          <text class="pro-list-desc">{{product.description}}</text>
+          <view class="pro-list-footer">
+            <text class="pro-list-cost">{{product.cost}} 能量</text>
+            <view wx:if="{{product.cartQuantity > 0}}" class="cart-stepper cart-stepper-compact">
+              <view class="cart-stepper-btn" data-product-id="{{product.id}}" bindtap="decreaseCartItem">-</view>
+              <text class="cart-stepper-value">{{product.cartQuantity}}</text>
+              <view class="cart-stepper-btn" data-product-id="{{product.id}}" bindtap="increaseCartItem">+</view>
+            </view>
+            <view wx:else class="cart-add-btn cart-add-btn-compact" data-product-id="{{product.id}}" bindtap="increaseCartItem">+</view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{cartTotalQuantity > 0}}" class="cart-fab" bindtap="openCartSheet">
+    <view class="cart-fab-badge">{{cartTotalQuantity}}</view>
+    <text class="cart-fab-text">结算</text>
+  </view>
+</view>

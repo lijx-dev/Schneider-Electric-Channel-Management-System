@@ -1,0 +1,51 @@
+<view class="knowledge-page">
+  <view wx:if="{{loading}}" class="loading-wrap">
+    <text>加载中...</text>
+  </view>
+
+  <block wx:else>
+    <view class="knowledge-summary">
+      <view>
+        <text class="summary-title">我的知识集</text>
+        <text class="summary-subtitle">已收藏 {{items.length}} 个解析知识点</text>
+      </view>
+      <view class="summary-count">
+        <text class="summary-count-value">{{items.length}}</text>
+        <text class="summary-count-label">条</text>
+      </view>
+    </view>
+
+    <view class="search-card">
+      <text class="search-icon">⌕</text>
+      <input class="search-input" value="{{searchKeyword}}" placeholder="搜索知识点" bindinput="onSearchInput" />
+      <text class="search-clear" wx:if="{{searchKeyword}}" bindtap="clearSearch">清除</text>
+    </view>
+
+    <view wx:if="{{!items.length}}" class="empty-card">
+      <text class="empty-title">还没有知识点</text>
+      <text class="empty-copy">答题后可以把解析加入知识集。</text>
+    </view>
+
+    <view wx:elif="{{!filteredItems.length}}" class="empty-card">
+      <text class="empty-title">没有匹配结果</text>
+      <text class="empty-copy">换个关键词再试试。</text>
+    </view>
+
+    <view wx:else class="knowledge-list">
+      <view class="knowledge-card" wx:for="{{filteredItems}}" wx:key="id">
+        <view class="knowledge-card-head">
+          <view class="knowledge-title-wrap">
+            <text class="knowledge-badge">{{item.indexText}}</text>
+            <text class="knowledge-title">知识点</text>
+          </view>
+          <text class="knowledge-delete" data-id="{{item.id}}" catchtap="deleteKnowledgeItem">删除</text>
+        </view>
+        <text class="knowledge-text {{item.expanded ? 'expanded' : ''}}">{{item.explanation}}</text>
+        <view class="knowledge-footer">
+          <text class="knowledge-time">{{item.createdAtText}}</text>
+          <text class="knowledge-toggle" data-id="{{item.id}}" bindtap="toggleKnowledgeItem">{{item.expanded ? '收起' : '展开全文'}}</text>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

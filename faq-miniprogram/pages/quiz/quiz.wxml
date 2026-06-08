@@ -1,0 +1,142 @@
+<view class="container">
+  <view wx:if="{{loading}}" class="loading-wrap">
+    <text>加载中...</text>
+  </view>
+
+  <view class="question-card card" wx:if="{{!isFinished && !loading}}">
+    <view class="progress-bar">
+      <view class="progress-fill" style="width: {{(currentIndex + 1) / questions.length * 100}}%"></view>
+    </view>
+    <view class="progress-text">第 {{currentIndex + 1}} / {{questions.length}} 题</view>
+
+    <view class="question-category">
+      <view>
+        <text class="category-tag type-tag">{{questionTypeMap[currentQuestion.question_type] || '题目'}}</text>
+        <text class="category-tag">{{quizDate}} 周题单</text>
+      </view>
+      <text class="difficulty">难度：{{difficultyStars}}</text>
+    </view>
+
+    <view class="question-content">{{currentQuestion.content}}</view>
+
+    <view
+      class="options-list"
+      wx:if="{{currentQuestion.question_type === 'single_choice' || currentQuestion.question_type === 'multiple_choice' || currentQuestion.question_type === 'true_false'}}"
+    >
+      <view
+        wx:for="{{displayOptions}}"
+        wx:key="label"
+        class="{{item.optionClass}}"
+        bindtap="selectOption"
+        data-index="{{index}}"
+      >
+        <view class="option-letter">{{item.label}}</view>
+        <view class="option-text">{{item.text}}</view>
+        <view class="option-icon" wx:if="{{item.showCorrectIcon}}">✓</view>
+        <view class="option-icon wrong" wx:if="{{item.showWrongIcon}}">✕</view>
+      </view>
+    </view>
+
+    <view
+      wx:if="{{(currentQuestion.question_type === 'single_choice' || currentQuestion.question_type === 'true_false') && !showResult}}"
+      class="mc-submit-area"
+    >
+      <button class="btn-primary submit-btn" bindtap="submitSelectedOption">提交答案</button>
+    </view>
+
+    <view wx:if="{{currentQuestion.question_type === 'multiple_choice' && !showResult}}" class="mc-submit-area">
+      <button class="btn-primary submit-btn" bindtap="submitMultipleChoice">提交答案</button>
+    </view>
+
+    <view class="input-area" wx:if="{{currentQuestion.question_type === 'fill_blank' || currentQuestion.question_type === 'short_answer'}}">
+      <textarea
+        class="answer-input"
+        placeholder="请输入你的答案"
+        value="{{inputText}}"
+        bindinput="onInputAnswer"
+        disabled="{{showResult}}"
+      ></textarea>
+      <button class="btn-primary submit-btn" bindtap="submitTextAnswer" wx:if="{{!showResult}}">提交答案</button>
+      <view class="user-answer-text" wx:if="{{showResult}}">
+        <text class="label">你的答案：</text>
+        <text class="value {{isCorrect ? 'correct-text' : 'wrong-text'}}">{{inputText}}</text>
+      </view>
+    </view>
+
+    <view class="explanation-panel" wx:if="{{showResult}}">
+      <view class="explanation-header">
+        <text class="{{isCorrect ? 'correct-text' : 'wrong-text'}}">
+          {{isCorrect ? '✓ 回答正确' : '✕ 回答错误'}}
+        </text>
+        <text class="score-text">+{{currentScore}} 分</text>
+      </view>
+
+      <view class="correct-answer-line" wx:if="{{!isCorrect}}">
+        <text class="correct-label">正确答案：</text>
+        <text class="correct-value">{{correctAnswerDisplay || correctAnswer}}</text>
+      </view>
+
+      <view class="analysis-block" wx:if="{{currentExplanation}}">
+        <view class="analysis-label">解析</view>
+        <view class="analysis-text">{{currentExplanation}}</view>
+        <button class="knowledge-save-btn {{knowledgeSaved ? 'saved' : ''}}" loading="{{knowledgeSaving}}" disabled="{{knowledgeSaving || knowledgeSaved}}" bindtap="saveCurrentExplanation">
+          {{knowledgeSaved ? '已加入' : '加入知识集'}}
+        </button>
+      </view>
+
+      <button class="btn-primary next-btn" bindtap="nextQuestion">
+        {{currentIndex < questions.length - 1 ? '下一题' : '查看结果'}}
+      </button>
+    </view>
+  </view>
+
+  <view class="result-page" wx:if="{{isFinished && !loading}}">
+    <view class="result-hero-wrap">
+      <view class="result-hero-glow"></view>
+      <view class="result-hero-shell">
+        <view class="result-medal">
+          <view class="result-medal-ring">
+            <text class="result-medal-star">★</text>
+          </view>
+          <view class="result-medal-ribbon-wrap">
+            <view class="result-medal-ribbon left"></view>
+            <view class="result-medal-ribbon right"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="result-title">本周答题完成</view>
+    <view class="result-date-pill">
+      <text class="result-date-icon">📅</text>
+      <text>{{quizDate}}</text>
+    </view>
+
+    <view class="result-metrics">
+      <view class="metric-card">
+        <text class="metric-label">总得分</text>
+        <text class="metric-value">{{totalScore}}</text>
+        <view class="metric-line"></view>
+      </view>
+      <view class="metric-card">
+        <text class="metric-label">答对题数</text>
+        <text class="metric-value">{{correctCount}}/{{questions.length}}</text>
+        <view class="metric-line"></view>
+      </view>
+      <view class="metric-card">
+        <text class="metric-label">正确率</text>
+        <text class="metric-value">{{accuracy}}%</text>
+        <view class="metric-line"></view>
+      </view>
+    </view>
+
+    <view class="result-hint-pill">
+      <view class="hint-icon">i</view>
+      <text>下周一早上 9:00 更新新题目</text>
+    </view>
+
+    <view class="result-actions">
+      <button class="result-secondary-btn" bindtap="goBack">返回首页</button>
+    </view>
+  </view>
+</view>

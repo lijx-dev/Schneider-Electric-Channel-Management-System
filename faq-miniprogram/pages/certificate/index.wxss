@@ -1,0 +1,359 @@
+page {
+  min-height: 100%;
+  background: #f4f6f8;
+}
+
+.page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  background:
+    radial-gradient(circle at 86% 3%, rgba(0, 176, 80, 0.1), transparent 30%),
+    linear-gradient(180deg, #f8fbf9 0%, #f4f6f8 42%, #eef2f5 100%);
+  color: #0f172a;
+}
+
+.content {
+  padding: 30rpx 36rpx 64rpx;
+  box-sizing: border-box;
+}
+
+.top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 22rpx 30rpx 14rpx;
+  display: flex;
+  align-items: center;
+  background: rgba(248, 251, 249, 0.94);
+  backdrop-filter: blur(18rpx);
+  box-sizing: border-box;
+}
+
+.back-pill {
+  height: 58rpx;
+  padding: 0 20rpx 0 12rpx;
+  display: flex;
+  align-items: center;
+  border-radius: 999rpx;
+  background: #ffffff;
+  box-shadow: 0 8rpx 22rpx rgba(15, 23, 42, 0.06);
+  color: #008a3d;
+  flex-shrink: 0;
+}
+
+.back-text {
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.crumbs {
+  min-width: 0;
+  margin-left: 18rpx;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.crumb,
+.crumb-separator {
+  color: #64748b;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.crumb {
+  max-width: 160rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.crumb-separator {
+  margin: 0 8rpx;
+  color: #a5b0bf;
+}
+
+.section-head {
+  padding: 8rpx 4rpx 28rpx;
+}
+
+.section-title {
+  display: block;
+  color: #0f172a;
+  font-size: 36rpx;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.section-subtitle {
+  display: block;
+  margin-top: 10rpx;
+  color: #64748b;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.company-list,
+.option-list,
+.detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.company-card,
+.option-card,
+.detail-card,
+.state-card {
+  width: 100%;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow:
+    0 14rpx 34rpx rgba(15, 23, 42, 0.055),
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.9);
+  box-sizing: border-box;
+}
+
+.company-card,
+.option-card {
+  min-height: 132rpx;
+  padding: 28rpx 30rpx;
+  display: flex;
+  align-items: center;
+}
+
+.company-card:active,
+.option-card:active,
+.model-card:active {
+  transform: scale(0.992);
+  opacity: 0.94;
+}
+
+.company-logo,
+.option-icon {
+  width: 82rpx;
+  height: 82rpx;
+  margin-right: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #eef2f4;
+  overflow: hidden;
+}
+
+.company-logo {
+  border-radius: 24rpx;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1rpx rgba(15, 23, 42, 0.06);
+}
+
+.company-logo-img {
+  width: 74rpx;
+  height: 74rpx;
+  display: block;
+}
+
+.company-logo-text {
+  max-width: 72rpx;
+  color: #64748b;
+  font-size: 16rpx;
+  font-weight: 900;
+  text-align: center;
+  line-height: 1.08;
+  word-break: break-all;
+}
+
+.logo-schneider {
+  background: linear-gradient(145deg, #eaf8ef 0%, #f4f7f5 100%);
+}
+
+.logo-schneider .company-logo-text {
+  color: #00b050;
+  font-size: 13rpx;
+}
+
+.logo-abb {
+  background: #f3f5f7;
+}
+
+.logo-abb .company-logo-text {
+  color: #d71920;
+  font-size: 26rpx;
+}
+
+.logo-siemens {
+  background: #078b8f;
+}
+
+.logo-siemens .company-logo-text {
+  color: #ffffff;
+  font-size: 12rpx;
+}
+
+.logo-weiteng {
+  background: #eef6f1;
+}
+
+.logo-weiteng .company-logo-text {
+  color: #00b050;
+  font-size: 34rpx;
+}
+
+.logo-eaton {
+  background: #f1f3f5;
+}
+
+.logo-eaton .company-logo-text {
+  color: #6b7280;
+  font-size: 14rpx;
+}
+
+.company-copy,
+.option-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.company-name,
+.option-title {
+  display: block;
+  color: #1f2937;
+  font-size: 31rpx;
+  font-weight: 900;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.company-desc,
+.option-desc {
+  display: block;
+  margin-top: 12rpx;
+  color: #6b7280;
+  font-size: 22rpx;
+  font-weight: 650;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.option-icon {
+  width: 58rpx;
+  height: 58rpx;
+  margin-right: 24rpx;
+  background: #edf8f1;
+  color: #00b050;
+  font-size: 22rpx;
+  font-weight: 900;
+}
+
+.cert-type-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 22rpx;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1rpx rgba(15, 23, 42, 0.06);
+}
+
+.cert-type-logo-img {
+  width: 76rpx;
+  height: 76rpx;
+  display: block;
+}
+
+.state-card {
+  padding: 44rpx 34rpx;
+  color: #64748b;
+  font-size: 25rpx;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.model-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20rpx;
+}
+
+.model-card {
+  min-height: 126rpx;
+  padding: 26rpx 24rpx;
+  border-radius: 22rpx;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow:
+    0 12rpx 28rpx rgba(15, 23, 42, 0.05),
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.9);
+  box-sizing: border-box;
+}
+
+.model-name {
+  display: block;
+  color: #172033;
+  font-size: 29rpx;
+  font-weight: 900;
+  line-height: 1.25;
+  word-break: break-all;
+}
+
+.model-count {
+  display: block;
+  margin-top: 14rpx;
+  color: #00b050;
+  font-size: 21rpx;
+  font-weight: 800;
+}
+
+.detail-page {
+  padding-bottom: 80rpx;
+}
+
+.detail-card {
+  padding: 30rpx 30rpx 22rpx;
+}
+
+.detail-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid #edf1f4;
+}
+
+.detail-card-title {
+  color: #0f172a;
+  font-size: 28rpx;
+  font-weight: 900;
+}
+
+.detail-field {
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid #f1f4f6;
+}
+
+.detail-field:last-child {
+  border-bottom: 0;
+}
+
+.detail-label {
+  display: block;
+  color: #64748b;
+  font-size: 22rpx;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.detail-value {
+  display: block;
+  margin-top: 8rpx;
+  color: #1f2937;
+  font-size: 25rpx;
+  font-weight: 650;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

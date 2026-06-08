@@ -1,0 +1,24 @@
+# Production dependencies
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+python-dotenv>=1.0.0
+httpx>=0.26.0
+structlog>=24.1.0
+python-multipart>=0.0.9
+alembic>=1.14.0
+xlrd>=2.0.1              # 导入 .xls 题库
+
+# Database
+sqlalchemy[asyncio]>=2.0.0
+aiosqlite>=0.19.0        # 本地开发用（SQLite）
+aiomysql>=0.2.0          # 生产环境用（微信云托管 MySQL）
+
+# Authentication
+python-jose[cryptography]>=3.3.0
+
+openpyxl>=3.1.2          # Import .xlsx certificate spreadsheets
+
+# Object Storage
+cos-python-sdk-v5>=1.9.30

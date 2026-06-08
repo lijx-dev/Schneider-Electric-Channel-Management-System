@@ -1,0 +1,71 @@
+{
+  "pages": [
+    "pages/shouye_Home_Dashboard_Green/shouye_Home_Dashboard_Green",
+    "pages/zhinengwenda_AI_Assistant_Green/zhinengwenda_AI_Assistant_Green",
+    "pages/energy-mall/index",
+    "pages/wode_User_Profile_Green/wode_User_Profile_Green",
+    "pages/certificate/index",
+    "pages/quiz/quiz",
+    "pages/leaderboard/leaderboard",
+    "pages/question-bank/question-bank",
+    "pages/question-list/question-list",
+    "pages/question-detail/question-detail",
+    "pages/knowledge/index",
+    "pages/profile-edit/profile-edit",
+    "pages/studyRecord/index",
+    "pages/redeem-record/index",
+    "pages/reward-record/index",
+    "pages/help-center/index",
+    "pages/about-academy/index",
+    "pages/legal/terms/index",
+    "pages/legal/privacy/index",
+    "pages/register/register",
+    "pages/login/login"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#00B050",
+    "navigationBarTitleText": "分销商学堂",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#F5F7FA"
+  },
+  "tabBar": {
+    "color": "#94a3b8",
+    "selectedColor": "#00B050",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/shouye_Home_Dashboard_Green/shouye_Home_Dashboard_Green",
+        "text": "首页",
+        "iconPath": "images/tab-home.png",
+        "selectedIconPath": "images/tab-home-active.png"
+      },
+      {
+        "pagePath": "pages/zhinengwenda_AI_Assistant_Green/zhinengwenda_AI_Assistant_Green",
+        "text": "母线豆包",
+        "iconPath": "images/tab-chat.png",
+        "selectedIconPath": "images/tab-chat-active.png"
+      },
+      {
+        "pagePath": "pages/energy-mall/index",
+        "text": "能量商城",
+        "iconPath": "images/tab-certificate.png",
+        "selectedIconPath": "images/tab-certificate-active.png"
+      },
+      {
+        "pagePath": "pages/wode_User_Profile_Green/wode_User_Profile_Green",
+        "text": "我的",
+        "iconPath": "images/tab-profile.png",
+        "selectedIconPath": "images/tab-profile-active.png"
+      }
+    ]
+  },
+  "plugins": {
+    "WechatSI": {
+      "version": "0.3.5",
+      "provider": "wx069ba97219f66d99"
+    }
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2"
+}

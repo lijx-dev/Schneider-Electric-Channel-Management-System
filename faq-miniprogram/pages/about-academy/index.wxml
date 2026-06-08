@@ -1,0 +1,14 @@
+<scroll-view class="about-page" scroll-y>
+  <view class="about-hero">
+    <text class="about-kicker">About Academy</text>
+    <text class="about-title">关于学堂</text>
+    <text class="about-desc">这里介绍学堂的定位、功能、内容范围和整体使用方向。</text>
+  </view>
+
+  <view class="about-list">
+    <view class="about-card" wx:for="{{moduleList}}" wx:key="title">
+      <text class="about-card-title">{{item.title}}</text>
+      <text class="about-card-content">{{item.content}}</text>
+    </view>
+  </view>
+</scroll-view>

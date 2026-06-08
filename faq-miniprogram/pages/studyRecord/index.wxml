@@ -1,0 +1,72 @@
+<view class="page">
+  <view class="hero-card">
+    <view class="hero-header">
+      <view class="hero-copy">
+        <text class="hero-eyebrow">Learning Journal</text>
+        <text class="hero-title">{{displayName}}</text>
+        <text class="hero-subtitle">把每一次答题和练习沉淀成清晰可见的成长轨迹。</text>
+      </view>
+      <view class="today-chip">
+        <text class="today-chip-label">今日完成</text>
+        <text class="today-chip-value">{{summary.today_answers || 0}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <text class="section-title">核心数据</text>
+      <text class="section-subtitle">当前账号累计学习表现</text>
+    </view>
+    <view class="core-grid">
+      <view class="core-card" wx:for="{{coreCards}}" wx:key="label">
+        <text class="core-label">{{item.label}}</text>
+        <view class="core-value-row">
+          <text class="core-value">{{item.value}}</text>
+          <text class="core-suffix">{{item.suffix}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <text class="section-title">学习画像</text>
+      <text class="section-subtitle">从答题、活跃和练习时长三个角度看你的状态</text>
+    </view>
+    <view class="portrait-grid">
+      <view class="portrait-card" wx:for="{{portraitCards}}" wx:key="label">
+        <text class="portrait-label">{{item.label}}</text>
+        <text class="portrait-value">{{item.value}}</text>
+        <text class="portrait-desc">{{item.desc}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <text class="section-title">最近作答</text>
+      <text class="section-subtitle">最近 12 条学习行为明细</text>
+    </view>
+    <view class="record-empty" wx:if="{{!recentRecords.length}}">
+      <text class="record-empty-title">还没有学习记录</text>
+      <text class="record-empty-copy">完成一次每周答题或题库练习后，这里就会自动出现内容。</text>
+    </view>
+    <view class="record-list" wx:else>
+      <view class="record-card" wx:for="{{recentRecords}}" wx:key="id" data-index="{{index}}" bindtap="showRecordDetail">
+        <view class="record-top">
+          <view class="record-tags">
+            <text class="record-tag primary">{{item.sourceText}}</text>
+            <text class="record-tag">{{item.questionTypeText}}</text>
+          </view>
+          <text class="record-score {{item.resultClass}}">{{item.scoreText}}</text>
+        </view>
+        <text class="record-question">{{item.questionText}}</text>
+        <view class="record-bottom">
+          <text class="record-result {{item.resultClass}}">{{item.resultText}}</text>
+          <text class="record-time">{{item.createdAtText}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
