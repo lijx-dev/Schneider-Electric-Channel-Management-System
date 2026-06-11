@@ -1189,8 +1189,7 @@ async def get_admin_global_leaderboard(
 
 
 from app.services.lottery import run_monthly_lottery, fetch_lottery_draw
-from app.services.monthly_leaderboard import previous_month_key
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 
 
 class ManualTriggerLotteryRequest(BaseModel):
