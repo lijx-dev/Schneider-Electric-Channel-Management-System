@@ -1188,6 +1188,63 @@ async def get_admin_global_leaderboard(
     }
 
 
+from app.services.lottery import run_monthly_lottery, fetch_lottery_draw
+from app.services.monthly_leaderboard import previous_month_key
+from datetime import datetime, timezone, timedelta
+
+
+class ManualTriggerLotteryRequest(BaseModel):
+    month: str = Field(default="", description="指定抽奖月份 YYYY-MM，默认取当月")
+
+
+@router.post("/lottery/trigger-monthly")
+async def admin_trigger_monthly_lottery(
+    payload: ManualTriggerLotteryRequest,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> dict[str, object]:
+    """管理员手动触发当月抽奖。已当月执行过则直接返回提示不可重复执行，防止重复发放能量。"""
+    today = datetime.now(timezone(timedelta(hours=8)))
+    month_key = validate_month_key(payload.month) if payload.month else today.strftime("%Y-%m")
+
+    existing = await fetch_lottery_draw(db, month_key)
+    if existing and existing.status == "completed":
+        return {
+            "code": 0,
+            "data": {
+                "month": month_key,
+                "already_drawn": True,
+                "eligible_count": existing.eligible_count or 0,
+                "winner_count": existing.winner_count or 0,
+                "total_energy": 0,
+                "message": f"{month_key}月份的抽奖已经执行过，不可重复执行"
+            }
+        }
+
+    result = await run_monthly_lottery(db, month_key=month_key)
+    already_drawn = bool(result.get("already_drawn", False))
+    total_energy = 0
+    if not already_drawn:
+        total_energy = sum(
+            30 if prize == "first" else 20 if prize == "second" else 10
+            for _, prize, _ in (result.get("_raw_winners") or [])
+        )
+
+    await db.commit()
+    return {
+        "code": 0,
+        "data": {
+            "month": result["month"],
+            "participant_month": result["participant_month"],
+            "eligible_count": result.get("eligible_count", 0),
+            "winner_count": result.get("winner_count", 0),
+            "total_energy": total_energy,
+            "already_drawn": already_drawn,
+            "message": "当月抽奖执行完成" if not already_drawn else "该月抽奖已存在，跳过执行"
+        }
+    }
+
+
 @router.get("/redemption-orders")
 async def list_admin_redemption_orders(
     province: str = "",

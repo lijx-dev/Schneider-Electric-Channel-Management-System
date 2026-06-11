@@ -1063,6 +1063,68 @@ $("usersBody").addEventListener("click", async (event) => {
   }
 });
 
+let isLotteryRunning = false;
+
+async function handleRunMonthlyLottery() {
+  if (isLotteryRunning) {
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "确定要立即对当前月份全量参与用户执行抽奖吗？\n\n" +
+    "执行后系统将：\n" +
+    "1. 自动从本月参与过答题的用户中随机抽取 30 名中奖者\n" +
+    "2. 一等奖 10 名，每人发放 30 格施能量\n" +
+    "3. 二等奖 10 名，每人发放 20 格施能量\n" +
+    "4. 三等奖 10 名，每人发放 10 格施能量\n" +
+    "5. 全部中奖记录自动写入奖励记录表\n\n" +
+    "⚠️  系统有防重复执行保护，同一月份只允许抽奖一次。确认继续吗？"
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  isLotteryRunning = true;
+  const btn = $("btnRunMonthlyLottery");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "抽奖执行中...";
+  }
+
+  try {
+    const result = await request("/api/admin/lottery/trigger-monthly", {
+      method: "POST",
+      body: {}
+    });
+    const messageLines = [
+      result.message,
+      "",
+      "统计详情：",
+      `月份：${result.month}`,
+      `合格参与人数：${result.eligible_count} 人`,
+      `实际中奖人数：${result.winner_count} 人`,
+      `本次共发放能量：${result.total_energy} 格施能量`
+    ];
+    window.alert(messageLines.join("\n"));
+    await loadRewards();
+  } catch (error) {
+    window.alert(`抽奖执行失败：${error.message}`);
+  } finally {
+    isLotteryRunning = false;
+    const btnRestore = $("btnRunMonthlyLottery");
+    if (btnRestore) {
+      btnRestore.disabled = false;
+      btnRestore.textContent = "⚡ 立即执行当月抽奖";
+    }
+  }
+}
+
+if ($("btnRunMonthlyLottery")) {
+  $("btnRunMonthlyLottery").addEventListener("click", () => {
+    handleRunMonthlyLottery().catch((error) => window.alert(error.message));
+  });
+}
+
 if (state.token) {
   showAuthed(true);
   bootDashboard().catch((error) => {
