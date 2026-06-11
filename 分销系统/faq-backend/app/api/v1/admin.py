@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 import uuid
 from typing import Optional
@@ -31,7 +31,10 @@ from app.services.monthly_leaderboard import (
     fetch_live_month_entries,
     fetch_month_snapshots,
     validate_month_key,
+    settle_monthly_rewards,
+    get_month_reward_amount,
 )
+from app.services.lottery import run_monthly_lottery, fetch_lottery_draw
 from app.services.ranking import (
     fetch_weekly_rank_entries,
     get_display_name,
@@ -1188,11 +1191,6 @@ async def get_admin_global_leaderboard(
     }
 
 
-from app.services.lottery import run_monthly_lottery, fetch_lottery_draw
-from app.services.monthly_leaderboard import settle_monthly_rewards, validate_month_key, get_month_reward_amount
-from datetime import date, datetime, timezone, timedelta
-
-
 class ManualTriggerLotteryRequest(BaseModel):
     month: str = Field(default="", description="指定抽奖月份 YYYY-MM，默认取当月")
 
@@ -1266,9 +1264,8 @@ async def admin_trigger_monthly_rank_reward(
     already_settled = bool(result.get("already_settled", False))
     total_energy = 0
     if not already_settled:
-        total_energy = sum(
-            get_month_reward_amount(rank) for rank in range(1, 51)
-        ) // 2  # 按实际排名统计总能量
+        # 真实计算1-50名全排名总能量: 3*30 +7*20 +10*10 +30*5
+        total_energy = 3*30 + 7*20 + 10*10 +30*5
 
     await db.commit()
     return {
