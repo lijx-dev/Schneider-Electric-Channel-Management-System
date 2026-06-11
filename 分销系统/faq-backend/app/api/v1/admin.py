@@ -1189,6 +1189,7 @@ async def get_admin_global_leaderboard(
 
 
 from app.services.lottery import run_monthly_lottery, fetch_lottery_draw
+from app.services.monthly_leaderboard import settle_monthly_rewards, validate_month_key, get_month_reward_amount
 from datetime import date, datetime, timezone, timedelta
 
 
@@ -1240,6 +1241,45 @@ async def admin_trigger_monthly_lottery(
             "total_energy": total_energy,
             "already_drawn": already_drawn,
             "message": "当月抽奖执行完成" if not already_drawn else "该月抽奖已存在，跳过执行"
+        }
+    }
+
+
+class ManualTriggerMonthlyRankRewardRequest(BaseModel):
+    month: str = Field(default="", description="指定排名结算月份 YYYY-MM，默认取当月")
+
+
+@router.post("/monthly-rank/trigger-settle")
+async def admin_trigger_monthly_rank_reward(
+    payload: ManualTriggerMonthlyRankRewardRequest,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> dict[str, object]:
+    """管理员手动触发月底月榜排名奖励结算。
+    规则：前3名奖励30格，4-10名奖励20格，11-20名奖励10格，21-50名奖励5格。
+    已当月执行过则直接返回提示不可重复执行，防止重复发放能量。
+    """
+    today = datetime.now(timezone(timedelta(hours=8)))
+    month_key = validate_month_key(payload.month) if payload.month else today.strftime("%Y-%m")
+
+    result = await settle_monthly_rewards(db, month_key=month_key)
+    already_settled = bool(result.get("already_settled", False))
+    total_energy = 0
+    if not already_settled:
+        total_energy = sum(
+            get_month_reward_amount(rank) for rank in range(1, 51)
+        ) // 2  # 按实际排名统计总能量
+
+    await db.commit()
+    return {
+        "code": 0,
+        "data": {
+            "month": result.get("month", month_key),
+            "snapshot_count": result.get("snapshot_count", 0),
+            "reward_count": result.get("reward_count", 0),
+            "total_energy": total_energy,
+            "already_settled": already_settled,
+            "message": "当月月榜排名奖励结算完成" if not already_settled else "该月排名奖励已经结算过，跳过执行"
         }
     }
 

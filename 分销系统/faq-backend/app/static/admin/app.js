@@ -1064,6 +1064,68 @@ $("usersBody").addEventListener("click", async (event) => {
 });
 
 let isLotteryRunning = false;
+let isRankSettleRunning = false;
+
+async function handleTriggerMonthlyRankSettle() {
+  if (isRankSettleRunning) {
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "确定要立即对当前月份全量用户执行月底月榜排名奖励结算吗？\n\n" +
+    "执行后系统将：\n" +
+    "1. 自动统计本月所有用户答题积分并排名\n" +
+    "2. 第1-3名 每人发放 30 格施能量\n" +
+    "3. 第4-10名 每人发放 20 格施能量\n" +
+    "4. 第11-20名 每人发放 10 格施能量\n" +
+    "5. 第21-50名 每人发放 5 格施能量\n" +
+    "6. 所有排名快照和能量奖励记录自动写入数据库\n\n" +
+    "⚠️  系统有防重复执行保护，同一月份只允许排名结算一次。确认继续吗？"
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  isRankSettleRunning = true;
+  const btn = $("btnTriggerMonthlyRankSettle");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "排名结算中...";
+  }
+
+  try {
+    const result = await request("/api/admin/monthly-rank/trigger-settle", {
+      method: "POST",
+      body: {}
+    });
+    const messageLines = [
+      result.message,
+      "",
+      "统计详情：",
+      `月份：${result.month}`,
+      `排名快照总数：${result.snapshot_count} 人`,
+      `获得奖励人数：${result.reward_count} 人`,
+      `本次共发放能量：${result.total_energy} 格施能量`
+    ];
+    window.alert(messageLines.join("\n"));
+    await loadRewards();
+  } catch (error) {
+    window.alert(`排名结算执行失败：${error.message}`);
+  } finally {
+    isRankSettleRunning = false;
+    const btnRestore = $("btnTriggerMonthlyRankSettle");
+    if (btnRestore) {
+      btnRestore.disabled = false;
+      btnRestore.textContent = "🏆 立即执行月底排名奖励";
+    }
+  }
+}
+
+if ($("btnTriggerMonthlyRankSettle")) {
+  $("btnTriggerMonthlyRankSettle").addEventListener("click", () => {
+    handleTriggerMonthlyRankSettle().catch((error) => window.alert(error.message));
+  });
+}
 
 async function handleRunMonthlyLottery() {
   if (isLotteryRunning) {
