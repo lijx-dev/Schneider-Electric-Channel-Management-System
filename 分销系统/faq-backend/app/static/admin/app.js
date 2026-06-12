@@ -115,7 +115,7 @@ function setCompanyOptions(select, includeAll = false) {
     select.value = current;
   } else if (includeAll && current) {
     select.value = "";
-  } else if (!includeAll && options.length) {
+  } else if (!includeAll && options.length && !select.dataset.options) {
     select.value = options[0];
   } else if (!includeAll) {
     select.value = "";
@@ -309,14 +309,11 @@ function renderLeaderboard(items) {
 }
 
 async function loadLeaderboard() {
-  const list = $("leaderboardCompanyOptions");
-  const firstOption = list ? list.options[0] : null;
-  const company = $("leaderboardCompany").value || (firstOption ? firstOption.value : "");
+  const company = $("leaderboardCompany").value || "";
   if (!company) {
     renderLeaderboard([]);
     return;
   }
-  $("leaderboardCompany").value = company;
   const data = await request(`/api/admin/company-leaderboard?company=${encodeURIComponent(company)}`);
   renderLeaderboard(data.items || []);
 }
@@ -824,6 +821,8 @@ async function bootDashboard() {
   "energyCompany",
   "monthlyProvince",
   "monthlyCompany",
+  "userCompanyFilter",
+  "ordersCompany",
 ].forEach(setupSearchableInput);
 
 document.addEventListener("click", (event) => {
