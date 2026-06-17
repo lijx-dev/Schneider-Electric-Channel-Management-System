@@ -17,9 +17,12 @@ import json
 from typing import Any, AsyncGenerator
 
 import httpx
+from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.db.session import AsyncSessionLocal
+from app.models.hiagent_conversation import HiAgentConversation
 
 logger = get_logger(__name__)
 
@@ -37,6 +40,18 @@ class HiAgentService:
         "入参错误",
         "网络异常",
         "status: failed",
+    )
+
+    # HiAgent 会话失效/过期时的错误特征，检测到后自动重建会话
+    _CONVERSATION_ERROR_MARKERS = (
+        "conversation not found",
+        "conversation_id",
+        "invalid conversation",
+        "session expired",
+        "会话不存在",
+        "会话已过期",
+        "app_conversation",
+        "conversation is",
     )
 
     # 记录每个用户的 AppConversationID，用于多轮对话
@@ -136,13 +151,94 @@ class HiAgentService:
 
     @staticmethod
     async def _ensure_conversation(user_id: str) -> str:
-        """确保用户有一个有效的 AppConversationID"""
-        app_conv_id = HiAgentService._conversations.get(user_id, "")
-        if not app_conv_id:
-            app_conv_id = await HiAgentService._create_conversation(user_id)
-            HiAgentService._conversations[user_id] = app_conv_id
-            logger.info("hiagent_new_conversation", app_conv_id=app_conv_id)
+        """
+        确保用户有一个有效的 AppConversationID。
+
+        查询优先级：内存缓存 → 数据库 → HiAgent 创建新会话。
+        创建成功后同步写入数据库和内存缓存，解决多实例部署时
+        内存字典隔离导致上下文丢失的问题。
+        """
+        # 1. 内存缓存命中（最快路径）
+        cached = HiAgentService._conversations.get(user_id, "")
+        if cached:
+            return cached
+
+        # 2. 数据库查询（服务重启 / 多实例场景）
+        try:
+            async with AsyncSessionLocal() as db:
+                stmt = select(HiAgentConversation).where(
+                    HiAgentConversation.user_id == user_id
+                )
+                result = await db.execute(stmt)
+                row = result.scalar_one_or_none()
+                if row and row.app_conversation_id:
+                    HiAgentService._conversations[user_id] = row.app_conversation_id
+                    logger.info(
+                        "hiagent_conversation_restored_from_db",
+                        user_id=user_id,
+                        app_conv_id=row.app_conversation_id[:16],
+                    )
+                    return row.app_conversation_id
+        except Exception as exc:
+            logger.warning("hiagent_db_read_failed", error=str(exc))
+
+        # 3. 创建新会话
+        app_conv_id = await HiAgentService._create_conversation(user_id)
+        HiAgentService._conversations[user_id] = app_conv_id
+
+        # 4. 持久化到数据库（异步写入，不影响主流程）
+        await HiAgentService._persist_conversation(user_id, app_conv_id)
+
+        logger.info("hiagent_new_conversation", app_conv_id=app_conv_id)
         return app_conv_id
+
+    @staticmethod
+    async def _persist_conversation(user_id: str, app_conv_id: str) -> None:
+        """将会话 ID 持久化到数据库（upsert）。"""
+        try:
+            async with AsyncSessionLocal() as db:
+                existing = await db.get(HiAgentConversation, user_id)
+                if existing:
+                    existing.app_conversation_id = app_conv_id
+                else:
+                    db.add(
+                        HiAgentConversation(
+                            user_id=user_id,
+                            app_conversation_id=app_conv_id,
+                        )
+                    )
+                await db.commit()
+        except Exception as exc:
+            logger.warning("hiagent_db_persist_failed", error=str(exc))
+
+    @staticmethod
+    async def _invalidate_conversation(user_id: str) -> None:
+        """
+        清除指定用户的会话记录（内存 + 数据库）。
+        当 HiAgent 返回会话无效/过期错误时调用，下次请求会自动重建。
+        """
+        HiAgentService._conversations.pop(user_id, None)
+        try:
+            async with AsyncSessionLocal() as db:
+                row = await db.get(HiAgentConversation, user_id)
+                if row:
+                    await db.delete(row)
+                    await db.commit()
+                    logger.info(
+                        "hiagent_conversation_invalidated",
+                        user_id=user_id,
+                    )
+        except Exception as exc:
+            logger.warning("hiagent_db_invalidate_failed", error=str(exc))
+
+    @staticmethod
+    def _is_conversation_error(error_text: str) -> bool:
+        """检测 HiAgent 返回的错误是否与会话失效有关。"""
+        lowered = str(error_text or "").lower()
+        return any(
+            marker in lowered
+            for marker in HiAgentService._CONVERSATION_ERROR_MARKERS
+        )
 
     @staticmethod
     def _should_process_stream_event(current_event_type: str | None, inner_event_type: str) -> bool:
@@ -183,9 +279,54 @@ class HiAgentService:
 
     # ── 阻塞模式（保留兼容） ─────────────────────────────────────────
     @staticmethod
+    async def _chat_internal(user_message: str, user_id: str, app_conv_id: str) -> tuple[int, dict]:
+        """内部方法：执行一次阻塞式 HiAgent 请求，返回 (status, data)。"""
+        url = f"{HiAgentService._base_url()}/chat_query_v2"
+        body = {
+            "Query": user_message,
+            "AppConversationID": app_conv_id,
+            "ResponseMode": "blocking",
+            "UserID": user_id,
+            "QueryExtends": {"Files": []}
+        }
+        headers = HiAgentService._headers()
+
+        logger.info("hiagent_chat_blocking", url=url, app_conv_id=app_conv_id[:8])
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.post(url, headers=headers, json=body)
+
+            if resp.status_code != 200:
+                return resp.status_code, {
+                    "reply": HiAgentService.USER_FACING_NETWORK_ERROR,
+                    "sources": [],
+                    "error_text": resp.text or "",
+                }
+
+            data = resp.json()
+            reply_text = ""
+            if "Data" in data and isinstance(data["Data"], dict):
+                reply_text = data["Data"].get("Answer", "")
+            if not reply_text:
+                reply_text = data.get("Answer", data.get("answer", ""))
+            reply_text = HiAgentService._normalize_agent_error_reply(reply_text)
+
+            message_id = HiAgentService._extract_message_id(data)
+
+            logger.info("hiagent_chat_success", reply_length=len(reply_text), message_id=message_id)
+            return 200, {
+                "reply": reply_text or "（AI 未返回内容）",
+                "sources": [],
+                "message_id": message_id,
+            }
+
+    @staticmethod
     async def chat(user_message: str, user_id: str = "default_user") -> dict:
         """
         阻塞模式：等 AI 全部生成后一次性返回。
+
+        支持会话过期自动重建：当 HiAgent 返回会话相关错误时，
+        自动清除旧会话、创建新会话并重试一次。
         """
         if not settings.HIAGENT_API_KEY:
             logger.warning("hiagent_not_configured")
@@ -194,45 +335,32 @@ class HiAgentService:
         try:
             app_conv_id = await HiAgentService._ensure_conversation(user_id)
 
-            url = f"{HiAgentService._base_url()}/chat_query_v2"
-            body = {
-                "Query": user_message,
-                "AppConversationID": app_conv_id,
-                "ResponseMode": "blocking",
-                "UserID": user_id,
-                "QueryExtends": {"Files": []}
-            }
-            headers = HiAgentService._headers()
+            status, result = await HiAgentService._chat_internal(
+                user_message, user_id, app_conv_id
+            )
 
-            logger.info("hiagent_chat_blocking", url=url, app_conv_id=app_conv_id[:8])
-
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                resp = await client.post(url, headers=headers, json=body)
-
-                if resp.status_code != 200:
+            # 检测会话失效错误 → 重建会话并重试一次
+            if status != 200:
+                error_text = result.get("error_text", "")
+                if HiAgentService._is_conversation_error(error_text):
+                    logger.warning(
+                        "hiagent_conversation_error_detected",
+                        user_id=user_id,
+                        status=status,
+                    )
+                    await HiAgentService._invalidate_conversation(user_id)
+                    app_conv_id = await HiAgentService._ensure_conversation(user_id)
+                    _, result = await HiAgentService._chat_internal(
+                        user_message, user_id, app_conv_id
+                    )
+                else:
                     logger.error(
                         "hiagent_chat_failed",
-                        status=resp.status_code,
-                        response_length=len(resp.text or ""),
+                        status=status,
+                        response_length=len(error_text),
                     )
-                    return {"reply": HiAgentService.USER_FACING_NETWORK_ERROR, "sources": []}
 
-                data = resp.json()
-                reply_text = ""
-                if "Data" in data and isinstance(data["Data"], dict):
-                    reply_text = data["Data"].get("Answer", "")
-                if not reply_text:
-                    reply_text = data.get("Answer", data.get("answer", ""))
-                reply_text = HiAgentService._normalize_agent_error_reply(reply_text)
-
-                message_id = HiAgentService._extract_message_id(data)
-
-                logger.info("hiagent_chat_success", reply_length=len(reply_text), message_id=message_id)
-                return {
-                    "reply": reply_text or "（AI 未返回内容）",
-                    "sources": [],
-                    "message_id": message_id,
-                }
+            return result
 
         except httpx.TimeoutException:
             logger.error("hiagent_timeout")
@@ -243,7 +371,9 @@ class HiAgentService:
 
     # ── 流式模式（SSE） ──────────────────────────────────────────────
     @staticmethod
-    async def chat_stream(user_message: str, user_id: str = "default_user") -> AsyncGenerator[str, None]:
+    async def chat_stream(
+        user_message: str, user_id: str = "default_user"
+    ) -> AsyncGenerator[str, None]:
         """
         流式模式：逐步 yield 文本片段，前端实时显示。
 
@@ -252,129 +382,176 @@ class HiAgentService:
           data: {"event":"message", "Answer":"你好", ...}
           ...
           data: {"event":"done", ...}
+
+        支持会话过期自动重建：当 HTTP 响应是非 200 且错误信息包含
+        会话失效标记时，自动清除旧会话、创建新会话并重试一次。
         """
         if not settings.HIAGENT_API_KEY:
             yield "AI 问答功能配置中，请联系管理员。"
             return
 
-        try:
-            app_conv_id = await HiAgentService._ensure_conversation(user_id)
+        max_retries = 1  # 允许重试一次（共 2 次尝试）
+        for attempt in range(max_retries + 1):
+            chunks_yielded = 0
+            try:
+                app_conv_id = await HiAgentService._ensure_conversation(user_id)
 
-            url = f"{HiAgentService._base_url()}/chat_query_v2"
-            body = {
-                "Query": user_message,
-                "AppConversationID": app_conv_id,
-                "ResponseMode": "streaming",
-                "UserID": user_id,
-                "QueryExtends": {"Files": []}
-            }
-            headers = HiAgentService._headers()
+                url = f"{HiAgentService._base_url()}/chat_query_v2"
+                body = {
+                    "Query": user_message,
+                    "AppConversationID": app_conv_id,
+                    "ResponseMode": "streaming",
+                    "UserID": user_id,
+                    "QueryExtends": {"Files": []},
+                }
+                headers = HiAgentService._headers()
 
-            logger.info("hiagent_chat_stream_start", url=url, app_conv_id=app_conv_id[:8])
+                logger.info(
+                    "hiagent_chat_stream_start",
+                    url=url,
+                    app_conv_id=app_conv_id[:8],
+                    attempt=attempt + 1,
+                )
 
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                async with client.stream("POST", url, headers=headers, json=body) as resp:
+                async with httpx.AsyncClient(timeout=120.0) as client:
+                    async with client.stream(
+                        "POST", url, headers=headers, json=body
+                    ) as resp:
 
-                    if resp.status_code != 200:
-                        error_body = ""
-                        async for chunk in resp.aiter_text():
-                            error_body += chunk
-                        logger.error(
-                            "hiagent_stream_failed",
-                            status=resp.status_code,
-                            response_length=len(error_body),
-                        )
-                        yield HiAgentService.USER_FACING_NETWORK_ERROR
-                        return
+                        if resp.status_code != 200:
+                            error_body = ""
+                            async for chunk in resp.aiter_text():
+                                error_body += chunk
 
-                    # 逐行解析 SSE
-                    # 格式:
-                    # event:text
-                    # data: {"event": "message", "answer": "你好", ...}
-                    
-                    prev_answer = ""
-                    current_event_type = None
-                    emitted_message_id = ""
-
-                    async for line in resp.aiter_lines():
-                        line = line.strip()
-                        if not line:
-                            continue
-
-                        # 记录当前行的 event 类型 (如 event:text, event:error)
-                        if line.startswith("event:"):
-                            current_event_type = line[6:].strip()
-                            continue
-
-                        # 解析 data 行
-                        if line.startswith("data:"):
-                            json_str = line[5:].strip()
-
-                            # "[DONE]" 或空表示结束
-                            if json_str == "[DONE]" or not json_str:
-                                continue
-
-                            # 只处理 text 类型的事件，忽略 error 等
-                            try:
-                                event_data = json.loads(json_str)
-                            except json.JSONDecodeError:
-                                continue
-
-                            if not isinstance(event_data, dict):
-                                continue
-
-                            message_id = HiAgentService._extract_message_id(event_data)
-                            if message_id and message_id != emitted_message_id:
-                                emitted_message_id = message_id
-                                yield {
-                                    "type": "meta",
-                                    "message_id": message_id,
-                                }
-
-                            # 内部业务事件类型
-                            inner_event_type = event_data.get("event", "")
-
-                            # 流结束事件
-                            if not HiAgentService._should_process_stream_event(
-                                current_event_type,
-                                inner_event_type,
+                            # 检测会话失效 → 清除并重试
+                            if (
+                                attempt < max_retries
+                                and HiAgentService._is_conversation_error(error_body)
                             ):
+                                logger.warning(
+                                    "hiagent_stream_conversation_error",
+                                    status=resp.status_code,
+                                    attempt=attempt + 1,
+                                )
+                                await HiAgentService._invalidate_conversation(user_id)
+                                continue  # 重试
+
+                            logger.error(
+                                "hiagent_stream_failed",
+                                status=resp.status_code,
+                                response_length=len(error_body),
+                            )
+                            yield HiAgentService.USER_FACING_NETWORK_ERROR
+                            return
+
+                        # 逐行解析 SSE
+                        prev_answer = ""
+                        current_event_type = None
+                        emitted_message_id = ""
+
+                        async for line in resp.aiter_lines():
+                            line = line.strip()
+                            if not line:
                                 continue
 
-                            # 提取文本增量
-                            # 根据 V2 文档示例，优先使用 'answer' 字段（增量式）
-                            # 如果不存在，尝试使用 'Answer' 字段（累积式）作为兜底
-                            delta, prev_answer = HiAgentService._extract_stream_delta(
-                                event_data,
-                                prev_answer,
-                            )
-                            
-                            if delta:
-                                if (
-                                    HiAgentService._normalize_agent_error_reply(delta)
-                                    == HiAgentService.USER_FACING_NETWORK_ERROR
+                            # 记录当前行的 event 类型 (如 event:text, event:error)
+                            if line.startswith("event:"):
+                                current_event_type = line[6:].strip()
+                                continue
+
+                            # 解析 data 行
+                            if line.startswith("data:"):
+                                json_str = line[5:].strip()
+
+                                # "[DONE]" 或空表示结束
+                                if json_str == "[DONE]" or not json_str:
+                                    continue
+
+                                try:
+                                    event_data = json.loads(json_str)
+                                except json.JSONDecodeError:
+                                    continue
+
+                                if not isinstance(event_data, dict):
+                                    continue
+
+                                message_id = HiAgentService._extract_message_id(
+                                    event_data
+                                )
+                                if message_id and message_id != emitted_message_id:
+                                    emitted_message_id = message_id
+                                    yield {
+                                        "type": "meta",
+                                        "message_id": message_id,
+                                    }
+
+                                # 内部业务事件类型
+                                inner_event_type = event_data.get("event", "")
+
+                                # 流结束事件
+                                if not HiAgentService._should_process_stream_event(
+                                    current_event_type,
+                                    inner_event_type,
                                 ):
-                                    yield HiAgentService.USER_FACING_NETWORK_ERROR
-                                    return
-                                # 增量式直接 yield 并在本地维护完整内容
-                                yield delta
-                            elif False:  # legacy fallback kept unreachable for compatibility
-                                # 兜底逻辑：处理可能的累积式 Answer 字段
-                                full_answer = event_data.get("Answer", "")
-                                if full_answer and full_answer != prev_answer:
-                                    delta = full_answer[len(prev_answer):]
-                                    prev_answer = full_answer
-                                    if delta:
-                                        yield delta
+                                    continue
 
-                    logger.info("hiagent_chat_stream_done", total_length=len(prev_answer))
+                                # 提取文本增量
+                                delta, prev_answer = HiAgentService._extract_stream_delta(
+                                    event_data,
+                                    prev_answer,
+                                )
 
-        except httpx.TimeoutException:
-            logger.error("hiagent_stream_timeout")
-            yield HiAgentService.USER_FACING_NETWORK_ERROR
-        except Exception as e:
-            logger.error("hiagent_stream_exception", error=str(e))
-            yield HiAgentService.USER_FACING_NETWORK_ERROR
+                                if delta:
+                                    if (
+                                        HiAgentService._normalize_agent_error_reply(
+                                            delta
+                                        )
+                                        == HiAgentService.USER_FACING_NETWORK_ERROR
+                                    ):
+                                        yield HiAgentService.USER_FACING_NETWORK_ERROR
+                                        return
+                                    chunks_yielded += 1
+                                    yield delta
+                                elif False:  # legacy fallback kept unreachable for compatibility
+                                    # 兜底逻辑：处理可能的累积式 Answer 字段
+                                    full_answer = event_data.get("Answer", "")
+                                    if full_answer and full_answer != prev_answer:
+                                        delta = full_answer[len(prev_answer):]
+                                        prev_answer = full_answer
+                                        if delta:
+                                            chunks_yielded += 1
+                                            yield delta
+
+                        logger.info(
+                            "hiagent_chat_stream_done",
+                            total_length=len(prev_answer),
+                            chunks=chunks_yielded,
+                        )
+                        return  # 成功完成，退出重试循环
+
+            except httpx.TimeoutException:
+                if attempt < max_retries:
+                    logger.warning(
+                        "hiagent_stream_timeout_retry", attempt=attempt + 1
+                    )
+                    continue
+                logger.error("hiagent_stream_timeout")
+                yield HiAgentService.USER_FACING_NETWORK_ERROR
+                return
+            except Exception as e:
+                if attempt < max_retries:
+                    logger.warning(
+                        "hiagent_stream_exception_retry",
+                        error=str(e),
+                        attempt=attempt + 1,
+                    )
+                    continue
+                logger.error("hiagent_stream_exception", error=str(e))
+                yield HiAgentService.USER_FACING_NETWORK_ERROR
+                return
+
+        # 所有重试均已耗尽
+        yield HiAgentService.USER_FACING_NETWORK_ERROR
 
     @staticmethod
     async def submit_feedback(
