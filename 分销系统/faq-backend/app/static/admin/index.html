@@ -321,9 +321,14 @@
                 <button class="ghost-btn" id="exportRewardsBtn">导出奖励 XLSX</button>
                 <button class="ghost-btn" id="loadRewardsBtn">查询</button>
               </div>
-              <div class="header-actions">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <label style="display:flex;align-items:center;gap:6px;margin:0;">
+                  <span style="white-space:nowrap;">操作月份</span>
+                  <input id="rewardsOperationMonth" type="month" style="width:150px;padding:5px 8px;border:1px solid #d0d5dd;border-radius:6px;font-size:13px;">
+                </label>
                 <button id="btnTriggerMonthlyRankSettle" style="background:#2B5AED;color:white;border:none;border-radius:6px;padding:7px 16px;cursor:pointer;margin-right:8px;">🏆 月底排名奖励</button>
-                <button id="btnRunMonthlyLottery" style="background:#07C160;color:white;border:none;border-radius:6px;padding:7px 16px;cursor:pointer;">⚡ 当月抽奖</button>
+                <button id="btnRunMonthlyLottery" style="background:#07C160;color:white;border:none;border-radius:6px;padding:7px 16px;cursor:pointer;margin-right:8px;">⚡ 当月抽奖</button>
+                <button id="btnUndoMonthlyRewards" style="background:#E74C3C;color:white;border:none;border-radius:6px;padding:7px 16px;cursor:pointer;">↩ 撤销</button>
               </div>
             </div>
           </div>

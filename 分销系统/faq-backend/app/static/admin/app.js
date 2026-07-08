@@ -1070,10 +1070,14 @@ async function handleTriggerMonthlyRankSettle() {
     return;
   }
 
+  const monthInput = $("rewardsOperationMonth");
+  const targetMonth = monthInput ? monthInput.value : "";
+
+  const monthLabel = targetMonth || "当前月份";
   const confirmed = window.confirm(
-    "确定要立即对当前月份全量用户执行月底月榜排名奖励结算吗？\n\n" +
+    `确定要立即对 ${monthLabel} 全量用户执行月底月榜排名奖励结算吗？\n\n` +
     "执行后系统将：\n" +
-    "1. 自动统计本月所有用户答题积分并排名\n" +
+    "1. 自动统计该月所有用户答题积分并排名\n" +
     "2. 第1-3名 每人发放 30 格施能量\n" +
     "3. 第4-10名 每人发放 20 格施能量\n" +
     "4. 第11-20名 每人发放 10 格施能量\n" +
@@ -1095,7 +1099,7 @@ async function handleTriggerMonthlyRankSettle() {
   try {
     const result = await request("/api/admin/monthly-rank/trigger-settle", {
       method: "POST",
-      body: {}
+      body: { month: targetMonth }
     });
     const messageLines = [
       result.message,
@@ -1115,7 +1119,7 @@ async function handleTriggerMonthlyRankSettle() {
     const btnRestore = $("btnTriggerMonthlyRankSettle");
     if (btnRestore) {
       btnRestore.disabled = false;
-      btnRestore.textContent = "🏆 立即执行月底排名奖励";
+      btnRestore.textContent = "🏆 月底排名奖励";
     }
   }
 }
@@ -1131,10 +1135,14 @@ async function handleRunMonthlyLottery() {
     return;
   }
 
+  const monthInput = $("rewardsOperationMonth");
+  const targetMonth = monthInput ? monthInput.value : "";
+
+  const monthLabel = targetMonth || "当前月份";
   const confirmed = window.confirm(
-    "确定要立即对当前月份全量参与用户执行抽奖吗？\n\n" +
+    `确定要立即对 ${monthLabel} 全量参与用户执行抽奖吗？\n\n` +
     "执行后系统将：\n" +
-    "1. 自动从本月参与过答题的用户中随机抽取 30 名中奖者\n" +
+    "1. 自动从该月参与过答题的用户中随机抽取 30 名中奖者\n" +
     "2. 一等奖 10 名，每人发放 30 格施能量\n" +
     "3. 二等奖 10 名，每人发放 20 格施能量\n" +
     "4. 三等奖 10 名，每人发放 10 格施能量\n" +
@@ -1155,7 +1163,7 @@ async function handleRunMonthlyLottery() {
   try {
     const result = await request("/api/admin/lottery/trigger-monthly", {
       method: "POST",
-      body: {}
+      body: { month: targetMonth }
     });
     const messageLines = [
       result.message,
@@ -1183,6 +1191,69 @@ async function handleRunMonthlyLottery() {
 if ($("btnRunMonthlyLottery")) {
   $("btnRunMonthlyLottery").addEventListener("click", () => {
     handleRunMonthlyLottery().catch((error) => window.alert(error.message));
+  });
+}
+
+// 初始化操作月份选择器为当前月份
+if ($("rewardsOperationMonth")) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  $("rewardsOperationMonth").value = `${year}-${month}`;
+}
+
+let isUndoRunning = false;
+
+async function handleUndoMonthlyRewards() {
+  if (isUndoRunning) {
+    return;
+  }
+
+  const monthInput = $("rewardsOperationMonth");
+  const targetMonth = monthInput ? monthInput.value : "";
+
+  const monthLabel = targetMonth || "当前月份";
+  const confirmed = window.confirm(
+    `确定要撤销 ${monthLabel} 的所有奖励发放吗？\n\n` +
+    "撤销操作将：\n" +
+    "1. 删除该月份所有排名奖励和抽奖奖励的能量交易记录\n" +
+    "2. 删除该月份的排名快照和抽奖中奖记录\n" +
+    "3. 用户能量积分将自动恢复到发放前状态\n\n" +
+    "⚠️  该操作不可撤销，撤销后可重新执行结算和抽奖。确认继续吗？"
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  isUndoRunning = true;
+  const btn = $("btnUndoMonthlyRewards");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "撤销中...";
+  }
+
+  try {
+    const result = await request("/api/admin/rewards/undo", {
+      method: "POST",
+      body: { month: targetMonth }
+    });
+    window.alert(result.message);
+    await loadRewards();
+  } catch (error) {
+    window.alert(`撤销操作失败：${error.message}`);
+  } finally {
+    isUndoRunning = false;
+    const btnRestore = $("btnUndoMonthlyRewards");
+    if (btnRestore) {
+      btnRestore.disabled = false;
+      btnRestore.textContent = "↩ 撤销";
+    }
+  }
+}
+
+if ($("btnUndoMonthlyRewards")) {
+  $("btnUndoMonthlyRewards").addEventListener("click", () => {
+    handleUndoMonthlyRewards().catch((error) => window.alert(error.message));
   });
 }
 

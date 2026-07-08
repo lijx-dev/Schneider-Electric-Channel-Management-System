@@ -1281,6 +1281,84 @@ async def admin_trigger_monthly_rank_reward(
     }
 
 
+
+class UndoRewardsRequest(BaseModel):
+    month: str = Field(description="要撤销操作的月份 YYYY-MM")
+
+
+@router.post("/rewards/undo")
+async def admin_undo_monthly_rewards(
+    payload: UndoRewardsRequest,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> dict[str, object]:
+    """撤销指定月份的所有奖励发放（包括排名奖励和抽奖奖励）。
+    删除奖励记录和相关快照/抽奖记录，能量积分自动恢复。
+    """
+    month_key = validate_month_key(payload.month)
+
+    # 查询该月份所有类型的能量交易记录
+    stmt = select(EnergyTransaction).where(
+        EnergyTransaction.related_month == month_key,
+        EnergyTransaction.type.in_(["monthly_rank_reward", "lottery_reward"]),
+        EnergyTransaction.status == "issued"
+    )
+    result = await db.execute(stmt)
+    transactions = result.scalars().all()
+
+    total_undone = len(transactions)
+    total_energy_rolled_back = sum(tx.amount for tx in transactions)
+
+    # 删除能量交易记录（能量积分将从剩余交易中自动重新计算）
+    for tx in transactions:
+        await db.delete(tx)
+
+    # 删除月榜快照
+    from app.models.monthly import MonthlyRankSnapshot
+    from app.models.lottery import LotteryDraw, LotteryWinner
+
+    stmt_snapshot = select(MonthlyRankSnapshot).where(MonthlyRankSnapshot.month_key == month_key)
+    result_snapshot = await db.execute(stmt_snapshot)
+    snapshots = result_snapshot.scalars().all()
+    for snapshot in snapshots:
+        await db.delete(snapshot)
+
+    # 删除抽奖中奖记录
+    stmt_lottery_draw = select(LotteryDraw).where(LotteryDraw.month_key == month_key)
+    result_draw = await db.execute(stmt_lottery_draw)
+    draw = result_draw.scalar_one_or_none()
+    if draw:
+        stmt_winners = select(LotteryWinner).where(LotteryWinner.draw_id == draw.id)
+        result_winners = await db.execute(stmt_winners)
+        winners = result_winners.scalars().all()
+        for winner in winners:
+            await db.delete(winner)
+        await db.delete(draw)
+
+    await db.commit()
+
+    if total_undone == 0:
+        return {
+            "code": 0,
+            "data": {
+                "month": month_key,
+                "total_undone": 0,
+                "total_energy_rolled_back": 0,
+                "message": f"{month_key} 月份没有找到已发放的奖励记录，无需撤销"
+            }
+        }
+
+    return {
+        "code": 0,
+        "data": {
+            "month": month_key,
+            "total_undone": total_undone,
+            "total_energy_rolled_back": total_energy_rolled_back,
+            "message": f"{month_key} 月份撤销完成，共撤销 {total_undone} 条奖励记录，回收能量 {total_energy_rolled_back} 格施"
+        }
+    }
+
+
 @router.get("/redemption-orders")
 async def list_admin_redemption_orders(
     province: str = "",
