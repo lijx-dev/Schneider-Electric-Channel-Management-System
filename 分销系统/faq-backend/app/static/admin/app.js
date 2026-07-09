@@ -723,6 +723,18 @@ function buildRewardsParams() {
 
 function renderRewards(data) {
   const items = data.items || [];
+  // 排序：月底奖励按排名升序，抽奖按奖品等级和位次升序
+  const prizeLevelOrder = { first: 1, second: 2, third: 3 };
+  items.sort((a, b) => {
+    if (a.type !== b.type) return a.type === "monthly_rank_reward" ? -1 : 1;
+    if (a.type === "lottery_reward") {
+      const la = prizeLevelOrder[a.prize_level] || 99;
+      const lb = prizeLevelOrder[b.prize_level] || 99;
+      if (la !== lb) return la - lb;
+      return (a.winner_order || 0) - (b.winner_order || 0);
+    }
+    return (a.rank || 0) - (b.rank || 0);
+  });
   $("rewardsSummary").textContent =
     `共 ${data.total || 0} 条，月底奖励 ${data.monthly_count || 0} 条 / ${data.monthly_amount || 0} 能量，` +
     `月初抽奖 ${data.lottery_count || 0} 条 / ${data.lottery_amount || 0} 能量，总计 ${data.total_amount || 0} 能量`;
