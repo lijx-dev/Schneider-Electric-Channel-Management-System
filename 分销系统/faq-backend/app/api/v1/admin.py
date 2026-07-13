@@ -694,7 +694,7 @@ async def list_admin_reward_records(
     _: str = Depends(get_current_admin),
 ) -> dict[str, object]:
     month_key = validate_month_key(month or datetime.now().strftime("%Y-%m"))
-    allowed_types = {"monthly_rank_reward", "lottery_reward"}
+    allowed_types = {"monthly_rank_reward", "lottery_reward", "activity_reward"}
     selected_types = allowed_types if reward_type == "all" else {reward_type}
     selected_types = selected_types & allowed_types
     if not selected_types:
@@ -755,12 +755,14 @@ async def list_admin_reward_records(
         snapshot = snapshot_by_user.get(user.id)
         lottery = lottery_by_user.get(user.id)
         is_lottery = transaction.type == "lottery_reward"
+        is_activity = transaction.type == "activity_reward"
+        type_label = "月初抽奖" if is_lottery else ("活动奖励" if is_activity else "月底奖励")
         items.append(
             {
                 "id": transaction.id,
                 "month": month_key,
                 "type": transaction.type,
-                "type_label": "月初抽奖" if is_lottery else "月底奖励",
+                "type_label": type_label,
                 "user_id": user.id,
                 "name": get_display_name(user),
                 "real_name": user.real_name or "",
@@ -785,6 +787,7 @@ async def list_admin_reward_records(
 
     monthly_count = sum(1 for item in items if item["type"] == "monthly_rank_reward")
     lottery_count = sum(1 for item in items if item["type"] == "lottery_reward")
+    activity_count = sum(1 for item in items if item["type"] == "activity_reward")
     return {
         "code": 0,
         "data": {
@@ -793,6 +796,7 @@ async def list_admin_reward_records(
             "total": len(items),
             "monthly_count": monthly_count,
             "lottery_count": lottery_count,
+            "activity_count": activity_count,
             "total_amount": sum(int(item["amount"] or 0) for item in items),
             "monthly_amount": sum(int(item["amount"] or 0) for item in items if item["type"] == "monthly_rank_reward"),
             "lottery_amount": sum(int(item["amount"] or 0) for item in items if item["type"] == "lottery_reward"),
@@ -805,7 +809,7 @@ async def export_admin_reward_records(
     db: AsyncSession = Depends(get_db),
     _: str = Depends(get_current_admin),
 ) -> StreamingResponse:
-    reward_types = ("monthly_rank_reward", "lottery_reward")
+    reward_types = ("monthly_rank_reward", "lottery_reward", "activity_reward")
     result = await db.execute(
         select(EnergyTransaction, User)
         .join(User, User.id == EnergyTransaction.user_id)
@@ -873,6 +877,7 @@ async def export_admin_reward_records(
     for transaction, user in records:
         month_key = transaction.related_month or ""
         is_lottery = transaction.type == "lottery_reward"
+        is_activity_export = transaction.type == "activity_reward"
         snapshot = snapshots_by_key.get((month_key, user.id))
         lottery = lottery_by_transaction_id.get(transaction.id) or lottery_by_key.get((month_key, user.id))
         rank_or_prize = ""
@@ -889,7 +894,7 @@ async def export_admin_reward_records(
                 user.phone or "",
                 user.company or "",
                 _role_label(_effective_job_role(user)),
-                "月初抽奖" if is_lottery else "月底奖励",
+                "月初抽奖" if is_lottery else ("活动奖励" if is_activity_export else "月底奖励"),
                 rank_or_prize,
                 transaction.amount or 0,
                 transaction.title or "",
@@ -1300,7 +1305,7 @@ async def admin_undo_monthly_rewards(
     # 查询该月份所有类型的能量交易记录
     stmt = select(EnergyTransaction).where(
         EnergyTransaction.related_month == month_key,
-        EnergyTransaction.type.in_(["monthly_rank_reward", "lottery_reward"]),
+        EnergyTransaction.type.in_(["monthly_rank_reward", "lottery_reward", "activity_reward"]),
         EnergyTransaction.status == "issued"
     )
     result = await db.execute(stmt)

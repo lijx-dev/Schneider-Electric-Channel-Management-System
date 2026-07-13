@@ -705,6 +705,9 @@ function renderOrders(data) {
 }
 
 function rewardExtraText(item) {
+  if (item.type === "activity_reward") {
+    return item.description || "";
+  }
   if (item.type === "monthly_rank_reward") {
     return item.rank ? `第 ${item.rank} 名` : "";
   }
@@ -723,10 +726,12 @@ function buildRewardsParams() {
 
 function renderRewards(data) {
   const items = data.items || [];
-  // 排序：月底奖励按排名升序，抽奖按奖品等级和位次升序
+  // 排序：月底奖励按排名升序，活动奖励按时间，抽奖按奖品等级和位次升序
   const prizeLevelOrder = { first: 1, second: 2, third: 3 };
+  const typeOrder = { monthly_rank_reward: 1, activity_reward: 2, lottery_reward: 3 };
   items.sort((a, b) => {
-    if (a.type !== b.type) return a.type === "monthly_rank_reward" ? -1 : 1;
+    if (a.type !== b.type) return (typeOrder[a.type] || 99) - (typeOrder[b.type] || 99);
+    if (a.type === "activity_reward") return (a.amount || 0) - (b.amount || 0);
     if (a.type === "lottery_reward") {
       const la = prizeLevelOrder[a.prize_level] || 99;
       const lb = prizeLevelOrder[b.prize_level] || 99;
@@ -737,6 +742,7 @@ function renderRewards(data) {
   });
   $("rewardsSummary").textContent =
     `共 ${data.total || 0} 条，月底奖励 ${data.monthly_count || 0} 条 / ${data.monthly_amount || 0} 能量，` +
+    `活动奖励 ${data.activity_count || 0} 条，` +
     `月初抽奖 ${data.lottery_count || 0} 条 / ${data.lottery_amount || 0} 能量，总计 ${data.total_amount || 0} 能量`;
   $("rewardsBody").innerHTML = items.map((item) => `
     <tr>
