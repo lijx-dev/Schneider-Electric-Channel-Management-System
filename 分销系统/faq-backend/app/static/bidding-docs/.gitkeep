@@ -1,0 +1,15 @@
+# 投标文件存放目录
+# 请将以下文件（PDF格式）放入此目录，系统将自动检测可用状态：
+#
+#   business_license.pdf  - 营业执照副本
+#   iso_cert.pdf          - ISO 9001认证证书
+#   ce_cert.pdf           - CE认证证书
+#   kema_cert.pdf         - KEMA-KEUR认证证书
+#   test_report.pdf       - 产品检测报告
+#   performance.pdf       - 业绩证明
+#   product_catalog.pdf   - 产品样本
+#   authorization.pdf     - 法人授权书
+#   bid_letter.pdf        - 投标函
+#   price_list.pdf        - 报价表
+#
+# 文件放入后无需修改代码，API 会自动检测文件是否存在并返回可用状态。

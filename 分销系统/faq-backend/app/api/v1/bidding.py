@@ -1,4 +1,5 @@
 """招标文件上传与分析 API"""
+import os
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 
 from app.api.deps import enforce_rate_limit, get_current_user_id
@@ -9,6 +10,10 @@ from app.services.storage import StorageService
 router = APIRouter(tags=["招标分析"])
 
 logger = get_logger(__name__)
+
+# 投标文件存放目录（相对于 app/static/）
+BIDDING_DOCS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "static", "bidding-docs")
+BIDDING_DOCS_DIR = os.path.abspath(BIDDING_DOCS_DIR)
 
 
 @router.post("/bidding/upload")
@@ -87,7 +92,7 @@ async def list_available_documents(
 ):
     """
     获取可下载的投标文件清单。
-    返回当前可用的投标文件列表，包含文件名和下载链接。
+    自动检测 static/bidding-docs/ 目录下的文件，返回实际可用状态。
     """
     from app.services.bidding_features import REQUIRED_DOCUMENTS
 
@@ -95,12 +100,14 @@ async def list_available_documents(
     base_url = "/static/bidding-docs"
 
     for doc_name, doc_info in REQUIRED_DOCUMENTS.items():
+        file_path = os.path.join(BIDDING_DOCS_DIR, f"{doc_info['key']}.pdf")
+        available = os.path.isfile(file_path)
         docs.append({
             "name": doc_name,
             "key": doc_info["key"],
             "description": doc_info["description"],
             "download_url": f"{base_url}/{doc_info['key']}.pdf",
-            "available": False,  # 默认不可用，需管理员上传文件后设为 True
+            "available": available,
         })
 
     return {
