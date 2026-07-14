@@ -2910,6 +2910,15 @@ Page({
     });
   },
 
+  /**
+   * 跳转到招标文件分析页面
+   */
+  onOpenBidding() {
+    wx.navigateTo({
+      url: '/pages/bidding-result/bidding-result',
+    });
+  },
+
   onClearScreen() {
     const initialCount = (this.initialMessages || []).length;
     const hasMessages = (this.data.messages || []).length > initialCount;

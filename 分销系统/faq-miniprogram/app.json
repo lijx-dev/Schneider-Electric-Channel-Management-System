@@ -20,7 +20,8 @@
     "pages/legal/terms/index",
     "pages/legal/privacy/index",
     "pages/register/register",
-    "pages/login/login"
+    "pages/login/login",
+    "pages/bidding-result/bidding-result"
   ],
   "window": {
     "navigationBarBackgroundColor": "#00B050",

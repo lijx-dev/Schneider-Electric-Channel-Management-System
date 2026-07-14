@@ -984,6 +984,30 @@
   height: 34rpx;
 }
 
+/* 招标分析按钮 */
+.bidding-btn {
+  width: 74rpx;
+  height: 74rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  align-self: flex-end;
+  background: linear-gradient(135deg, #F0FDF4, #DCFCE7);
+  border: 1rpx solid rgba(16, 185, 129, 0.3);
+  box-shadow: 0 10rpx 24rpx rgba(16, 185, 129, 0.14);
+}
+.bidding-btn-text {
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #16A34A;
+}
+.bidding-btn:active {
+  background: #DCFCE7;
+  transform: scale(0.95);
+}
+
 .composer-input {
   flex: 1;
   min-height: 44rpx;

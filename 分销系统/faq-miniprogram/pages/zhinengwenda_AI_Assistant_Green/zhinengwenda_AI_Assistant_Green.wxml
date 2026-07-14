@@ -271,6 +271,9 @@
       >
         <image class="voice-btn-icon" src="../../images/chat-action-voice.svg" mode="aspectFit" />
       </view>
+      <view class="bidding-btn" bindtap="onOpenBidding">
+        <text class="bidding-btn-text">标书</text>
+      </view>
       <textarea
         class="composer-input"
         auto-height

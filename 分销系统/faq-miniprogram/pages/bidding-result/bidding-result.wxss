@@ -1,0 +1,376 @@
+.page {
+  min-height: 100vh;
+  background: #F5F7FA;
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+/* 标题栏 */
+.header {
+  padding: 32rpx 0;
+  text-align: center;
+}
+.header-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #1a1a2e;
+  display: block;
+}
+.header-sub {
+  font-size: 26rpx;
+  color: #94a3b8;
+  margin-top: 8rpx;
+  display: block;
+}
+
+/* 上传区域 */
+.upload-area {
+  background: #FFFFFF;
+  border: 2rpx dashed #CBD5E1;
+  border-radius: 16rpx;
+  padding: 80rpx 40rpx;
+  text-align: center;
+  margin-top: 32rpx;
+  transition: all 0.2s;
+}
+.upload-area:active {
+  background: #F8FAFC;
+  border-color: #00B050;
+}
+.upload-icon {
+  font-size: 80rpx;
+  margin-bottom: 24rpx;
+}
+.upload-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #334155;
+  display: block;
+  margin-bottom: 16rpx;
+}
+.upload-hint {
+  font-size: 24rpx;
+  color: #94a3b8;
+  display: block;
+  margin-top: 8rpx;
+}
+
+/* 加载中 */
+.loading-area {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 80rpx 40rpx;
+  text-align: center;
+  margin-top: 32rpx;
+}
+.loading-spinner {
+  width: 64rpx;
+  height: 64rpx;
+  border: 4rpx solid #E2E8F0;
+  border-top-color: #00B050;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 32rpx;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.loading-text {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #334155;
+  display: block;
+}
+.loading-file {
+  font-size: 26rpx;
+  color: #64748B;
+  display: block;
+  margin-top: 12rpx;
+  word-break: break-all;
+}
+.loading-sub {
+  font-size: 24rpx;
+  color: #94a3b8;
+  display: block;
+  margin-top: 16rpx;
+}
+
+/* 错误 */
+.error-area {
+  background: #FEF2F2;
+  border: 2rpx solid #FECACA;
+  border-radius: 16rpx;
+  padding: 40rpx 32rpx;
+  margin-top: 32rpx;
+  text-align: center;
+}
+.error-text {
+  font-size: 28rpx;
+  color: #DC2626;
+  display: block;
+  margin-bottom: 24rpx;
+}
+
+/* 结果区域 */
+.result-area {
+  margin-top: 32rpx;
+}
+
+/* 风险卡片 */
+.risk-card {
+  border-radius: 16rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  text-align: center;
+}
+.risk-high {
+  background: linear-gradient(135deg, #FEF2F2, #FEE2E2);
+  border: 2rpx solid #FECACA;
+}
+.risk-medium {
+  background: linear-gradient(135deg, #FFFBEB, #FEF3C7);
+  border: 2rpx solid #FDE68A;
+}
+.risk-low {
+  background: linear-gradient(135deg, #F0FDF4, #DCFCE7);
+  border: 2rpx solid #BBF7D0;
+}
+.risk-unknown {
+  background: linear-gradient(135deg, #F8FAFC, #E2E8F0);
+  border: 2rpx solid #CBD5E1;
+}
+.risk-label {
+  font-size: 40rpx;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 16rpx;
+}
+.risk-high .risk-label { color: #DC2626; }
+.risk-medium .risk-label { color: #D97706; }
+.risk-low .risk-label { color: #16A34A; }
+.risk-unknown .risk-label { color: #64748B; }
+.risk-detail {
+  font-size: 26rpx;
+  color: #475569;
+  line-height: 1.6;
+}
+
+/* 信息卡片 */
+.info-card {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 24rpx 32rpx;
+  margin-bottom: 24rpx;
+}
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #F1F5F9;
+}
+.info-row:last-child {
+  border-bottom: none;
+}
+.info-label {
+  font-size: 26rpx;
+  color: #64748B;
+}
+.info-value {
+  font-size: 26rpx;
+  color: #334155;
+  font-weight: 500;
+}
+
+/* 章节卡片 */
+.section-card {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 28rpx 32rpx;
+  margin-bottom: 24rpx;
+}
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1E293B;
+  display: block;
+  margin-bottom: 20rpx;
+}
+.section-desc {
+  font-size: 26rpx;
+  color: #64748B;
+  line-height: 1.6;
+}
+
+/* 友商列表 */
+.competitor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+.competitor-item {
+  background: #FEF2F2;
+  border-radius: 12rpx;
+  padding: 20rpx;
+}
+.comp-brand {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #DC2626;
+  display: block;
+  margin-bottom: 12rpx;
+}
+.comp-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+}
+.comp-kw {
+  background: #FEE2E2;
+  color: #B91C1C;
+  font-size: 22rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+}
+
+/* 施耐德关键词 */
+.schneider-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+}
+.kw-tag {
+  background: #DCFCE7;
+  color: #166534;
+  font-size: 24rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
+}
+
+/* 章节列表 */
+.section-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+.section-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #F8FAFC;
+  padding: 16rpx 20rpx;
+  border-radius: 12rpx;
+}
+.section-name {
+  font-size: 26rpx;
+  color: #334155;
+  font-weight: 500;
+}
+.section-location {
+  font-size: 24rpx;
+  color: #00B050;
+  background: #F0FDF4;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+}
+
+/* 文件列表 */
+.doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+.doc-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #F8FAFC;
+  padding: 20rpx;
+  border-radius: 12rpx;
+}
+.doc-info {
+  flex: 1;
+}
+.doc-name {
+  font-size: 28rpx;
+  color: #1E293B;
+  font-weight: 500;
+  display: block;
+}
+.doc-desc {
+  font-size: 22rpx;
+  color: #94A3B8;
+  margin-top: 4rpx;
+  display: block;
+}
+.doc-status {
+  margin-left: 16rpx;
+}
+.doc-unavailable {
+  font-size: 22rpx;
+  color: #94A3B8;
+  background: #F1F5F9;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+}
+.doc-hint {
+  font-size: 22rpx;
+  color: #94A3B8;
+  margin-top: 16rpx;
+  display: block;
+  text-align: center;
+}
+
+/* 按钮 */
+.retry-btn {
+  background: #00B050;
+  color: #FFFFFF;
+  font-size: 28rpx;
+  font-weight: 600;
+  text-align: center;
+  padding: 24rpx;
+  border-radius: 12rpx;
+  margin-top: 16rpx;
+}
+.retry-btn:active {
+  background: #009940;
+}
+
+/* 使用说明 */
+.tips-area {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  margin-top: 32rpx;
+}
+.tips-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1E293B;
+  display: block;
+  margin-bottom: 20rpx;
+}
+.tips-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+.tips-item {
+  font-size: 26rpx;
+  color: #64748B;
+  line-height: 1.6;
+}
+.tips-warn {
+  font-size: 24rpx;
+  color: #D97706;
+  margin-top: 20rpx;
+  display: block;
+  padding: 16rpx;
+  background: #FFFBEB;
+  border-radius: 8rpx;
+}
+
+/* 无品牌匹配 */
+.no-brand {
+  border: 2rpx dashed #CBD5E1;
+}
