@@ -65,62 +65,102 @@ Page({
 
   /**
    * 上传文件到后端分析
+   * 策略：先上传到云存储 → 获取临时下载链接 → 传给后端下载分析
+   * 避免 callContainer files 参数不兼容 multipart 的问题
    */
   uploadAndAnalyze(filePath) {
     const that = this;
     const token = app.globalData.token || wx.getStorageSync('token') || '';
+    const fileName = this.data.fileName;
 
-    wx.cloud.callContainer({
-      config: app.getCallContainerConfig(),
-      path: '/api/bidding/upload',
-      method: 'POST',
-      timeout: 120000,
-      header: {
-        'X-WX-SERVICE': 'faq-backend',
-        'Authorization': 'Bearer ' + token,
-      },
-      files: [{
-        name: 'file',
-        filePath: filePath,
-      }],
-      success(res) {
-        console.log('[bidding] analyze success, statusCode:', res.statusCode, 'data:', JSON.stringify(res.data));
-        if (res.statusCode === 200 && res.data) {
-          if (res.data.code === 0) {
-            const result = res.data.data || res.data;
-            that.renderAnalysisResult(result);
-          } else {
-            let errorMsg = '分析失败，请重试';
-            if (typeof res.data.message === 'string') {
-              errorMsg = res.data.message;
-            } else if (typeof res.data.detail === 'string') {
-              errorMsg = res.data.detail;
-            } else if (res.data.message && typeof res.data.message === 'object') {
-              errorMsg = JSON.stringify(res.data.message);
+    // 步骤1：上传到微信云存储
+    const cloudPath = 'bidding/' + Date.now() + '_' + fileName.replace(/[^a-zA-Z0-9._\u4e00-\u9fff]/g, '_');
+    wx.cloud.uploadFile({
+      cloudPath: cloudPath,
+      filePath: filePath,
+      success(uploadRes) {
+        const fileID = uploadRes.fileID;
+        console.log('[bidding] cloud upload success, fileID:', fileID);
+
+        // 步骤2：获取临时下载链接
+        wx.cloud.getTempFileURL({
+          fileList: [fileID],
+          success(tempRes) {
+            const downloadUrl = tempRes.fileList[0] && tempRes.fileList[0].tempFileURL;
+            if (!downloadUrl) {
+              that.setData({ analyzing: false, errorMsg: '获取文件下载链接失败' });
+              return;
             }
-            that.setData({ analyzing: false, errorMsg });
-          }
-        } else {
-          let errorMsg = '服务器返回异常，请重试';
-          if (res.data) {
-            if (typeof res.data.detail === 'string') {
-              errorMsg = res.data.detail;
-            } else if (typeof res.data.message === 'string') {
-              errorMsg = res.data.message;
-            }
-          }
-          that.setData({ analyzing: false, errorMsg });
-        }
+            console.log('[bidding] got temp download URL');
+
+            // 步骤3：调用后端分析
+            wx.cloud.callContainer({
+              config: app.getCallContainerConfig(),
+              path: '/api/bidding/upload',
+              method: 'POST',
+              timeout: 120000,
+              header: {
+                'X-WX-SERVICE': 'faq-backend',
+                'Authorization': 'Bearer ' + token,
+              },
+              data: {
+                download_url: downloadUrl,
+                filename: fileName,
+              },
+              success(res) {
+                console.log('[bidding] analyze success, statusCode:', res.statusCode, 'data:', JSON.stringify(res.data));
+                if (res.statusCode === 200 && res.data) {
+                  if (res.data.code === 0) {
+                    const result = res.data.data || res.data;
+                    that.renderAnalysisResult(result);
+                  } else {
+                    let errorMsg = '分析失败，请重试';
+                    if (typeof res.data.message === 'string') {
+                      errorMsg = res.data.message;
+                    } else if (typeof res.data.detail === 'string') {
+                      errorMsg = res.data.detail;
+                    } else if (res.data.message && typeof res.data.message === 'object') {
+                      errorMsg = JSON.stringify(res.data.message);
+                    }
+                    that.setData({ analyzing: false, errorMsg });
+                  }
+                } else {
+                  let errorMsg = '服务器返回异常，请重试';
+                  if (res.data) {
+                    if (typeof res.data.detail === 'string') {
+                      errorMsg = res.data.detail;
+                    } else if (typeof res.data.message === 'string') {
+                      errorMsg = res.data.message;
+                    }
+                  }
+                  that.setData({ analyzing: false, errorMsg });
+                }
+              },
+              fail(err) {
+                console.error('[bidding] analyze failed', JSON.stringify(err));
+                let errorMsg = '网络错误，请重试';
+                if (err.errMsg && typeof err.errMsg === 'string') {
+                  if (err.errMsg.indexOf('timeout') > -1) {
+                    errorMsg = '文件过大，分析超时，请尝试上传较小的文件';
+                  } else {
+                    errorMsg = err.errMsg;
+                  }
+                }
+                that.setData({ analyzing: false, errorMsg });
+              },
+            });
+          },
+          fail(err) {
+            console.error('[bidding] getTempFileURL failed', err);
+            that.setData({ analyzing: false, errorMsg: '获取文件链接失败，请重试' });
+          },
+        });
       },
       fail(err) {
-        console.error('[bidding] analyze failed', JSON.stringify(err));
-        let errorMsg = '网络错误，请重试';
+        console.error('[bidding] cloud upload failed', err);
+        let errorMsg = '上传失败，请重试';
         if (err.errMsg && typeof err.errMsg === 'string') {
-          if (err.errMsg.indexOf('timeout') > -1) {
-            errorMsg = '文件过大，分析超时，请尝试上传较小的文件';
-          } else {
-            errorMsg = err.errMsg;
-          }
+          errorMsg = err.errMsg;
         }
         that.setData({ analyzing: false, errorMsg });
       },
