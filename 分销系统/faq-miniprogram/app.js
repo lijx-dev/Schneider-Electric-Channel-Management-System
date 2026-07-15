@@ -708,6 +708,10 @@ App({
   },
 
   checkLogin(autoRedirect = true) {
+    if (this.globalData.guestMode) {
+      return true;
+    }
+
     if (!this.globalData.userId || !this.globalData.token) {
       if (autoRedirect) {
         wx.navigateTo({
@@ -754,11 +758,9 @@ App({
     this.globalData.userId = '';
     this.globalData.token = '';
     this.globalData.userInfo = null;
-    this.globalData.guestMode = false;
     wx.removeStorageSync('userId');
     wx.removeStorageSync('token');
     wx.removeStorageSync('userInfo');
-    wx.removeStorageSync('guestMode');
   },
 
   handleUnauthorized() {
