@@ -70,9 +70,7 @@ Page({
     const token = app.globalData.token || wx.getStorageSync('token') || '';
 
     wx.cloud.callContainer({
-      config: {
-        env: 'prod-0g0z1g6wf0c0b739',
-      },
+      config: app.getCallContainerConfig(),
       path: '/api/bidding/upload',
       method: 'POST',
       header: {
