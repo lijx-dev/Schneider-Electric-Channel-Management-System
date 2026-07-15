@@ -10,7 +10,6 @@ router = APIRouter(tags=["招标分析"])
 
 logger = get_logger(__name__)
 
-# 投标文件存放目录（相对于 app/static/）
 BIDDING_DOCS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "static", "bidding-docs")
 BIDDING_DOCS_DIR = os.path.abspath(BIDDING_DOCS_DIR)
 
@@ -21,21 +20,19 @@ async def upload_tender_file(
     current_user_id: str = Depends(get_current_user_id),
 ):
     """
-    上传招标文件（PDF）并进行分析。
+    上传招标文件并进行分析。
 
     流程：
       1. 验证文件类型和大小
       2. 读取文件内容
-      3. 提取 PDF 文本
+      3. 提取文本（自动识别 PDF / Word 格式）
       4. 关键词匹配检测
       5. 返回分析报告 + 推荐文件列表
     """
     enforce_rate_limit("bidding_upload", current_user_id, limit=10, window_seconds=600)
 
-    # 1. 读取文件内容
     content = await file.read()
 
-    # 2. 验证文件
     error = BiddingAnalyzer.validate_file(
         filename=file.filename or "",
         content_type=file.content_type or "",
@@ -44,7 +41,6 @@ async def upload_tender_file(
     if error:
         raise HTTPException(status_code=400, detail=error)
 
-    # 3. 提取文本（自动识别 PDF / Word 格式）
     try:
         text = BiddingAnalyzer.extract_text(content, filename=file.filename or "")
     except RuntimeError as exc:
@@ -57,10 +53,7 @@ async def upload_tender_file(
             detail="该文件无法提取文字内容，可能是扫描件（图片格式）或空文件，暂不支持分析。请使用文字版 PDF 或 Word 文档。",
         )
 
-    # 4. 关键词匹配分析
     keyword_result = BiddingAnalyzer.keyword_match(text)
-
-    # 5. 推荐投标文件
     recommended_docs = BiddingAnalyzer.get_recommended_documents(keyword_result)
 
     logger.info(

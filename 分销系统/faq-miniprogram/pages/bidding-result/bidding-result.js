@@ -18,6 +18,7 @@ Page({
     // 风险等级样式
     riskLevelClass: '',
     riskLevelText: '',
+    hasSections: false,
   },
 
   onLoad(options) {
@@ -73,6 +74,7 @@ Page({
       config: app.getCallContainerConfig(),
       path: '/api/bidding/upload',
       method: 'POST',
+      timeout: 120000,
       header: {
         'X-WX-SERVICE': 'faq-backend',
         'Authorization': 'Bearer ' + token,
@@ -82,32 +84,42 @@ Page({
         filePath: filePath,
       }],
       success(res) {
-        console.log('[bidding] upload success', res);
+        console.log('[bidding] analyze success, statusCode:', res.statusCode, 'data:', JSON.stringify(res.data));
         if (res.statusCode === 200 && res.data) {
-          const data = res.data.data || res.data;
-          if (data) {
-            that.renderAnalysisResult(data);
+          if (res.data.code === 0) {
+            const result = res.data.data || res.data;
+            that.renderAnalysisResult(result);
           } else {
-            that.setData({
-              analyzing: false,
-              errorMsg: res.data.detail || res.data.message || '分析失败，请重试',
-            });
+            let errorMsg = '分析失败，请重试';
+            if (typeof res.data.message === 'string') {
+              errorMsg = res.data.message;
+            } else if (typeof res.data.detail === 'string') {
+              errorMsg = res.data.detail;
+            } else if (res.data.message && typeof res.data.message === 'object') {
+              errorMsg = JSON.stringify(res.data.message);
+            }
+            that.setData({ analyzing: false, errorMsg });
           }
         } else {
-          that.setData({
-            analyzing: false,
-            errorMsg: (res.data && (res.data.detail || res.data.message)) || '服务器返回异常，请重试',
-          });
+          let errorMsg = '服务器返回异常，请重试';
+          if (res.data) {
+            if (typeof res.data.detail === 'string') {
+              errorMsg = res.data.detail;
+            } else if (typeof res.data.message === 'string') {
+              errorMsg = res.data.message;
+            }
+          }
+          that.setData({ analyzing: false, errorMsg });
         }
       },
       fail(err) {
-        console.error('[bidding] upload failed', err);
+        console.error('[bidding] analyze failed', JSON.stringify(err));
         let errorMsg = '网络错误，请重试';
-        if (err.errMsg) {
+        if (err.errMsg && typeof err.errMsg === 'string') {
           if (err.errMsg.indexOf('timeout') > -1) {
             errorMsg = '文件过大，分析超时，请尝试上传较小的文件';
-          } else if (err.errMsg.indexOf('fail') > -1) {
-            errorMsg = '上传失败，请检查网络后重试';
+          } else {
+            errorMsg = err.errMsg;
           }
         }
         that.setData({ analyzing: false, errorMsg });
@@ -144,9 +156,13 @@ Page({
         break;
     }
 
+    const sections = analysis.sections || {};
+    const hasSections = Object.keys(sections).length > 0;
+
     this.setData({
       analyzing: false,
       analysis,
+      hasSections: hasSections,
       riskLevelClass,
       riskLevelText,
       recommendedDocs: data.recommended_documents || [],

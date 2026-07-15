@@ -86,7 +86,7 @@
     </view>
 
     <!-- 识别到的章节 -->
-    <view class="section-card" wx:if="{{analysis.sections && Object.keys(analysis.sections).length > 0}}">
+    <view class="section-card" wx:if="{{hasSections}}">
       <text class="section-title">📋 识别到的关键章节</text>
       <view class="section-list">
         <view class="section-item" wx:for="{{analysis.sections}}" wx:for-index="name" wx:for-item="loc" wx:key="name">
