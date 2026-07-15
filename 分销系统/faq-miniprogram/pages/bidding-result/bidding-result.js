@@ -79,9 +79,10 @@ Page({
         'X-WX-SERVICE': 'faq-backend',
         'Authorization': 'Bearer ' + token,
       },
-      formData: {
-        file: filePath,
-      },
+      files: [{
+        name: 'file',
+        filePath: filePath,
+      }],
       success(res) {
         console.log('[bidding] upload success', res);
         if (res.statusCode === 200 && res.data) {
