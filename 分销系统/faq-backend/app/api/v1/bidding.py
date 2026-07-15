@@ -1,11 +1,10 @@
 """招标文件上传与分析 API"""
 import os
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from app.api.deps import enforce_rate_limit, get_current_user_id
 from app.core.logging import get_logger
 from app.services.bidding_analyzer import BiddingAnalyzer
-from app.services.storage import StorageService
 
 router = APIRouter(tags=["招标分析"])
 
@@ -18,7 +17,6 @@ BIDDING_DOCS_DIR = os.path.abspath(BIDDING_DOCS_DIR)
 
 @router.post("/bidding/upload")
 async def upload_tender_file(
-    request: Request,
     file: UploadFile = File(...),
     current_user_id: str = Depends(get_current_user_id),
 ):

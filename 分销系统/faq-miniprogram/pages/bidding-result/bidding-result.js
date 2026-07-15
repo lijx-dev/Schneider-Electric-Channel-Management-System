@@ -98,7 +98,7 @@ Page({
         } else {
           that.setData({
             analyzing: false,
-            errorMsg: res.data.detail || '服务器返回异常，请重试',
+            errorMsg: (res.data && (res.data.detail || res.data.message)) || '服务器返回异常，请重试',
           });
         }
       },

@@ -49,7 +49,8 @@
       </view>
       <view class="info-row">
         <text class="info-label">总页数</text>
-        <text class="info-value">{{analysis.total_pages}} 页</text>
+        <text class="info-value" wx:if="{{analysis.total_pages > 0}}">{{analysis.total_pages}} 页</text>
+        <text class="info-value" wx:else>未知（Word文档）</text>
       </view>
       <view class="info-row">
         <text class="info-label">文本长度</text>

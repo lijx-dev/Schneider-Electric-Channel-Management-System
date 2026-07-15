@@ -12,9 +12,9 @@ COMPETITOR_FEATURES = {
     "西门子": {
         "brand": "西门子",
         "keywords": [
-            "西门子", "西門子", "镇江西门子", "镇江西门子",
+            "西门子", "西門子", "镇江西门子",
             "SIEMENS", "Siemens",
-            "XL-IIIS", "XL-IIIS", "XL-IIIS密集型",
+            "XL-IIIS", "XL-IIIS密集型",
             "XL-III", "XLC-III", "XLC-IIIH",
             "XLB-III", "XLB-III铝合金",
             "XL-ⅡS", "XL-IIS",

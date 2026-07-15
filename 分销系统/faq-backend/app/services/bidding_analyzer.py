@@ -285,12 +285,12 @@ class BiddingAnalyzer:
             "text_length": len(text),
         }
 
-        # 统计总页数
+        # 统计总页数（仅 PDF 有效，Word 文档无页码标记则为 0）
         page_markers = re.findall(r"=== 第(\d+)页 ===", text)
         if page_markers:
             result["total_pages"] = max(int(p) for p in page_markers)
         else:
-            result["total_pages"] = 1
+            result["total_pages"] = 0
 
         # ---- 检测友商品牌 ----
         for comp_name, features in COMPETITOR_FEATURES.items():
@@ -314,21 +314,23 @@ class BiddingAnalyzer:
         # ---- 检测章节位置 ----
         for section_name, keywords in TENDER_SECTIONS.items():
             for kw in keywords:
-                for line in text.split("\n"):
+                # 在文本中按行查找，同时记录当前行在全文中的偏移位置
+                lines = text.split("\n")
+                offset = 0
+                for line in lines:
                     if kw in line:
                         # 尝试找到该关键词所在页码
                         page_match = re.search(r"第(\d+)页", line)
                         if page_match:
                             result["sections"][section_name] = f"第{page_match.group(1)}页"
                         else:
-                            # 在文本中查找该关键词前后的页码标记
-                            idx = text.find(kw)
-                            if idx > 0:
-                                before = text[:idx]
-                                page_before = re.findall(r"=== 第(\d+)页 ===", before)
-                                if page_before:
-                                    result["sections"][section_name] = f"第{page_before[-1]}页"
+                            # 使用当前行的偏移位置查找最近的页码标记
+                            before = text[:offset]
+                            page_before = re.findall(r"=== 第(\d+)页 ===", before)
+                            if page_before:
+                                result["sections"][section_name] = f"第{page_before[-1]}页"
                         break
+                    offset += len(line) + 1  # +1 for \n
                 if section_name in result["sections"]:
                     break
 
