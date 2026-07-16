@@ -5,8 +5,16 @@
     <text class="header-sub">上传招标文件，自动识别友商植入风险</text>
   </view>
 
+  <!-- 无权限 -->
+  <view class="no-permission" wx:if="{{noPermission}}">
+    <view class="permission-icon">🔒</view>
+    <text class="permission-title">暂无使用权限</text>
+    <text class="permission-desc">标书功能仅对白名单用户开放</text>
+    <text class="permission-desc">如需使用，请联系管理员开通</text>
+  </view>
+
   <!-- 上传区域 -->
-  <view class="upload-area" bindtap="chooseFile" wx:if="{{!analyzing && !analysis}}">
+  <view class="upload-area" bindtap="chooseFile" wx:if="{{!noPermission && !analyzing && !analysis}}">
     <view class="upload-icon">📄</view>
     <text class="upload-title">{{fileName || '点击选择招标文件'}}</text>
     <text class="upload-hint">支持 PDF、Word（.doc/.docx/.dot/.dotx）格式，最大 20MB</text>
@@ -14,7 +22,7 @@
   </view>
 
   <!-- 分析中 -->
-  <view class="loading-area" wx:if="{{analyzing}}">
+  <view class="loading-area" wx:if="{{!noPermission && analyzing}}">
     <view class="loading-spinner"></view>
     <text class="loading-text">正在分析中...</text>
     <text class="loading-file">{{fileName}}</text>
@@ -22,7 +30,7 @@
   </view>
 
   <!-- 错误提示 -->
-  <view class="error-area" wx:if="{{errorMsg}}">
+  <view class="error-area" wx:if="{{!noPermission && errorMsg}}">
     <text class="error-text">{{errorMsg}}</text>
     <view class="retry-btn" bindtap="retry">
       <text>重新选择文件</text>
@@ -30,7 +38,7 @@
   </view>
 
   <!-- 分析结果 -->
-  <view class="result-area" wx:if="{{analysis}}">
+  <view class="result-area" wx:if="{{!noPermission && analysis}}">
     <!-- 风险等级 -->
     <view class="risk-card {{riskLevelClass}}">
       <text class="risk-label">{{riskLevelText}}</text>
@@ -120,7 +128,7 @@
   </view>
 
   <!-- 首次使用提示 -->
-  <view class="tips-area" wx:if="{{!analysis && !analyzing && !errorMsg}}">
+  <view class="tips-area" wx:if="{{!noPermission && !analysis && !analyzing && !errorMsg}}">
     <text class="tips-title">使用说明</text>
     <view class="tips-list">
       <text class="tips-item">1. 上传招标文件（PDF 或 Word 格式）</text>

@@ -62,6 +62,7 @@ def build_login_user_payload(request: Request, user: User) -> dict:
         "province": user.province,
         "company": user.company,
         "profile_verified": bool(user.profile_verified),
+        "bidding_whitelisted": bool(user.bidding_whitelisted),
     }
 
 

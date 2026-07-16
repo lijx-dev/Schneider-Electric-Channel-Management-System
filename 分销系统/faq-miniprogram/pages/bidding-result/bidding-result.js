@@ -2,6 +2,9 @@ const app = getApp();
 
 Page({
   data: {
+    // 权限状态
+    noPermission: false,
+
     // 分析状态
     loading: false,
     analyzing: false,
@@ -22,6 +25,13 @@ Page({
   },
 
   onLoad(options) {
+    // 检查标书功能白名单
+    const userInfo = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
+    if (!userInfo.bidding_whitelisted) {
+      this.setData({ noPermission: true });
+      return;
+    }
+
     // 如果从其他页面传来数据，直接展示
     if (options.data) {
       try {

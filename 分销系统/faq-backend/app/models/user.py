@@ -54,6 +54,9 @@ class User(Base, TimestampMixin):
     total_count: Mapped[int] = mapped_column(Integer, default=0)
     profile_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     
+    # 标书功能白名单（仅白名单用户可使用招标文件分析功能）
+    bidding_whitelisted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    
     # ===== 智能推题预留字段 =====
     # 薄弱分类：{"产品知识": 0.6, "销售技巧": 0.8} 表示各分类正确率
     weak_categories: Mapped[Optional[Dict[str, Any]]] = mapped_column(

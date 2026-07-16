@@ -37,6 +37,27 @@ async def get_current_user_id(
     return user_id
 
 
+async def require_bidding_whitelist(
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> str:
+    """
+    校验当前用户是否在标书功能白名单中。
+    非白名单用户返回 403。
+    """
+    stmt = select(User.bidding_whitelisted).where(User.id == user_id)
+    result = await db.execute(stmt)
+    whitelisted = result.scalar_one_or_none()
+
+    if not whitelisted:
+        raise HTTPException(
+            status_code=403,
+            detail="暂无使用权限，请联系管理员开通标书功能",
+        )
+
+    return user_id
+
+
 def ensure_same_user(current_user_id: str, requested_user_id: Optional[str]) -> str:
     """Prevent horizontal privilege escalation when clients submit another user's ID."""
     if requested_user_id and requested_user_id != current_user_id:

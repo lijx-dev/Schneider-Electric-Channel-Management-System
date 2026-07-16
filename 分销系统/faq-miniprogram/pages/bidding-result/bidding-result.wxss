@@ -374,3 +374,29 @@
 .no-brand {
   border: 2rpx dashed #CBD5E1;
 }
+
+/* 无权限页 */
+.no-permission {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 80rpx 40rpx;
+  margin-top: 32rpx;
+  text-align: center;
+}
+.permission-icon {
+  font-size: 96rpx;
+  margin-bottom: 32rpx;
+}
+.permission-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #1E293B;
+  display: block;
+  margin-bottom: 16rpx;
+}
+.permission-desc {
+  font-size: 26rpx;
+  color: #94A3B8;
+  display: block;
+  line-height: 1.6;
+}

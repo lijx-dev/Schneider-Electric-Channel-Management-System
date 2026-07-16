@@ -6,7 +6,7 @@ import requests
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.api.deps import enforce_rate_limit, get_current_user_id
+from app.api.deps import enforce_rate_limit, require_bidding_whitelist
 from app.core.logging import get_logger
 from app.services.bidding_analyzer import BiddingAnalyzer
 
@@ -26,7 +26,7 @@ class BiddingUploadRequest(BaseModel):
 @router.post("/bidding/upload")
 async def upload_tender_file(
     body: Optional[BiddingUploadRequest] = Body(None),
-    current_user_id: str = Depends(get_current_user_id),
+    current_user_id: str = Depends(require_bidding_whitelist),
 ):
     """
     上传招标文件并进行分析。
@@ -106,7 +106,7 @@ async def upload_tender_file(
 
 @router.get("/bidding/docs")
 async def list_available_documents(
-    current_user_id: str = Depends(get_current_user_id),
+    current_user_id: str = Depends(require_bidding_whitelist),
 ):
     """
     获取可下载的投标文件清单。
