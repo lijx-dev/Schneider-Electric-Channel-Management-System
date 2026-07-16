@@ -131,6 +131,8 @@ Page({
     wx.showLoading({ title: '登录中...' });
 
     try {
+      this.refreshLoginCode();
+
       const res = await app.request({
         url: LOGIN_API,
         method: 'POST',
@@ -171,12 +173,16 @@ Page({
       }, 700);
     } catch (err) {
       console.error('登录失败:', err);
+      let msg = err.detail || err.message || '网络或服务器异常，请稍后重试';
+      if (msg.includes('code been used')) {
+        msg = '登录码已过期，请重新点击登录';
+        this.refreshLoginCode();
+      }
       wx.showModal({
         title: '登录失败',
-        content: err.detail || err.message || '网络或服务器异常，请稍后重试',
+        content: msg,
         showCancel: false
       });
-      this.refreshLoginCode();
     } finally {
       wx.hideLoading();
     }
