@@ -114,6 +114,7 @@ async def wechat_login(
                     "province": user.province,
                     "company": user.company,
                     "profile_verified": bool(user.profile_verified),
+                    "bidding_whitelisted": bool(user.bidding_whitelisted),
                 },
             },
         }
@@ -192,6 +193,7 @@ async def wechat_login_phone(
                     "province": user.province,
                     "company": user.company,
                     "profile_verified": bool(user.profile_verified),
+                    "bidding_whitelisted": bool(user.bidding_whitelisted),
                 },
             },
         }
