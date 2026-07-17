@@ -1314,8 +1314,11 @@ async def admin_undo_monthly_rewards(
     total_undone = len(transactions)
     total_energy_rolled_back = sum(tx.amount for tx in transactions)
 
-    # 删除能量交易记录（能量积分将从剩余交易中自动重新计算）
+    # 先扣减对应用户的 total_score，再删除交易记录
     for tx in transactions:
+        user = await db.get(User, tx.user_id)
+        if user:
+            user.total_score = max(0, (user.total_score or 0) - tx.amount)
         await db.delete(tx)
 
     # 删除月榜快照
