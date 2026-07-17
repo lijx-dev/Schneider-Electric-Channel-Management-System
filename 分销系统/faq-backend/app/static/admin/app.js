@@ -1026,8 +1026,15 @@ $("ordersDateTo").addEventListener("change", () => loadOrders().catch((error) =>
 $("ordersBody").addEventListener("change", async (event) => {
   const select = event.target.closest(".order-status-select");
   if (!select) return;
+  const newStatus = select.value;
+  if (newStatus === "cancelled") {
+    if (!confirm("确定要取消该订单吗？取消后能量将原路返回给用户。")) {
+      await loadOrders();
+      return;
+    }
+  }
   try {
-    await updateOrderStatus(select.dataset.id, select.value);
+    await updateOrderStatus(select.dataset.id, newStatus);
   } catch (error) {
     alert(error.message);
     await loadOrders();

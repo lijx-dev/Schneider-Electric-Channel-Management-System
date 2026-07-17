@@ -1580,6 +1580,25 @@ async def update_admin_redemption_order_status(
         raise HTTPException(status_code=404, detail="兑换订单不存在")
 
     record, user = row
+    previous_status = record.status
+
+    if status == "cancelled" and previous_status != "cancelled":
+        # 退还能耗
+        refund_amount = record.total_cost or 0
+        user.total_score = (user.total_score or 0) + refund_amount
+        refund_txn = EnergyTransaction(
+            user_id=user.id,
+            amount=refund_amount,
+            type="order_refund",
+            title="兑换订单取消退款",
+            description=f"取消兑换「{record.product_name}」退还 {refund_amount} 格施能量",
+            related_type="redemption",
+            related_id=str(record.id),
+            related_month=datetime.now().strftime("%Y-%m"),
+            status="issued",
+        )
+        db.add(refund_txn)
+
     record.status = status
     await db.flush()
     await db.refresh(record)
