@@ -984,8 +984,8 @@
   height: 34rpx;
 }
 
-/* 招标分析按钮 */
-.bidding-btn {
+/* 文件功能菜单按钮 */
+.file-menu-btn {
   width: 74rpx;
   height: 74rpx;
   border-radius: 999rpx;
@@ -998,12 +998,13 @@
   border: 1rpx solid rgba(16, 185, 129, 0.3);
   box-shadow: 0 10rpx 24rpx rgba(16, 185, 129, 0.14);
 }
-.bidding-btn-text {
-  font-size: 22rpx;
-  font-weight: 600;
+.file-menu-btn-text {
+  font-size: 36rpx;
+  font-weight: 700;
   color: #16A34A;
+  line-height: 1;
 }
-.bidding-btn:active {
+.file-menu-btn:active {
   background: #DCFCE7;
   transform: scale(0.95);
 }

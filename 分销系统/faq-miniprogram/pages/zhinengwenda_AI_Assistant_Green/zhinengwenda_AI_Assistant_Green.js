@@ -2911,11 +2911,21 @@ Page({
   },
 
   /**
-   * 跳转到招标文件分析页面
+   * 文件功能菜单入口
+   * 点击"+"按钮弹出功能选择菜单，支持扩展后续文件处理功能
    */
-  onOpenBidding() {
-    wx.navigateTo({
-      url: '/pages/bidding-result/bidding-result',
+  onOpenFileMenu() {
+    wx.showActionSheet({
+      itemList: ['招标文件分析'],
+      itemColor: '#1E293B',
+      success: (res) => {
+        if (res.tapIndex === 0) {
+          // 招标文件分析
+          wx.navigateTo({
+            url: '/pages/bidding-result/bidding-result',
+          });
+        }
+      },
     });
   },
 
