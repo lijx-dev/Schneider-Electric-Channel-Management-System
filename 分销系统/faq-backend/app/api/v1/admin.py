@@ -1583,9 +1583,10 @@ async def update_admin_redemption_order_status(
     previous_status = record.status
 
     if status == "cancelled" and previous_status != "cancelled":
-        # 退还能耗
+        # 退还能耗：只恢复可用能量，不修改 total_score
+        # total_score 是累计获得能量，不扣减已兑换；取消订单后 redeemed_energy
+        # 自动排除 cancelled 状态记录，available_energy 自动恢复
         refund_amount = record.total_cost or 0
-        user.total_score = (user.total_score or 0) + refund_amount
         refund_txn = EnergyTransaction(
             user_id=user.id,
             amount=refund_amount,
