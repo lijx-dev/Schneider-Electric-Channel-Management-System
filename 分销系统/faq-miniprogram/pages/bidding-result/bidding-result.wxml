@@ -1,8 +1,18 @@
 <view class="page">
   <!-- 标题栏 -->
   <view class="header">
-    <text class="header-title">招标文件分析</text>
-    <text class="header-sub">上传招标文件，自动识别友商植入风险</text>
+    <text class="header-title">{{mode === 'analyze' ? '招标文件智能分析' : '招标文件资料提取'}}</text>
+    <text class="header-sub">{{mode === 'analyze' ? '深度分析品牌植入、产品匹配与投标策略' : '识别招标文件要求的证书和报告，提供下载'}}</text>
+  </view>
+
+  <!-- 模式切换标签 -->
+  <view class="mode-tabs" wx:if="{{!noPermission && !analyzing}}">
+    <view class="mode-tab {{mode === 'extract' ? 'mode-tab-active' : ''}}" data-mode="extract" bindtap="switchMode">
+      <text>资料提取</text>
+    </view>
+    <view class="mode-tab {{mode === 'analyze' ? 'mode-tab-active' : ''}}" data-mode="analyze" bindtap="switchMode">
+      <text>智能分析</text>
+    </view>
   </view>
 
   <!-- 无权限 -->
@@ -26,7 +36,7 @@
     <view class="loading-spinner"></view>
     <text class="loading-text">正在分析中...</text>
     <text class="loading-file">{{fileName}}</text>
-    <text class="loading-sub">正在提取文本并检测关键词，请稍候</text>
+    <text class="loading-sub">{{mode === 'analyze' ? '正在深度分析招标文件，检测品牌植入、匹配产品...' : '正在提取文本并检测关键词，请稍候'}}</text>
   </view>
 
   <!-- 错误提示 -->
@@ -37,8 +47,10 @@
     </view>
   </view>
 
-  <!-- 分析结果 -->
-  <view class="result-area" wx:if="{{!noPermission && analysis}}">
+  <!-- ============================================================ -->
+  <!-- 模式一：资料提取结果 -->
+  <!-- ============================================================ -->
+  <view class="result-area" wx:if="{{!noPermission && analysis && mode === 'extract'}}">
     <!-- 风险等级 -->
     <view class="risk-card {{riskLevelClass}}">
       <text class="risk-label">{{riskLevelText}}</text>
@@ -68,7 +80,7 @@
 
     <!-- 检测到的友商 -->
     <view class="section-card" wx:if="{{analysis.competitors.length > 0}}">
-      <text class="section-title">🔴 检测到的友商品牌</text>
+      <text class="section-title">检测到的友商品牌</text>
       <view class="competitor-list">
         <view class="competitor-item" wx:for="{{analysis.competitors}}" wx:key="brand">
           <text class="comp-brand">{{item.brand}}</text>
@@ -81,21 +93,30 @@
 
     <!-- 检测到的施耐德 -->
     <view class="section-card" wx:if="{{analysis.schneider.matched_keywords.length > 0}}">
-      <text class="section-title">🟢 检测到的施耐德品牌</text>
+      <text class="section-title">检测到的施耐德品牌</text>
       <view class="schneider-keywords">
         <text class="kw-tag" wx:for="{{analysis.schneider.matched_keywords}}" wx:key="*this">{{item}}</text>
       </view>
     </view>
 
-    <!-- 未检测到任何品牌 -->
-    <view class="section-card no-brand" wx:if="{{analysis.competitors.length === 0 && analysis.schneider.matched_keywords.length === 0}}">
-      <text class="section-title">⚪ 未检测到母线品牌关键词</text>
-      <text class="section-desc">招标文件可能未明确指定品牌，或品牌信息以图片形式存在，建议人工复核全文。</text>
+    <!-- 检测到的投标资料要求 -->
+    <view class="section-card" wx:if="{{hasBiddingRequirements}}">
+      <text class="section-title">检测到的投标资料要求</text>
+      <view class="requirement-list">
+        <block wx:for="{{analysis.bidding_requirements}}" wx:for-index="reqName" wx:for-item="reqInfo" wx:key="reqName">
+          <view class="requirement-item">
+            <text class="req-name">{{reqName}}</text>
+            <view class="req-keywords">
+              <text class="req-kw" wx:for="{{reqInfo.matched_keywords}}" wx:for-item="kw" wx:key="*this">{{kw}}</text>
+            </view>
+          </view>
+        </block>
+      </view>
     </view>
 
     <!-- 识别到的章节 -->
     <view class="section-card" wx:if="{{hasSections}}">
-      <text class="section-title">📋 识别到的关键章节</text>
+      <text class="section-title">识别到的关键章节</text>
       <view class="section-list">
         <view class="section-item" wx:for="{{analysis.sections}}" wx:for-index="name" wx:for-item="loc" wx:key="name">
           <text class="section-name">{{name}}</text>
@@ -106,7 +127,7 @@
 
     <!-- 推荐文件 -->
     <view class="section-card" wx:if="{{recommendedDocs.length > 0}}">
-      <text class="section-title">📥 建议准备的投标文件</text>
+      <text class="section-title">建议准备的投标文件</text>
       <view class="doc-list">
         <view class="doc-item" wx:for="{{recommendedDocs}}" wx:key="key">
           <view class="doc-info">
@@ -121,21 +142,144 @@
       <text class="doc-hint">以上文件需管理员在后台上传后方可下载</text>
     </view>
 
-    <!-- 重新上传 -->
     <view class="retry-btn" bindtap="retry">
       <text>重新选择文件分析</text>
     </view>
   </view>
 
-  <!-- 首次使用提示 -->
+  <!-- ============================================================ -->
+  <!-- 模式二：智能分析结果 -->
+  <!-- ============================================================ -->
+  <view class="result-area" wx:if="{{!noPermission && analysis && mode === 'analyze'}}">
+    <!-- 总体判断 -->
+    <view class="risk-card {{riskLevelClass}}">
+      <text class="risk-label">{{riskLevelText}}</text>
+      <text class="risk-detail">{{summary}}</text>
+    </view>
+
+    <!-- 文件信息 -->
+    <view class="info-card">
+      <view class="info-row">
+        <text class="info-label">文件名称</text>
+        <text class="info-value">{{fileName}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">文件大小</text>
+        <text class="info-value">{{fileSize}}</text>
+      </view>
+      <view class="info-row" wx:if="{{analysis.total_pages > 0}}">
+        <text class="info-label">总页数</text>
+        <text class="info-value">{{analysis.total_pages}} 页</text>
+      </view>
+    </view>
+
+    <!-- 一、施耐德有利条款（已植入） -->
+    <view class="section-card" wx:if="{{favorableClauses.length > 0}}">
+      <text class="section-title">我方有利条款（已植入 · {{favorableClauses.length}}项）</text>
+      <view class="analysis-table">
+        <view class="analysis-row analysis-row-header">
+          <text class="analysis-cell analysis-cell-name">条款名称</text>
+          <text class="analysis-cell analysis-cell-desc">分析</text>
+        </view>
+        <view class="analysis-row" wx:for="{{favorableClauses}}" wx:key="name">
+          <text class="analysis-cell analysis-cell-name">{{item.name}}</text>
+          <text class="analysis-cell analysis-cell-desc">{{item.analysis}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 二、缺失的关键条款 -->
+    <view class="section-card" wx:if="{{missingClauses.length > 0}}">
+      <text class="section-title">缺失的关键条款（未植入 · {{missingClauses.length}}项）</text>
+      <view class="analysis-table">
+        <view class="analysis-row analysis-row-header">
+          <text class="analysis-cell analysis-cell-name">条款名称</text>
+          <text class="analysis-cell analysis-cell-risk">风险</text>
+          <text class="analysis-cell analysis-cell-desc">分析</text>
+        </view>
+        <view class="analysis-row" wx:for="{{missingClauses}}" wx:key="name">
+          <text class="analysis-cell analysis-cell-name">{{item.name}}</text>
+          <text class="analysis-cell analysis-cell-risk {{item.risk === '高' ? 'risk-text-high' : item.risk === '中' ? 'risk-text-medium' : 'risk-text-low'}}">{{item.risk}}</text>
+          <text class="analysis-cell analysis-cell-desc">{{item.analysis}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 三、友商植入痕迹 -->
+    <view class="section-card" wx:if="{{competitorTraces.length > 0}}">
+      <text class="section-title">友商植入痕迹（{{competitorTraces.length}}项）</text>
+      <view class="analysis-table">
+        <view class="analysis-row analysis-row-header">
+          <text class="analysis-cell analysis-cell-name">可疑条款</text>
+          <text class="analysis-cell analysis-cell-risk">风险</text>
+          <text class="analysis-cell analysis-cell-desc">分析</text>
+        </view>
+        <view class="analysis-row" wx:for="{{competitorTraces}}" wx:key="name">
+          <text class="analysis-cell analysis-cell-name">{{item.name}}</text>
+          <text class="analysis-cell analysis-cell-risk {{item.risk_level === '高' ? 'risk-text-high' : item.risk_level === '中' ? 'risk-text-medium' : 'risk-text-low'}}">{{item.risk_level}}</text>
+          <text class="analysis-cell analysis-cell-desc">{{item.analysis}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 未检测到任何品牌 -->
+    <view class="section-card no-brand" wx:if="{{!hasBrandDetection}}">
+      <text class="section-title">未检测到明确的技术条款</text>
+      <text class="section-desc">招标文件可能未明确指定技术参数，或参数信息以图片形式存在，建议人工复核全文。</text>
+    </view>
+
+    <!-- 四、产品匹配推荐 -->
+    <view class="section-card" wx:if="{{productMatch.rankings && productMatch.rankings.length > 0}}">
+      <text class="section-title">产品匹配推荐</text>
+      <view class="product-best" wx:if="{{productMatch.best_match}}">
+        <text class="product-best-label">最佳匹配</text>
+        <text class="product-best-name">{{productMatch.best_full_name || productMatch.best_match}}</text>
+      </view>
+      <view class="analysis-table">
+        <view class="analysis-row analysis-row-header">
+          <text class="analysis-cell analysis-cell-name">产品系列</text>
+          <text class="analysis-cell analysis-cell-score">匹配度</text>
+          <text class="analysis-cell analysis-cell-desc">定位</text>
+        </view>
+        <view class="analysis-row" wx:for="{{productMatch.rankings}}" wx:key="product">
+          <text class="analysis-cell analysis-cell-name {{item.product === productMatch.best_match ? 'product-best-text' : ''}}">{{item.full_name}}</text>
+          <text class="analysis-cell analysis-cell-score">{{item.match_rate}}%</text>
+          <text class="analysis-cell analysis-cell-desc">{{item.positioning}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 五、投标策略建议 -->
+    <view class="section-card" wx:if="{{strategy.length > 0}}">
+      <text class="section-title">投标策略建议</text>
+      <view class="strategy-list">
+        <view class="strategy-item" wx:for="{{strategy}}" wx:key="*this">
+          <text class="strategy-index">{{index + 1}}.</text>
+          <text class="strategy-text">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="retry-btn" bindtap="retry">
+      <text>重新选择文件分析</text>
+    </view>
+  </view>
+
+  <!-- 使用说明 -->
   <view class="tips-area" wx:if="{{!noPermission && !analysis && !analyzing && !errorMsg}}">
     <text class="tips-title">使用说明</text>
-    <view class="tips-list">
+    <view class="tips-list" wx:if="{{mode === 'extract'}}">
       <text class="tips-item">1. 上传招标文件（PDF 或 Word 格式）</text>
-      <text class="tips-item">2. 系统自动提取文本内容</text>
-      <text class="tips-item">3. 匹配友商和施耐德品牌关键词</text>
-      <text class="tips-item">4. 输出风险等级和投标建议</text>
+      <text class="tips-item">2. 系统自动提取文本并识别要求的证书/报告</text>
+      <text class="tips-item">3. 匹配已有文件，提供下载清单</text>
     </view>
-    <text class="tips-warn">注意：扫描件（图片格式）暂不支持分析</text>
+    <view class="tips-list" wx:else>
+      <text class="tips-item">1. 上传招标文件（PDF 或 Word 格式）</text>
+      <text class="tips-item">2. 检测施耐德有利条款（已植入 vs 缺失）</text>
+      <text class="tips-item">3. 检测友商品牌植入痕迹</text>
+      <text class="tips-item">4. 匹配最佳产品系列（I-Line B/H/W）</text>
+      <text class="tips-item">5. 输出风险等级与投标策略建议</text>
+    </view>
+    <text class="tips-warn">注意：分析结果仅供参考，请以人工复核为准</text>
   </view>
 </view>

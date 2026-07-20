@@ -1,4 +1,5 @@
 """招标文件上传与分析 API"""
+import glob
 import os
 from typing import Optional
 
@@ -29,7 +30,8 @@ async def upload_tender_file(
     current_user_id: str = Depends(require_bidding_whitelist),
 ):
     """
-    上传招标文件并进行分析。
+    上传招标文件并进行分析（模式一：资料提取）。
+    保留用于向后兼容，建议使用 /bidding/extract。
 
     流程：
       1. 从云存储下载链接获取文件内容
@@ -38,6 +40,11 @@ async def upload_tender_file(
       4. 关键词匹配检测
       5. 返回分析报告 + 推荐文件列表
     """
+    return await _handle_extract_analysis(body, current_user_id)
+
+
+async def _download_and_extract_text(body: BiddingUploadRequest, current_user_id: str) -> tuple[str, bytes]:
+    """下载文件并提取文本，返回 (text, content)。"""
     enforce_rate_limit("bidding_upload", current_user_id, limit=10, window_seconds=600)
 
     if not body or not body.download_url:
@@ -51,7 +58,7 @@ async def upload_tender_file(
         content = resp.content
     except requests.RequestException as exc:
         logger.error("bidding_download_failed", error=str(exc))
-        raise HTTPException(status_code=400, detail=f"文件下载失败，请重试") from exc
+        raise HTTPException(status_code=400, detail="文件下载失败，请重试") from exc
 
     filename = body.filename or "文件"
 
@@ -77,29 +84,85 @@ async def upload_tender_file(
             detail="该文件无法提取文字内容，可能是扫描件（图片格式）或空文件，暂不支持分析。请使用文字版 PDF 或 Word 文档。",
         )
 
-    # 4. 关键词匹配分析
-    keyword_result = BiddingAnalyzer.keyword_match(text)
+    return text, content
 
-    # 5. 推荐投标文件
+
+async def _handle_extract_analysis(body: BiddingUploadRequest, current_user_id: str):
+    """模式一：资料提取 — 识别招标文件要求的证书/报告，提供下载。"""
+    text, content = await _download_and_extract_text(body, current_user_id)
+    filename = body.filename or "文件"
+
+    keyword_result = BiddingAnalyzer.keyword_match(text)
     recommended_docs = BiddingAnalyzer.get_recommended_documents(keyword_result)
 
     logger.info(
-        "bidding_analysis_complete",
+        "bidding_extract_complete",
         user_id=current_user_id,
         filename=filename,
         risk_level=keyword_result["risk_level"],
-        competitors_count=len(keyword_result["competitors"]),
-        pages=keyword_result["total_pages"],
+        requirements_count=len(keyword_result.get("bidding_requirements", {})),
     )
 
     return {
         "code": 0,
-        "message": "分析完成",
+        "message": "资料提取完成",
         "data": {
             "filename": filename,
             "file_size": len(content),
             "analysis": keyword_result,
             "recommended_documents": recommended_docs,
+        },
+    }
+
+
+@router.post("/bidding/extract")
+async def extract_tender_documents(
+    body: Optional[BiddingUploadRequest] = Body(None),
+    current_user_id: str = Depends(require_bidding_whitelist),
+):
+    """
+    模式一：招标文件资料提取。
+    上传招标文件后，识别文件中要求投标人提供的证书和报告，
+    匹配已有文件并提供下载链接。
+    """
+    return await _handle_extract_analysis(body, current_user_id)
+
+
+@router.post("/bidding/analyze")
+async def analyze_tender_deep(
+    body: Optional[BiddingUploadRequest] = Body(None),
+    current_user_id: str = Depends(require_bidding_whitelist),
+):
+    """
+    模式二：招标文件智能分析。
+    上传招标文件后，深度分析：
+      - 施耐德有利条款检测（已植入 vs 缺失）
+      - 友商植入痕迹检测
+      - 产品匹配推荐（I-Line B/H/W）
+      - 投标策略建议
+    """
+    text, content = await _download_and_extract_text(body, current_user_id)
+    filename = body.filename or "文件"
+
+    # 深度分析
+    deep_result = BiddingAnalyzer.deep_analyze(text, filename=filename)
+
+    logger.info(
+        "bidding_deep_analyze_complete",
+        user_id=current_user_id,
+        filename=filename,
+        risk_level=deep_result["risk_level"],
+        favorable_count=len(deep_result["favorable_clauses"]),
+        best_product=deep_result["product_match"].get("best_match", ""),
+    )
+
+    return {
+        "code": 0,
+        "message": "智能分析完成",
+        "data": {
+            "filename": filename,
+            "file_size": len(content),
+            "analysis": deep_result,
         },
     }
 
@@ -110,7 +173,7 @@ async def list_available_documents(
 ):
     """
     获取可下载的投标文件清单。
-    自动检测 static/bidding-docs/ 目录下的文件，返回实际可用状态。
+    自动检测 static/bidding-docs/ 目录下的文件，支持每个 key 对应多个文件。
     """
     from app.services.bidding_features import REQUIRED_DOCUMENTS
 
@@ -118,15 +181,44 @@ async def list_available_documents(
     base_url = "/static/bidding-docs"
 
     for doc_name, doc_info in REQUIRED_DOCUMENTS.items():
-        file_path = os.path.join(BIDDING_DOCS_DIR, f"{doc_info['key']}.pdf")
-        available = os.path.isfile(file_path)
-        docs.append({
-            "name": doc_name,
-            "key": doc_info["key"],
-            "description": doc_info["description"],
-            "download_url": f"{base_url}/{doc_info['key']}.pdf",
-            "available": available,
-        })
+        key = doc_info["key"]
+        # 使用 glob 匹配所有以 key 开头的文件（支持多文件：key.pdf, key_xxx.pdf 等）
+        pattern = os.path.join(BIDDING_DOCS_DIR, f"{key}*.pdf")
+        matched_files = sorted(glob.glob(pattern))
+
+        if matched_files:
+            # 有多个文件时，返回文件列表
+            files = []
+            for fpath in matched_files:
+                fname = os.path.basename(fpath)
+                # 提取子标签（如 type_test_report_1350-800A.pdf → "1350-800A"）
+                stem = fname.replace(".pdf", "")
+                if stem == key:
+                    sub_label = ""
+                else:
+                    sub_label = stem[len(key) + 1:]  # 去掉 key_ 前缀
+                files.append({
+                    "filename": fname,
+                    "label": sub_label,
+                    "download_url": f"{base_url}/{fname}",
+                })
+            docs.append({
+                "name": doc_name,
+                "key": key,
+                "description": doc_info["description"],
+                "download_url": f"{base_url}/{os.path.basename(matched_files[0])}",
+                "available": True,
+                "files": files,
+            })
+        else:
+            docs.append({
+                "name": doc_name,
+                "key": key,
+                "description": doc_info["description"],
+                "download_url": f"{base_url}/{key}.pdf",
+                "available": False,
+                "files": [],
+            })
 
     return {
         "code": 0,

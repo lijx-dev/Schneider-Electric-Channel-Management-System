@@ -2916,13 +2916,18 @@ Page({
    */
   onOpenFileMenu() {
     wx.showActionSheet({
-      itemList: ['招标文件分析'],
+      itemList: ['招标文件资料提取', '招标文件智能分析'],
       itemColor: '#1E293B',
       success: (res) => {
         if (res.tapIndex === 0) {
-          // 招标文件分析
+          // 模式一：招标文件资料提取
           wx.navigateTo({
-            url: '/pages/bidding-result/bidding-result',
+            url: '/pages/bidding-result/bidding-result?mode=extract',
+          });
+        } else if (res.tapIndex === 1) {
+          // 模式二：招标文件智能分析
+          wx.navigateTo({
+            url: '/pages/bidding-result/bidding-result?mode=analyze',
           });
         }
       },
