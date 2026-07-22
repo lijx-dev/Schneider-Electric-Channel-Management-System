@@ -362,6 +362,7 @@
 }
 .doc-status {
   margin-left: 16rpx;
+  flex-shrink: 0;
 }
 .doc-unavailable {
   font-size: 22rpx;
@@ -369,6 +370,49 @@
   background: #F1F5F9;
   padding: 4rpx 12rpx;
   border-radius: 8rpx;
+}
+/* 下载按钮 */
+.doc-download-btn {
+  background: #00B050;
+  color: #FFFFFF;
+  font-size: 24rpx;
+  font-weight: 600;
+  padding: 8rpx 24rpx;
+  border-radius: 8rpx;
+}
+.doc-download-btn:active {
+  background: #009940;
+}
+/* 多文件子列表 */
+.doc-sub-files {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+.doc-sub-file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #F0FDF4;
+  border: 1rpx solid #BBF7D0;
+  border-radius: 8rpx;
+  padding: 8rpx 16rpx;
+  gap: 12rpx;
+  min-width: 160rpx;
+}
+.doc-sub-file:active {
+  background: #DCFCE7;
+}
+.doc-sub-label {
+  font-size: 22rpx;
+  color: #166534;
+  font-weight: 500;
+}
+.doc-sub-download {
+  font-size: 22rpx;
+  color: #00B050;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 .doc-hint {
   font-size: 22rpx;

@@ -327,6 +327,58 @@ Page({
   },
 
   /**
+   * 下载投标文件
+   * 通过云托管静态路径下载 bidding-docs/ 目录中的文件
+   */
+  downloadFile(e) {
+    const url = e.currentTarget.dataset.url;
+    const filename = e.currentTarget.dataset.filename || '文件.pdf';
+    if (!url) {
+      wx.showToast({ title: '暂无可下载文件', icon: 'none' });
+      return;
+    }
+
+    // 构造完整下载 URL
+    const baseUrl = app.globalData.baseUrl || '';
+    const fullUrl = baseUrl ? `${baseUrl}${url}` : url;
+
+    wx.showLoading({ title: '下载中...' });
+    wx.downloadFile({
+      url: fullUrl,
+      timeout: 60000,
+      success(res) {
+        wx.hideLoading();
+        if (res.statusCode === 200) {
+          // 打开文件预览
+          wx.openDocument({
+            filePath: res.tempFilePath,
+            fileType: 'pdf',
+            showMenu: true,
+            success() {
+              console.log('[bidding] open document success:', filename);
+            },
+            fail(err) {
+              console.error('[bidding] open document failed:', err);
+              wx.showToast({ title: '文件打开失败', icon: 'none' });
+            },
+          });
+        } else {
+          wx.showToast({ title: '下载失败，请重试', icon: 'none' });
+        }
+      },
+      fail(err) {
+        wx.hideLoading();
+        console.error('[bidding] download failed:', err);
+        let msg = '下载失败，请重试';
+        if (err.errMsg && err.errMsg.indexOf('timeout') > -1) {
+          msg = '文件较大，下载超时，请重试';
+        }
+        wx.showToast({ title: msg, icon: 'none' });
+      },
+    });
+  },
+
+  /**
    * 切换分析模式
    */
   switchMode(e) {

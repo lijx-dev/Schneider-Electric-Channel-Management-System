@@ -114,7 +114,7 @@ REQUIRED_DOCUMENTS = {
     "KEMA认证": {"key": "kema_cert", "description": "KEMA-KEUR认证证书"},
     "产品检测报告": {"key": "test_report", "description": "国家认可实验室出具的产品检测报告"},
     "业绩证明": {"key": "performance", "description": "近三年类似项目业绩证明"},
-    "产品样本": {"key": "product_catalog", "description": "产品电子版样本"},
+    "产品样本": {"key": "product_catalog", "description": "产品电子版样本（I-Line B/C/H/HL/HN/V/W 系列）"},
     "法人授权书": {"key": "authorization", "description": "法定代表人授权委托书"},
     "投标函": {"key": "bid_letter", "description": "投标函"},
     "报价表": {"key": "price_list", "description": "投标报价表"},
@@ -135,6 +135,7 @@ TENDER_BIDDING_REQUIREMENTS = {
     "绝缘材料阻燃报告": ["阻燃报告", "阻燃检测", "阻燃试验", "阻燃等级", "防火等级", "耐火等级", "火焰蔓延"],
     "外壳盐雾试验报告": ["盐雾试验", "盐雾测试", "耐腐蚀", "盐雾", "1800小时", "防腐试验"],
     "制造商制造经验证明": ["制造经验", "生产经验", "成立年限", "经营年限", "制造商资格", "制造商资质"],
+    "产品样本": ["产品样本", "产品手册", "产品说明", "产品目录", "产品选型", "样本册", "技术手册", "样本图册"],
 }
 
 # ============================================================

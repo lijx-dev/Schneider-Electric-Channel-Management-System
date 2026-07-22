@@ -135,11 +135,40 @@
             <text class="doc-desc">{{item.description}}</text>
           </view>
           <view class="doc-status">
-            <text class="doc-unavailable">暂未上传</text>
+            <!-- 有文件可下载 -->
+            <block wx:if="{{item.available && item.files.length > 0}}">
+              <!-- 单文件：直接下载按钮 -->
+              <view
+                wx:if="{{item.files.length === 1}}"
+                class="doc-download-btn"
+                data-url="{{item.files[0].download_url}}"
+                data-filename="{{item.files[0].filename}}"
+                bindtap="downloadFile"
+              >
+                <text>下载</text>
+              </view>
+              <!-- 多文件：显示子文件列表 -->
+              <view wx:else class="doc-sub-files">
+                <view
+                  class="doc-sub-file"
+                  wx:for="{{item.files}}"
+                  wx:for-item="subFile"
+                  wx:key="filename"
+                  data-url="{{subFile.download_url}}"
+                  data-filename="{{subFile.filename}}"
+                  bindtap="downloadFile"
+                >
+                  <text class="doc-sub-label">{{subFile.label || '主文件'}}</text>
+                  <text class="doc-sub-download">下载</text>
+                </view>
+              </view>
+            </block>
+            <!-- 无文件 -->
+            <text wx:else class="doc-unavailable">暂未上传</text>
           </view>
         </view>
       </view>
-      <text class="doc-hint">以上文件需管理员在后台上传后方可下载</text>
+      <text class="doc-hint">绿色按钮可下载文件，灰色表示需管理员上传</text>
     </view>
 
     <view class="retry-btn" bindtap="retry">

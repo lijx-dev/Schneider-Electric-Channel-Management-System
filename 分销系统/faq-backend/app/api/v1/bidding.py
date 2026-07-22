@@ -95,12 +95,40 @@ async def _handle_extract_analysis(body: BiddingUploadRequest, current_user_id: 
     keyword_result = BiddingAnalyzer.keyword_match(text)
     recommended_docs = BiddingAnalyzer.get_recommended_documents(keyword_result)
 
+    # 为推荐文件补充可用性信息和下载链接（检查 bidding-docs/ 目录）
+    base_url = "/static/bidding-docs"
+    for doc in recommended_docs:
+        key = doc["key"]
+        pattern = os.path.join(BIDDING_DOCS_DIR, f"{key}*.pdf")
+        matched_files = sorted(glob.glob(pattern))
+        if matched_files:
+            doc["available"] = True
+            doc["files"] = []
+            for fpath in matched_files:
+                fname = os.path.basename(fpath)
+                stem = fname.replace(".pdf", "")
+                if stem == key:
+                    sub_label = ""
+                else:
+                    sub_label = stem[len(key) + 1:]
+                doc["files"].append({
+                    "filename": fname,
+                    "label": sub_label,
+                    "download_url": f"{base_url}/{fname}",
+                })
+            doc["download_url"] = f"{base_url}/{os.path.basename(matched_files[0])}"
+        else:
+            doc["available"] = False
+            doc["files"] = []
+            doc["download_url"] = ""
+
     logger.info(
         "bidding_extract_complete",
         user_id=current_user_id,
         filename=filename,
         risk_level=keyword_result["risk_level"],
         requirements_count=len(keyword_result.get("bidding_requirements", {})),
+        available_docs=sum(1 for d in recommended_docs if d.get("available")),
     )
 
     return {
