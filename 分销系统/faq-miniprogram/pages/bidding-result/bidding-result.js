@@ -328,7 +328,7 @@ Page({
 
   /**
    * 下载投标文件
-   * 通过云托管静态路径下载 bidding-docs/ 目录中的文件
+   * 通过云托管 API 接口下载（支持传递 Authorization 头部进行白名单校验）
    */
   downloadFile(e) {
     const url = e.currentTarget.dataset.url;
@@ -338,37 +338,59 @@ Page({
       return;
     }
 
-    // 构造完整下载 URL
-    const baseUrl = app.globalData.baseUrl || '';
-    const fullUrl = baseUrl ? `${baseUrl}${url}` : url;
-
     wx.showLoading({ title: '下载中...' });
-    wx.downloadFile({
-      url: fullUrl,
-      timeout: 60000,
+
+    const token = app.globalData.token || wx.getStorageSync('token') || '';
+
+    wx.cloud.callContainer({
+      config: app.getCallContainerConfig(),
+      path: url,
+      method: 'GET',
+      timeout: 120000,
+      header: {
+        'X-WX-SERVICE': 'faq-backend',
+        'Authorization': 'Bearer ' + token,
+        'Accept': 'application/pdf',
+      },
+      responseType: 'arraybuffer',
       success(res) {
         wx.hideLoading();
-        if (res.statusCode === 200) {
-          // 打开文件预览
-          wx.openDocument({
-            filePath: res.tempFilePath,
-            fileType: 'pdf',
-            showMenu: true,
+        if (res.statusCode === 200 && res.data) {
+          const tempFilePath = `${wx.env.USER_DATA_PATH}/${Date.now()}_${filename}`;
+          wx.getFileSystemManager().writeFile({
+            filePath: tempFilePath,
+            data: res.data,
+            encoding: 'binary',
             success() {
-              console.log('[bidding] open document success:', filename);
+              wx.openDocument({
+                filePath: tempFilePath,
+                fileType: 'pdf',
+                showMenu: true,
+                success() {
+                  console.log('[bidding] open document success:', filename);
+                },
+                fail(err) {
+                  console.error('[bidding] open document failed:', err);
+                  wx.showToast({ title: '文件打开失败', icon: 'none' });
+                },
+              });
             },
             fail(err) {
-              console.error('[bidding] open document failed:', err);
-              wx.showToast({ title: '文件打开失败', icon: 'none' });
+              console.error('[bidding] write file failed:', err);
+              wx.showToast({ title: '文件保存失败', icon: 'none' });
             },
           });
         } else {
-          wx.showToast({ title: '下载失败，请重试', icon: 'none' });
+          let errorMsg = '下载失败，请重试';
+          if (res.data && typeof res.data.detail === 'string') {
+            errorMsg = res.data.detail;
+          }
+          wx.showToast({ title: errorMsg, icon: 'none' });
         }
       },
       fail(err) {
         wx.hideLoading();
-        console.error('[bidding] download failed:', err);
+        console.error('[bidding] download API failed:', err);
         let msg = '下载失败，请重试';
         if (err.errMsg && err.errMsg.indexOf('timeout') > -1) {
           msg = '文件较大，下载超时，请重试';

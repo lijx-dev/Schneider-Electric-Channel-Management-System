@@ -5,6 +5,7 @@ from typing import Optional
 
 import requests
 from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from app.api.deps import enforce_rate_limit, require_bidding_whitelist
@@ -17,6 +18,11 @@ logger = get_logger(__name__)
 
 BIDDING_DOCS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "static", "bidding-docs")
 BIDDING_DOCS_DIR = os.path.abspath(BIDDING_DOCS_DIR)
+
+
+def _get_download_url(filename: str) -> str:
+    """生成文件下载 URL（通过 API 接口，确保跨域和权限可控）。"""
+    return f"/api/bidding/download/{filename}"
 
 
 class BiddingUploadRequest(BaseModel):
@@ -96,7 +102,6 @@ async def _handle_extract_analysis(body: BiddingUploadRequest, current_user_id: 
     recommended_docs = BiddingAnalyzer.get_recommended_documents(keyword_result)
 
     # 为推荐文件补充可用性信息和下载链接（检查 bidding-docs/ 目录）
-    base_url = "/static/bidding-docs"
     for doc in recommended_docs:
         key = doc["key"]
         pattern = os.path.join(BIDDING_DOCS_DIR, f"{key}*.pdf")
@@ -114,9 +119,9 @@ async def _handle_extract_analysis(body: BiddingUploadRequest, current_user_id: 
                 doc["files"].append({
                     "filename": fname,
                     "label": sub_label,
-                    "download_url": f"{base_url}/{fname}",
+                    "download_url": _get_download_url(fname),
                 })
-            doc["download_url"] = f"{base_url}/{os.path.basename(matched_files[0])}"
+            doc["download_url"] = _get_download_url(os.path.basename(matched_files[0]))
         else:
             doc["available"] = False
             doc["files"] = []
@@ -206,7 +211,6 @@ async def list_available_documents(
     from app.services.bidding_features import REQUIRED_DOCUMENTS
 
     docs = []
-    base_url = "/static/bidding-docs"
 
     for doc_name, doc_info in REQUIRED_DOCUMENTS.items():
         key = doc_info["key"]
@@ -228,13 +232,13 @@ async def list_available_documents(
                 files.append({
                     "filename": fname,
                     "label": sub_label,
-                    "download_url": f"{base_url}/{fname}",
+                    "download_url": _get_download_url(fname),
                 })
             docs.append({
                 "name": doc_name,
                 "key": key,
                 "description": doc_info["description"],
-                "download_url": f"{base_url}/{os.path.basename(matched_files[0])}",
+                "download_url": _get_download_url(os.path.basename(matched_files[0])),
                 "available": True,
                 "files": files,
             })
@@ -243,13 +247,40 @@ async def list_available_documents(
                 "name": doc_name,
                 "key": key,
                 "description": doc_info["description"],
-                "download_url": f"{base_url}/{key}.pdf",
+                "download_url": _get_download_url(f"{key}.pdf"),
                 "available": False,
                 "files": [],
             })
 
-    return {
-        "code": 0,
-        "message": "获取成功",
-        "data": {"documents": docs},
-    }
+@router.get("/bidding/download/{filename}")
+async def download_bidding_document(
+    filename: str,
+    current_user_id: str = Depends(require_bidding_whitelist),
+):
+    """
+    下载投标文件。
+    通过 API 接口返回文件内容，确保跨域和权限可控。
+    
+    参数:
+        filename: 文件名（如 business_license.pdf）
+    """
+    # 安全校验：防止路径遍历攻击
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="无效的文件名")
+
+    file_path = os.path.join(BIDDING_DOCS_DIR, filename)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="文件不存在")
+
+    logger.info("bidding_file_download", filename=filename, user_id=current_user_id)
+
+    return FileResponse(
+        path=file_path,
+        filename=filename,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{filename}",
+            "Cache-Control": "no-cache",
+        },
+    )
