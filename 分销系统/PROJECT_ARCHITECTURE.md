@@ -7,7 +7,7 @@
 
 ## 1. 项目概述
 
-**"分销商学堂"** 是面向施耐德电气分销商的移动端培训与学习系统，基于微信小程序构建，提供答题闯关、积分排行、能量商城、AI 智能问答等核心功能。
+**"分销商学堂"** 是面向施耐德电气分销商的移动端培训与学习系统，基于微信小程序构建，提供答题闯关、积分排行、能量商城、AI 智能问答、**招标文件分析**等核心功能。
 
 | 属性       | 值                                                                |
 | ---------- | ----------------------------------------------------------------- |
@@ -16,6 +16,7 @@
 | 小程序名称 | 分销商学堂                                                        |
 | 后端基域名 | `https://faq-backend-229183-5-1407839340.sh.run.tcloudbase.com` |
 | 微信云环境 | `prod-6gi7p6rt55f8e998`                                         |
+| AI 智能体平台 | 字节跳动 HiAgent（底层 Coze 引擎）                              |
 
 ---
 
@@ -30,24 +31,27 @@
 | ASGI 服务器 | Uvicorn                         | 生产通过 Docker 运行               |
 | ORM         | SQLAlchemy 2.x (async)          | 异步会话，声明式模型               |
 | 数据校验    | Pydantic v2 + pydantic-settings | 请求体校验 +`.env` 配置管理      |
-| 数据库      | SQLite (开发) / MySQL (生产)    | 通过 `DB_TYPE` 环境变量切换      |
+| 数据库      | SQLite (开发) / MySQL (生产)    | 通过 `DB_TYPE` 环境变量切换，MySQL 连接串必须含 `charset=utf8mb4` |
 | 迁移工具    | Alembic                         | `migrations/versions/` 管理      |
 | 认证        | JWT (python-jose)               | Bearer Token, 7 天过期             |
 | 日志        | structlog                       | 结构化 JSON 日志，敏感字段自动脱敏 |
 | HTTP 客户端 | httpx                           | 调用微信 API、HiAgent (Coze)       |
+| PDF 解析    | pdfplumber                      | 招标文件分析用                     |
+| Word 解析   | python-docx + 降级策略          | .docx→python-docx, .doc→ZIP检测+原始字节扫描 |
 | 对象存储    | 腾讯云 COS                      | 头像/文件上传，自动回退本地存储    |
-| 部署        | Docker + 微信云托管             |                                    |
+| 部署        | Docker + 微信云托管             | 云托管自动扩缩，容器重启需注意配置持久化 |
 
 ### 2.2 小程序前端 (`faq-miniprogram/`)
 
 | 类别     | 技术选型                     | 说明                               |
 | -------- | ---------------------------- | ---------------------------------- |
 | 框架     | 微信原生小程序               | WXML + WXSS + JS (非 Taro/uni-app) |
-| 云服务   | 微信云开发 (`wx.cloud`)    | 头像上传至云存储                   |
+| 云服务   | 微信云开发 (`wx.cloud`)    | 头像上传 + 文件上传(招标文件)至云存储 |
 | 语音插件 | WechatSI v0.3.5              | AI 问答页语音输入                  |
 | 样式方案 | 原生 WXSS + CSS 变量         | 主题色在 `app.wxss` 定义         |
 | 状态管理 | `App.globalData` + Storage | 无第三方状态库                     |
 | 网络请求 | `wx.cloud.callContainer`   | 通过微信云托管内网调用后端         |
+| 文件下载 | `wx.downloadFile` + `wx.openDocument` | 招标文件下载预览              |
 
 ### 2.3 管理后台
 
@@ -70,12 +74,12 @@
 │   ├── app/
 │   │   ├── main.py              # ★ 应用入口：FastAPI 实例化、CORS、lifespan、路由挂载
 │   │   ├── api/
-│   │   │   ├── deps.py          # 依赖注入：JWT 验证(get_current_user_id)、限流、用户权限
+│   │   │   ├── deps.py          # 依赖注入：JWT 验证、限流、白名单校验(require_bidding_whitelist)
 │   │   │   └── v1/
 │   │   │       ├── router.py    # ★ 路由总汇 (所有子路由注册于此)
-│   │   │       ├── auth.py      # 微信登录 + 手机号登录 + 密码登录
+│   │   │       ├── auth.py      # 微信登录 + 手机号登录 + 密码登录（返回含 bidding_whitelisted）
 │   │   │       ├── users.py     # 用户信息 CRUD
-│   │   │       ├── admin.py     # 管理后台接口 (用户管理、数据统计)
+│   │   │       ├── admin.py     # 管理后台接口 (用户管理、数据统计、奖励操作)
 │   │   │       ├── questions.py # 题库浏览 + 答题
 │   │   │       ├── daily.py     # 每日答题 (每周一 9 点刷新)
 │   │   │       ├── chat.py      # AI 问答 (SSE 流式 + WebSocket)
@@ -88,7 +92,8 @@
 │   │   │       ├── guides.py    # 产品导购指南 (树形结构)
 │   │   │       ├── knowledge.py # 知识库条目
 │   │   │       ├── distributor_data.py # 分销商注册数据 (省份/公司)
-│   │   │       └── upload.py    # 文件上传 (COS / 本地)
+│   │   │       ├── upload.py    # 文件上传 (COS / 本地)
+│   │   │       └── bidding.py   # ★ 招标文件分析 (两种模式：资料提取 + 智能分析)
 │   │   ├── core/
 │   │   │   ├── config.py        # ★ 全局配置 (Settings, 读取 .env)
 │   │   │   ├── security.py      # JWT 生成/验证
@@ -97,7 +102,7 @@
 │   │   │   ├── session.py       # ★ 数据库引擎 + 会话工厂 (SQLite/MySQL 自动切换)
 │   │   │   └── base.py          # ORM 基类 + TimestampMixin (created_at/updated_at)
 │   │   ├── models/              # 数据库模型 (SQLAlchemy)
-│   │   │   ├── user.py          # 用户表
+│   │   │   ├── user.py          # 用户表（含 bidding_whitelisted 字段）
 │   │   │   ├── question.py      # 题目表 (5种题型)
 │   │   │   ├── record.py        # 答题记录 + 每日答题轮次
 │   │   │   ├── energy.py        # 能量交易 + 兑换记录
@@ -110,6 +115,8 @@
 │   │   ├── schemas/             # Pydantic 请求/响应 Schema
 │   │   ├── services/            # ★ 业务逻辑层 (核心逻辑在此)
 │   │   │   ├── agent.py         # AI 智能体 (HiAgent/Coze) 调用
+│   │   │   ├── bidding_analyzer.py # ★ 招标文件分析器（PDF/Word文本提取、关键词匹配、深度分析）
+│   │   │   ├── bidding_features.py # ★ 招标分析特征库（友商/施耐德关键词、产品参数、有利条款）
 │   │   │   ├── quiz.py          # 答题逻辑 (⚠️ 含 MVP 硬编码题库, 历史遗留)
 │   │   │   ├── wechat.py        # 微信服务端 API (code2session, 获取手机号)
 │   │   │   ├── energy.py        # 能量/积分业务
@@ -119,7 +126,9 @@
 │   │   │   ├── admin_auth.py    # 管理后台认证
 │   │   │   ├── monthly_leaderboard.py # 月度排行服务
 │   │   │   └── monthly_reward_scheduler.py # 月度奖励定时调度 (asyncio)
-│   │   ├── static/admin/        # 内嵌管理后台 (HTML/JS/CSS)
+│   │   ├── static/
+│   │   │   ├── admin/           # 内嵌管理后台 (HTML/JS/CSS)
+│   │   │   └── bidding-docs/    # ★ 投标文件资源库 (21个PDF，供用户下载)
 │   │   └── utils/
 │   │       └── province.py      # 中国省份数据
 │   ├── migrations/              # Alembic 迁移脚本
@@ -140,9 +149,10 @@
 │   │   └── runtime.js           # 运行时配置解析 (区分 develop/trial/release)
 │   ├── pages/
 │   │   ├── shouye_Home_Dashboard_Green/  # Tab1: 首页仪表盘
-│   │   ├── zhinengwenda_AI_Assistant_Green/ # Tab2: AI 问答 ("母线豆包")
+│   │   ├── zhinengwenda_AI_Assistant_Green/ # Tab2: AI 问答 ("母线豆包") — 含"+"文件功能菜单
 │   │   ├── energy-mall/         # Tab3: 能量商城
 │   │   ├── wode_User_Profile_Green/      # Tab4: 个人中心
+│   │   ├── bidding-result/      # ★ 招标文件分析结果页（两种模式）
 │   │   ├── quiz/                # 答题页 (5种题型)
 │   │   ├── question-bank/       # 题库浏览
 │   │   ├── question-list/       # 题目列表
@@ -188,7 +198,7 @@
   3. FastAPI app 实例创建:
      - CORS: 仅允许 https://servicewechat.com
      - 路由挂载: /api → api_v1_router
-     - 静态文件: /static → static/ 目录
+     - 静态文件: /static → static/ 目录 (含 bidding-docs/ 子目录)
      - 管理后台: /admin → static/admin/index.html
   4. lifespan.shutdown:
      a. stop_monthly_reward_scheduler()
@@ -216,8 +226,35 @@
 | knowledge           | `/api/knowledge`    | 知识库                       |
 | distributor_data    | `/api/distributor`  | 省份/公司数据                |
 | upload              | `/api/upload`       | 文件上传                     |
+| **bidding**         | `/api/bidding`      | ★ **招标文件分析（三种接口）** |
 
-### 4.3 小程序入口 `faq-miniprogram/app.js`
+### 4.3 招标文件分析接口详情
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/bidding/upload` | POST | 上传招标文件并分析（向后兼容，等同 extract） |
+| `/api/bidding/extract` | POST | **模式一：资料提取** — 识别招标文件要求的证书/报告，匹配已有文件提供下载 |
+| `/api/bidding/analyze` | POST | **模式二：智能分析** — 品牌植入检测、友商痕迹、产品匹配、投标策略 |
+| `/api/bidding/docs`   | GET  | 获取所有可下载的投标文件清单（含可用性状态） |
+
+**请求体格式** (`BiddingUploadRequest`)：
+```json
+{
+  "download_url": "https://...（云存储临时下载链接）",
+  "filename": "xxx.pdf"
+}
+```
+
+**文件上传流程**：
+1. 小程序端 `wx.chooseMessageFile` 选择文件
+2. `wx.cloud.uploadFile` 上传至微信云存储
+3. `wx.cloud.getTempFileURL` 获取临时下载链接
+4. 将 `download_url` + `filename` 传给后端分析接口
+5. 后端通过 `requests.get(download_url)` 下载文件内容 → 提取文本 → 分析
+
+**白名单保护**：所有 `/api/bidding/*` 接口通过 `require_bidding_whitelist` 依赖注入校验，非白名单用户返回 403。
+
+### 4.4 小程序入口 `faq-miniprogram/app.js`
 
 ```
 启动顺序:
@@ -228,11 +265,11 @@
   5. getUserProfile()           → 从 Storage 恢复 userId/token/userInfo 到 globalData
 ```
 
-### 4.4 页面注册 `faq-miniprogram/app.json`
+### 4.5 页面注册 `faq-miniprogram/app.json`
 
 - **4 个 Tab 页**：首页 → 母线豆包(AI) → 能量商城 → 我的
 - **主题色**：`#00B050` (施耐德绿)
-- **21 个页面**：含登录、注册、答题、排行榜、题库、证书、知识库、帮助中心、法律条款等
+- **22 个页面**：含登录、注册、答题、排行榜、题库、证书、知识库、帮助中心、法律条款、**招标文件分析结果页**等
 
 ---
 
@@ -266,6 +303,8 @@ const result = await app.request({
 
 **⚠️ 禁止事项**：不要在页面中直接使用 `wx.request` 或 `wx.cloud.callContainer`，必须通过 `app.request()`。
 
+**⚠️ 例外**：招标文件分析页 (`bidding-result.js`) 因需要直接传递 `download_url` 到后端，且超时时间较长（120s），使用了 `wx.cloud.callContainer` 直接调用。这是唯一例外。
+
 ### 5.2 如何管理用户认证
 
 ```
@@ -294,7 +333,7 @@ const result = await app.request({
 
 ```javascript
 app.globalData = {
-  userInfo: null,     // 用户完整信息 (含 avatar_url, phone, company 等)
+  userInfo: null,     // 用户完整信息 (含 avatar_url, phone, company, bidding_whitelisted 等)
   userId: '',         // 用户 UUID
   token: '',          // JWT Bearer Token
   guestMode: false,   // 游客模式 (未登录)
@@ -386,7 +425,7 @@ Page({
 ### 5.9 认证依赖注入
 
 ```python
-from app.api.deps import get_current_user_id, ensure_same_user
+from app.api.deps import get_current_user_id, ensure_same_user, require_bidding_whitelist
 
 @router.get("/profile")
 async def get_profile(
@@ -394,6 +433,12 @@ async def get_profile(
     db: AsyncSession = Depends(get_db),
 ):
     # current_user_id 即为当前登录用户的 UUID
+    ...
+
+@router.post("/bidding/analyze")
+async def analyze(
+    current_user_id: str = Depends(require_bidding_whitelist),  # 白名单 + JWT 双重校验
+):
     ...
 ```
 
@@ -427,31 +472,142 @@ alembic upgrade head
   - **自由问答模式**：调用 SSE 流式接口 `/api/chat/stream`，支持打字机效果
 - **特有功能**：语音输入 (WechatSI 插件)、深度思考提示、富文本图片解析、反馈(点赞/踩)
 - **聊天缓存**：`chatSessionCache.js` 实现会话持久化，关闭小程序后重新打开可恢复对话
+- **"+"文件功能菜单**：点击输入框左侧"+"按钮弹出 ActionSheet，可选「招标文件资料提取」或「招标文件智能分析」，跳转至 `bidding-result` 页面
 
-### 6.3 能量系统
+### 6.3 招标文件分析系统 ★
+
+完整的招标文件分析功能，支持两种模式，使用白名单权限控制。
+
+#### 6.3.1 架构概览
+
+```
+用户上传文件
+  → wx.chooseMessageFile（选择PDF/Word）
+  → wx.cloud.uploadFile（上传至云存储）
+  → wx.cloud.getTempFileURL（获取临时下载链接）
+  → POST /api/bidding/extract 或 /api/bidding/analyze
+  → 后端下载文件 → 提取文本 → 分析 → 返回结果
+  → 前端展示结果 + 提供文件下载
+```
+
+#### 6.3.2 模式一：资料提取 (`/api/bidding/extract`)
+
+识别招标文件中要求的投标资料（证书、检测报告等），匹配 `static/bidding-docs/` 目录中已有文件，提供下载链接。
+
+**输出**：
+- 风险等级（高/中/低）
+- 检测到的章节分布
+- 检测到的投标资料要求
+- 推荐文件列表（含 `available`、`files[]`、`download_url`）
+
+**前端下载流程**：`wx.downloadFile` 下载 → `wx.openDocument` 打开预览
+
+#### 6.3.3 模式二：智能分析 (`/api/bidding/analyze`)
+
+深度分析招标文件，生成五段式报告：
+
+| 段落 | 内容 |
+|------|------|
+| 总体判断 | 风险等级 + 植入状态 + 友商状态 + 推荐产品 |
+| 一、有利条款 | 已植入的24项条款清单（含分析说明） |
+| 二、缺失条款 | 缺失条款 × 风险等级（高/中/低） |
+| 三、友商痕迹 | 10项友商风险指标检测结果 |
+| 四、产品匹配 | I-Line B/H/W 匹配度排名 + 百分比 |
+| 五、策略建议 | 自动生成的投标策略建议 |
+
+#### 6.3.4 特征库 (`bidding_features.py`)
+
+| 模块 | 内容 |
+|------|------|
+| `COMPETITOR_FEATURES` | 7家友商品牌关键词（西门子、伊顿、ABB、LS、罗格朗、正泰、德力西） |
+| `SCHNEIDER_FEATURES` | 施耐德品牌关键词 + 系列型号 |
+| `TENDER_SECTIONS` | 8类招标文件章节关键词（技术参数、资质要求、投标基本资料等） |
+| `REQUIRED_DOCUMENTS` | 16类投标文件清单（营业执照、ISO/CE/KEMA认证、型式试验报告等） |
+| `TENDER_BIDDING_REQUIREMENTS` | 7类投标资料关键词检测 |
+| `PRODUCT_SERIES` | I-Line B/H/W 三款产品26项技术参数对比 |
+| `FAVORABLE_CLAUSES` | 24项施耐德有利条款（含检测关键词、风险等级、分析说明） |
+| `COMPETITOR_RISK_INDICATORS` | 10项友商风险指标（含检测模式、风险等级、指向友商） |
+
+#### 6.3.5 投标文件资源库 (`static/bidding-docs/`)
+
+| 投标资料类型 | 文件数 | 子文件标签 |
+|-------------|--------|-----------|
+| 营业执照 | 1 | — |
+| 母线槽整体型式试验报告 | 5 | 1350-800A, 2000-1600A, 3200-2500A, 5000-4000A, 6300A |
+| 铜材第三方检测报告 | 3 | H, C, W |
+| 绝缘材料第三方检测报告 | 1 | — |
+| 绝缘材料阻燃报告 | 1 | — |
+| 外壳盐雾试验报告 | 1 | — |
+| 制造商制造经验证明 | 1 | — |
+| 产品样本 | 8 | B, C, H, HL, HN, V, W, W_alloy |
+| ISO/CE/KEMA认证等 | 0 | ⬜ 待补充 |
+
+文件通过 `/static/bidding-docs/{filename}` 路由对外提供下载，后端 `_handle_extract_analysis` 自动检查文件可用性并填充下载链接。
+
+#### 6.3.6 白名单管理
+
+- **数据库字段**：`users.bidding_whitelisted` (TINYINT(1), 默认 0)
+- **后端依赖注入**：`require_bidding_whitelist` → 校验 `bidding_whitelisted == 1`，否则返回 403
+- **登录返回值**：`auth.py` 的 `login_phone` 和 `wechat_login` 接口在返回 user 对象时包含 `bidding_whitelisted` 字段
+- **前端权限检查**：`bidding-result.js` 的 `onLoad` 检查 `userInfo.bidding_whitelisted`，非白名单显示"暂无使用权限"
+- **白名单设置**：通过 SQL 操作 `UPDATE users SET bidding_whitelisted = 1 WHERE id = '用户UUID';`（需用户重新登录生效）
+
+#### 6.3.7 文件类型支持
+
+| 格式 | 扩展名 | 解析方式 |
+|------|--------|---------|
+| PDF | .pdf | pdfplumber |
+| Word 新版 | .docx, .dotx | python-docx |
+| Word 旧版 | .doc, .dot | ZIP格式检测 → 原始字节扫描（降级策略） |
+
+最大文件大小：20MB。扫描件（图片型PDF）暂不支持。
+
+### 6.4 能量系统
 
 - **获取途径**：每日答题正确、参与排行、系统奖励等
 - **消费途径**：能量商城兑换实物/虚拟商品
-- **后台调度**：`monthly_reward_scheduler.py` 按月结算排行榜并发放奖励
+- **后台调度**：`monthly_reward_scheduler.py` 按月结算排行榜并发放奖励（**所有操作由管理员手动触发，关闭自动调度**）
 - **兑换流程**：选择商品 → 填写收货信息 → 扣减能量 → 生成兑换记录
+- **total_score 规则**：仅累计赚取的能量，不扣除已兑换能量，不包含退款能量
 
-### 6.4 排行榜
+### 6.5 排行榜
 
 - **实时排行**：`/api/leaderboard`，按积分降序
 - **月度排行**：`/api/monthly`，按月快照并支持结算
 - **首页 TOP3**：在首页加载时优先展示金银铜前三名
+- **排除规则**：施耐德内部员工/管理员不参与排名
 
-### 6.5 抽奖系统
+### 6.6 抽奖与奖励系统
 
-- 月度结算后触发抽奖
-- 支持多奖品配置
-- 中奖记录持久化到 `lottery_winners` 表
+- **月度奖励**：前3名30能量，4-10名20能量，11-20名10能量，21-50名5能量
+- **月度抽奖**：一等奖10人30能量，二等奖10人20能量，三等奖10人10能量
+- **防重复**：通过 (user_id, related_month, type) 检查，同一用户同月份同类型不可重复
+- **撤销机制**：支持撤销指定月份的奖励/抽奖操作
+- **奖励匹配**：按「姓名 + 公司」精确匹配用户，存在重名或未注册时需人工确认
+- **活动奖励**：type 为 "activity_reward"，title 为活动名称
 
 ---
 
-## 7. 注意事项与技术债
+## 7. AI 智能体平台信息
 
-### 7.1 AI 开发规则 (`claude.md`)
+### 7.1 HiAgent 平台
+
+- **平台**：字节跳动 HiAgent（底层基于 Coze 引擎）
+- **调用方式**：`app/services/agent.py` → `AgentService.chat()` 通过 HTTP API 调用
+- **会话管理**：通过 `AppConversationID` 实现数据库持久化（非内存字典），避免 HiAgent 平台重启导致会话丢失
+- **API Key**：通过环境变量 `HIAGENT_API_KEY` 配置
+
+### 7.2 知识库
+
+- **FAQ 知识库**：基于产品样本 PDF 和 FAQ Excel 导入，所有内容严格来源于 PDF 原文，禁止 AI 编造
+- **友商产品样本**：存储在微信云托管对象存储中
+- **产品导购树**：`app/services/guides.py` 维护树形结构，支持多级展开
+
+---
+
+## 8. 注意事项与技术债
+
+### 8.1 AI 开发规则 (`claude.md`)
 
 项目根目录 `claude.md` 记录了 11 条硬性规则，新 AI 会话必须遵守，核心要点：
 
@@ -463,7 +619,7 @@ alembic upgrade head
 6. 测试多账号隔离需配置真实 WECHAT_APPID/SECRET (本地 Mock 模式会使所有手机号返回 `13800000000`)
 7. AI 返回的 Markdown 图文混排必须在 JS 层正则分段解析，WXML 分离 `<image>` 标签渲染
 
-### 7.2 已知技术债
+### 8.2 已知技术债
 
 | 问题                  | 位置                                 | 严重程度 | 说明                             |
 | --------------------- | ------------------------------------ | -------- | -------------------------------- |
@@ -474,13 +630,14 @@ alembic upgrade head
 | 头像 URL 归一化链过长 | `app.js` L82-L267                  | 低       | 5 层函数嵌套处理多种格式，可简化 |
 | 聊天会话缓存一致性    | `chatSessionCache.js`              | 中       | 离线恢复可能与服务端状态不同步   |
 | 无自动化 CI/CD        | 全局                                 | 中       | 仅手动部署和测试                 |
+| 招标文件仅支持文字版  | `bidding_analyzer.py`              | 低       | 扫描件/图片型PDF无法提取文字     |
 
-### 7.3 环境变量关键配置
+### 8.3 环境变量关键配置
 
 ```bash
 # 后端 .env 核心配置项
 DB_TYPE=sqlite              # sqlite | mysql | memory
-DATABASE_URL=               # MySQL 连接串 (生产必填)
+DATABASE_URL=               # MySQL 连接串 (生产必填，必须含 charset=utf8mb4)
 SECRET_KEY=                 # JWT 签名密钥 (生产必须更换)
 WECHAT_APPID=               # 微信小程序 AppID
 WECHAT_SECRET=              # 微信小程序 Secret
@@ -489,7 +646,7 @@ ENABLE_MONTHLY_REWARD_SCHEDULER=true  # 启用月度奖励定时器
 CORS_ORIGINS=https://servicewechat.com
 ```
 
-### 7.4 测试
+### 8.4 测试
 
 - 框架：pytest + pytest-asyncio + httpx (ASGI 传输)
 - 数据库：测试使用 SQLite 内存数据库，通过 `dependency_overrides` 注入
@@ -499,7 +656,7 @@ CORS_ORIGINS=https://servicewechat.com
 
 ---
 
-## 8. 快速启动
+## 9. 快速启动
 
 ### 后端
 
@@ -528,4 +685,4 @@ docker run -p 8000:8000 --env-file .env faq-backend
 
 ---
 
-> **文档版本**: 1.0 | **最后更新**: 2026-06-09 | **基于代码审查生成**
+> **文档版本**: 2.0 | **最后更新**: 2026-07-28 | **基于本轮对话全部开发变更更新**
