@@ -230,7 +230,7 @@ def _matches_keyword(values: list[object], query: str) -> bool:
 def _normalize_order_status(value: str) -> str:
     status = _clean(value).lower()
     if status not in VALID_REDEMPTION_STATUSES:
-        raise HTTPException(status_code=400, detail="订单状态只能是 pending、approved、delivered 或 cancelled")
+        raise HTTPException(status_code=400, detail="订单状态只能是 pending、approved、delivered、completed 或 cancelled")
     return status
 
 
@@ -239,6 +239,7 @@ def _order_status_label(status: str | None) -> str:
         "pending": "待处理",
         "approved": "已确认",
         "delivered": "已发货",
+        "completed": "已完成",
         "cancelled": "已取消",
     }.get(status or "", "待处理")
 
@@ -1607,6 +1608,27 @@ async def update_admin_redemption_order_status(
     await db.flush()
     await db.refresh(record)
     return {"code": 0, "data": _serialize_admin_redemption(record, user)}
+
+
+@router.delete("/redemption-orders/{order_id}")
+async def delete_admin_redemption_order(
+    order_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> dict[str, object]:
+    result = await db.execute(
+        select(EnergyRedemptionRecord, User)
+        .join(User, EnergyRedemptionRecord.user_id == User.id)
+        .where(EnergyRedemptionRecord.id == order_id)
+    )
+    row = result.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="兑换订单不存在")
+
+    record, _user = row
+    await db.delete(record)
+    await db.flush()
+    return {"code": 0, "data": {"deleted": True, "order_id": order_id}}
 
 
 @router.get("/reports/quiz-participation/weekly")

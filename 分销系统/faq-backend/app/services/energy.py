@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.energy import EnergyRedemptionRecord
 from app.models.energy_product import EnergyProduct
 
-ACTIVE_REDEMPTION_STATUSES = {"pending", "approved", "delivered"}
+ACTIVE_REDEMPTION_STATUSES = {"pending", "approved", "delivered", "completed"}
 VALID_REDEMPTION_STATUSES = ACTIVE_REDEMPTION_STATUSES | {"cancelled"}
 
 ENERGY_PRODUCT_TIERS = [
