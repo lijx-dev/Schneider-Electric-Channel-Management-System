@@ -693,16 +693,13 @@ function renderOrders(data) {
       </td>
       <td>${escapeHtml(item.receiver_note)}</td>
       <td>
-        <div class="row-actions">
-          <select class="order-status-select" data-id="${escapeHtml(item.id)}">
-            <option value="pending"${item.status === "pending" ? " selected" : ""}>待处理</option>
-            <option value="approved"${item.status === "approved" ? " selected" : ""}>已确认</option>
-            <option value="delivered"${item.status === "delivered" ? " selected" : ""}>已发货</option>
-            <option value="completed"${item.status === "completed" ? " selected" : ""}>已完成</option>
-            <option value="cancelled"${item.status === "cancelled" ? " selected" : ""}>已取消</option>
-          </select>
-          <button class="danger-btn delete-order-btn" data-id="${escapeHtml(item.id)}">删除</button>
-        </div>
+        <select class="order-status-select" data-id="${escapeHtml(item.id)}">
+          <option value="pending"${item.status === "pending" ? " selected" : ""}>待处理</option>
+          <option value="approved"${item.status === "approved" ? " selected" : ""}>已确认</option>
+          <option value="delivered"${item.status === "delivered" ? " selected" : ""}>已发货</option>
+          <option value="completed"${item.status === "completed" ? " selected" : ""}>已完成</option>
+          <option value="cancelled"${item.status === "cancelled" ? " selected" : ""}>已取消</option>
+        </select>
       </td>
     </tr>
   `).join("");
@@ -1042,21 +1039,6 @@ $("ordersBody").addEventListener("change", async (event) => {
   } catch (error) {
     alert(error.message);
     await loadOrders();
-  }
-});
-
-$("ordersBody").addEventListener("click", async (event) => {
-  const deleteButton = event.target.closest(".delete-order-btn");
-  if (!deleteButton) return;
-  const orderId = deleteButton.dataset.id;
-  if (!confirm("确定要删除该订单吗？此操作不可撤销。")) return;
-  try {
-    await request(`/api/admin/redemption-orders/${encodeURIComponent(orderId)}`, {
-      method: "DELETE",
-    });
-    await loadOrders();
-  } catch (error) {
-    alert(error.message);
   }
 });
 
