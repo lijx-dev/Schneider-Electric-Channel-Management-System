@@ -3,7 +3,13 @@
 负责 PDF / Word 文本提取、关键词匹配检测、风险等级判断、生成结构化分析报告。
 
 核心流程：
-  PDF/Word文件 → 文本提取 → 关键词匹配(友商/施耐德) → 章节定位 → 风险判断 → 生成报告
+  PDF/Word文件 → 文本提取 → 语义分析(否定/条件/同义词) → 参数提取 → 智能匹配 → 风险评分 → 生成报告
+
+升级内容（v2.0）：
+  - 集成 bidding_semantic：否定句式检测、同义词映射、章节解析
+  - 集成 bidding_param_extractor：参数值精确提取与比较
+  - 智能推荐：基于标书实际内容而非固定规则
+  - 增强风险判断：综合品牌、参数、友商痕迹多维度评分
 """
 from __future__ import annotations
 
@@ -23,6 +29,17 @@ from app.services.bidding_features import (
     SCHNEIDER_FEATURES,
     TENDER_BIDDING_REQUIREMENTS,
     TENDER_SECTIONS,
+)
+from app.services.bidding_semantic import (
+    DOCUMENT_SYNONYM_MAP,
+    analyze_brand_context,
+    is_negated,
+    match_document_requirements,
+    parse_sections,
+)
+from app.services.bidding_param_extractor import (
+    compare_param_with_schneider,
+    extract_all_params,
 )
 
 logger = get_logger(__name__)
@@ -262,16 +279,19 @@ class BiddingAnalyzer:
     @staticmethod
     def keyword_match(text: str) -> dict[str, Any]:
         """
-        关键词匹配检测。
-        在文本中搜索友商和施耐德品牌关键词，并判断风险等级。
+        关键词匹配检测（v2.0 升级版）。
+        集成语义分析（否定检测、同义词映射）和参数提取。
 
         返回:
             {
-                "competitors": [{"brand": "西门子", "matched_keywords": ["XL-IIIS", "西门子"]}],
-                "schneider": {"matched_keywords": ["I-Line H", "施耐德"]},
+                "competitors": [{"brand": "西门子", "matched_keywords": ["XL-IIIS", "西门子"], "context": {...}}],
+                "schneider": {"matched_keywords": [...], "context": {...}},
                 "risk_level": "高风险" | "中风险" | "低风险" | "未知",
                 "risk_detail": "详细风险描述",
                 "sections": {"技术参数": "第3页", "资质要求": "第15页"},
+                "bidding_requirements": {...},
+                "semantic_requirements": {...},  # 新增：语义分析结果
+                "extracted_params": {...},        # 新增：参数提取结果
                 "total_pages": 50,
                 "text_length": 12345,
             }
@@ -286,74 +306,105 @@ class BiddingAnalyzer:
             "risk_detail": "",
             "sections": {},
             "bidding_requirements": {},
+            "semantic_requirements": {},
+            "extracted_params": {},
             "total_pages": 0,
             "text_length": len(text),
         }
 
-        # 统计总页数（仅 PDF 有效，Word 文档无页码标记则为 0）
+        # 统计总页数
         page_markers = re.findall(r"=== 第(\d+)页 ===", text)
         if page_markers:
             result["total_pages"] = max(int(p) for p in page_markers)
         else:
             result["total_pages"] = 0
 
-        # ---- 检测友商品牌 ----
+        # ---- 检测友商品牌（含语义分析） ----
         for comp_name, features in COMPETITOR_FEATURES.items():
             matched_kws: list[str] = []
             for kw in features["keywords"]:
                 if kw.lower() in text.lower():
-                    matched_kws.append(kw)
+                    if not is_negated(text, kw):
+                        matched_kws.append(kw)
             if matched_kws:
+                brand_ctx = analyze_brand_context(text, features["keywords"])
                 result["competitors"].append({
                     "brand": comp_name,
                     "matched_keywords": list(set(matched_kws)),
+                    "context": brand_ctx,
                 })
 
-        # ---- 检测施耐德品牌 ----
+        # ---- 检测施耐德品牌（含语义分析） ----
         schneider_matched: list[str] = []
         for kw in SCHNEIDER_FEATURES["keywords"]:
             if kw.lower() in text.lower():
-                schneider_matched.append(kw)
+                if not is_negated(text, kw):
+                    schneider_matched.append(kw)
         result["schneider"]["matched_keywords"] = list(set(schneider_matched))
+        if schneider_matched:
+            result["schneider"]["context"] = analyze_brand_context(
+                text, SCHNEIDER_FEATURES["keywords"]
+            )
 
         # ---- 检测章节位置 ----
         for section_name, keywords in TENDER_SECTIONS.items():
             for kw in keywords:
-                # 在文本中按行查找，同时记录当前行在全文中的偏移位置
                 lines = text.split("\n")
                 offset = 0
                 for line in lines:
                     if kw in line:
-                        # 尝试找到该关键词所在页码
                         page_match = re.search(r"第(\d+)页", line)
                         if page_match:
                             result["sections"][section_name] = f"第{page_match.group(1)}页"
                         else:
-                            # 使用当前行的偏移位置查找最近的页码标记
                             before = text[:offset]
                             page_before = re.findall(r"=== 第(\d+)页 ===", before)
                             if page_before:
                                 result["sections"][section_name] = f"第{page_before[-1]}页"
                         break
-                    offset += len(line) + 1  # +1 for \n
+                    offset += len(line) + 1
                 if section_name in result["sections"]:
                     break
 
-        # ---- 检测投标基本资料要求 ----
+        # ---- 检测投标基本资料要求（v2.0：带否定检测） ----
         for req_name, keywords in TENDER_BIDDING_REQUIREMENTS.items():
             matched_kws: list[str] = []
             for kw in keywords:
                 if kw in text:
-                    matched_kws.append(kw)
+                    if not is_negated(text, kw):
+                        matched_kws.append(kw)
             if matched_kws:
                 result["bidding_requirements"][req_name] = {
                     "matched_keywords": matched_kws,
                     "available": req_name in REQUIRED_DOCUMENTS,
                 }
 
-        # ---- 风险等级判断 ----
+        # ---- 新增：语义级资料要求检测（使用同义词映射） ----
+        semantic_reqs = match_document_requirements(text)
+        result["semantic_requirements"] = semantic_reqs
+
+        # ---- 新增：参数值精确提取 ----
+        extracted_params = extract_all_params(text)
+        result["extracted_params"] = {}
+        for param_name, param_list in extracted_params.items():
+            if param_name.endswith("_按安培"):
+                continue
+            result["extracted_params"][param_name] = [
+                {
+                    "value": p.value,
+                    "unit": p.unit,
+                    "operator": p.operator,
+                    "page": p.page,
+                    "context": p.context[:100],
+                }
+                for p in param_list
+            ]
+
+        # ---- 风险等级判断（v2.0：综合多维度） ----
         has_competitor = len(result["competitors"]) > 0
         has_schneider = len(result["schneider"]["matched_keywords"]) > 0
+        req_count = len(result["bidding_requirements"])
+        semantic_req_count = len(semantic_reqs)
 
         if has_competitor and not has_schneider:
             competitor_names = ", ".join(c["brand"] for c in result["competitors"])
@@ -386,32 +437,49 @@ class BiddingAnalyzer:
                 "建议人工复核全文。"
             )
 
+        # 补充统计信息
+        result["_stats"] = {
+            "keyword_req_count": req_count,
+            "semantic_req_count": semantic_req_count,
+            "total_req_count": req_count + semantic_req_count,
+            "param_count": len(result["extracted_params"]),
+        }
+
         return result
 
     @staticmethod
     def get_recommended_documents(keyword_result: dict[str, Any]) -> list[dict[str, str]]:
         """
-        根据分析结果，推荐需要准备的投标文件列表。
-        基础文件始终返回，并根据标书中检测到的投标基本资料要求追加对应文件。
+        根据分析结果，智能推荐需要准备的投标文件列表（v2.0）。
+        优先使用语义分析结果，合并关键词匹配和同义词映射的数据。
         """
+        recommended_names: set[str] = set()
+
         # 基础文件：所有投标都需要
         base_docs = ["营业执照", "ISO认证", "产品检测报告", "法人授权书", "投标函", "报价表"]
+        for doc in base_docs:
+            recommended_names.add(doc)
 
         # 如果检测到施耐德品牌，追加认证文件
         if keyword_result["schneider"]["matched_keywords"]:
-            base_docs.append("CE认证")
-            base_docs.append("KEMA认证")
-            base_docs.append("产品样本")
-            base_docs.append("业绩证明")
+            recommended_names.update(["CE认证", "KEMA认证", "产品样本", "业绩证明"])
 
-        # 根据标书中检测到的投标基本资料要求，追加对应文件
+        # 根据关键词匹配结果追加
         bidding_requirements = keyword_result.get("bidding_requirements", {})
         for req_name in bidding_requirements:
-            if req_name in REQUIRED_DOCUMENTS and req_name not in base_docs:
-                base_docs.append(req_name)
+            if req_name in REQUIRED_DOCUMENTS:
+                recommended_names.add(req_name)
 
+        # 根据语义分析结果追加（同义词映射检测到的资料类型）
+        semantic_reqs = keyword_result.get("semantic_requirements", {})
+        for doc_name, doc_info in semantic_reqs.items():
+            if not doc_info.get("is_negated", False):
+                if doc_name in REQUIRED_DOCUMENTS:
+                    recommended_names.add(doc_name)
+
+        # 生成推荐列表
         docs = []
-        for doc_name in base_docs:
+        for doc_name in recommended_names:
             if doc_name in REQUIRED_DOCUMENTS:
                 doc_info = REQUIRED_DOCUMENTS[doc_name]
                 docs.append({
@@ -425,12 +493,15 @@ class BiddingAnalyzer:
     @staticmethod
     def deep_analyze(text: str, filename: str = "") -> dict[str, Any]:
         """
-        智能深度分析招标文件。
+        智能深度分析招标文件（v2.0 升级版）。
+        集成参数提取与施耐德产品参数对比。
+
         返回结构化分析报告，包含：
           - 总体判断（风险等级 + 一句话结论）
           - 施耐德有利条款检测（已植入 vs 缺失）
           - 友商植入痕迹检测
           - 产品匹配推荐（I-Line B/H/W 对比）
+          - 参数提取与对比（新增）
           - 投标策略建议
         """
         result: dict[str, Any] = {
@@ -443,6 +514,7 @@ class BiddingAnalyzer:
             "missing_clauses": [],
             "competitor_traces": [],
             "product_match": {},
+            "param_comparison": {},  # 新增：参数对比
             "strategy": [],
         }
 
@@ -494,16 +566,10 @@ class BiddingAnalyzer:
         product_scores: dict[str, int] = {}
         for product_name, product_params in PRODUCT_SERIES.items():
             score = 0
-            param_matches: list[dict] = []
             for clause in FAVORABLE_CLAUSES:
                 if product_name in clause["products"]:
                     if any(kw in text for kw in clause["keywords"]):
                         score += 1
-                        param_matches.append({
-                            "param": clause["name"],
-                            "product_value": product_params.get(clause["id"], ""),
-                            "status": "matched",
-                        })
 
             product_scores[product_name] = {
                 "score": score,
@@ -512,7 +578,6 @@ class BiddingAnalyzer:
                 "positioning": product_params["positioning"],
             }
 
-        # 排序产品匹配度
         rankings = sorted(
             product_scores.items(),
             key=lambda x: x[1]["score"] / max(x[1]["max_score"], 1),
@@ -538,7 +603,42 @@ class BiddingAnalyzer:
             ],
         }
 
-        # ---- 四、总体判断 ----
+        # ---- 四、参数提取与对比（新增） ----
+        extracted_params = extract_all_params(text)
+        param_comparison: dict[str, Any] = {}
+        for param_name, param_list in extracted_params.items():
+            if param_name.endswith("_按安培"):
+                # 按安培分档的耐受电流单独处理
+                param_comparison[param_name] = param_list
+                continue
+            if not isinstance(param_list, list) or not param_list:
+                continue
+            # 取第一个提取到的参数值进行对比
+            first_param = param_list[0]
+            if hasattr(first_param, "value"):
+                schneider_result = compare_param_with_schneider(
+                    param_name,
+                    first_param.value,
+                    first_param.unit,
+                    "",
+                )
+                param_comparison[param_name] = {
+                    "extracted": {
+                        "value": first_param.value,
+                        "unit": first_param.unit,
+                        "operator": first_param.operator,
+                        "page": first_param.page,
+                        "context": first_param.context[:100] if hasattr(first_param, "context") else "",
+                    },
+                    "schneider_comparison": schneider_result,
+                    "all_values": [
+                        {"value": p.value, "unit": p.unit, "page": p.page}
+                        for p in param_list
+                    ],
+                }
+        result["param_comparison"] = param_comparison
+
+        # ---- 五、总体判断（v2.0：综合多维度） ----
         has_competitor_brand = False
         for comp_name, features in COMPETITOR_FEATURES.items():
             if any(kw.lower() in text.lower() for kw in features["keywords"]):
@@ -585,14 +685,31 @@ class BiddingAnalyzer:
         else:
             competitor_status = "未发现明显的友商定向植入痕迹"
 
+        # 参数对比总结
+        param_summary = ""
+        if param_comparison:
+            advantages = sum(
+                1 for v in param_comparison.values()
+                if isinstance(v, dict) and v.get("schneider_comparison", {}).get("status") == "advantage"
+            )
+            disadvantages = sum(
+                1 for v in param_comparison.values()
+                if isinstance(v, dict) and v.get("schneider_comparison", {}).get("status") == "disadvantage"
+            )
+            if advantages > 0:
+                param_summary = f"；参数对比显示{advantages}项对施耐德有利"
+            if disadvantages > 0:
+                param_summary += f"，{disadvantages}项可能存在风险"
+
         result["summary"] = (
             f"该招标文件处于「{risk_label}」状态。"
             f"我方{implantation_status}（已检测到{favorable_count}项有利条款，{missing_count}项缺失，其中{high_risk_missing}项高风险）。"
             f"{competitor_status}。"
             f"推荐使用 **{best_info.get('full_name', best_product)}** 进行投标。"
+            f"{param_summary}"
         )
 
-        # ---- 五、投标策略建议 ----
+        # ---- 六、投标策略建议 ----
         strategy: list[str] = []
         if high_risk_missing > 0:
             strategy.append(
@@ -625,6 +742,7 @@ class BiddingAnalyzer:
             favorable_count=favorable_count,
             missing_count=missing_count,
             competitor_traces=competitor_trace_count,
+            param_count=len(param_comparison),
             best_product=best_product,
         )
 
