@@ -42,6 +42,7 @@
           <button class="tab-btn" data-tab="orders">兑换订单<span class="order-dot hidden" id="ordersPendingDot"></span></button>
           <button class="tab-btn" data-tab="rewards">奖励记录</button>
           <button class="tab-btn" data-tab="participation">答题参与统计</button>
+          <button class="tab-btn" data-tab="shedeWeekly">舍得每周排行榜</button>
         </nav>
         <button id="logoutBtn" class="ghost-btn">退出登录</button>
       </aside>
@@ -438,6 +439,41 @@
                 </table>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section class="view" id="shedeWeeklyView">
+          <div class="section-head">
+            <div>
+              <h2>苏州舍得电力科技有限公司 · 每周答题排行榜</h2>
+              <p>根据白名单统计每周答题情况，未答题学员红色高亮标记。</p>
+            </div>
+            <div class="header-actions">
+              <button class="ghost-btn" id="exportShedeWeeklyBtn">导出Excel</button>
+              <button class="ghost-btn" id="loadShedeWeeklyBtn">查询</button>
+            </div>
+          </div>
+          <div class="filters single-line">
+            <label><span>周次（选周一）</span><input id="shedeWeeklyWeek" type="week"></label>
+          </div>
+          <div id="shedeWeeklySummary" class="summary-line"></div>
+          <div class="table-wrap compact">
+            <table>
+              <thead>
+                <tr>
+                  <th>排名</th>
+                  <th>姓名</th>
+                  <th>岗位</th>
+                  <th>手机号</th>
+                  <th>答题数</th>
+                  <th>答对数</th>
+                  <th>得分</th>
+                  <th>用时</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody id="shedeWeeklyBody"></tbody>
+            </table>
           </div>
         </section>
       </section>

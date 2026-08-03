@@ -657,6 +657,54 @@ async function exportAllParticipationXlsx() {
   );
 }
 
+// ==================== 舍得每周排行榜 ====================
+
+function renderShedeWeekly(data) {
+  const range = data.week_start && data.week_end ? `（${data.week_start} 至 ${data.week_end}）` : "";
+  $("shedeWeeklySummary").innerHTML =
+    `<strong>${data.company}</strong> 本周${range}：<span style="color:var(--brand-dark)">已答题 ${data.answered_count} 人</span>，<span style="color:var(--danger)">未答题 ${data.unanswered_count} 人</span>，共 ${data.total} 人`;
+
+  const rows = (data.entries || []).map((item) => {
+    const isUnanswered = !item.answered;
+    const statusHtml = isUnanswered
+      ? '<span class="status-unanswered">未答题</span>'
+      : '<span class="status-answered">已答题</span>';
+    const rankHtml = item.rank != null ? escapeHtml(item.rank) : "-";
+    const timeHtml = item.answered ? `${escapeHtml(Math.round(item.total_time_spent))}s` : "-";
+    return `
+      <tr class="${isUnanswered ? "row-unanswered" : ""}">
+        <td>${rankHtml}</td>
+        <td>${escapeHtml(item.name)}</td>
+        <td>${escapeHtml(item.role)}</td>
+        <td>${escapeHtml(item.phone)}</td>
+        <td>${escapeHtml(item.answered_count)}</td>
+        <td>${escapeHtml(item.correct_count)}</td>
+        <td>${escapeHtml(item.total_score)}</td>
+        <td>${timeHtml}</td>
+        <td>${statusHtml}</td>
+      </tr>
+    `;
+  });
+  $("shedeWeeklyBody").innerHTML = rows.join("");
+}
+
+async function loadShedeWeeklyReport() {
+  const params = new URLSearchParams();
+  params.set("quiz_date", weekValueToMonday($("shedeWeeklyWeek").value || defaultWeek()));
+  const data = await request(`/api/admin/reports/suzhou-shede-weekly-quiz?${params.toString()}`);
+  renderShedeWeekly(data);
+}
+
+async function exportShedeWeeklyXlsx() {
+  const params = new URLSearchParams();
+  const weekStart = weekValueToMonday($("shedeWeeklyWeek").value || defaultWeek());
+  params.set("quiz_date", weekStart);
+  await downloadFile(
+    `/api/admin/reports/suzhou-shede-weekly-quiz/export?${params.toString()}`,
+    `舍得每周答题排行榜-${weekStart}.xlsx`,
+  );
+}
+
 function buildOrdersParams() {
   const params = new URLSearchParams();
   if ($("ordersProvince").value) params.set("province", $("ordersProvince").value);
@@ -822,6 +870,7 @@ async function bootDashboard() {
   $("apiBaseLabel").textContent = API_BASE;
   $("weeklyWeek").value = defaultWeek();
   $("monthlyMonth").value = defaultMonth();
+  $("shedeWeeklyWeek").value = defaultWeek();
   $("globalLeaderboardMonth").value = defaultMonth();
   $("rewardsMonth").value = defaultMonth();
   updateGlobalLeaderboardControls();
@@ -1005,6 +1054,9 @@ $("monthlyRoleOptions").innerHTML = "";
 handleRoleChecklistChange("monthlyRoleOptions", "monthlyRoleSummary", () => loadMonthlyReport().catch((error) => alert(error.message)));
 $("exportMonthlyBtn").addEventListener("click", () => exportMonthlyCsv().catch((error) => alert(error.message)));
 $("exportAllParticipationBtn").addEventListener("click", () => exportAllParticipationXlsx().catch((error) => alert(error.message)));
+$("loadShedeWeeklyBtn").addEventListener("click", () => loadShedeWeeklyReport().catch((error) => alert(error.message)));
+$("shedeWeeklyWeek").addEventListener("change", () => loadShedeWeeklyReport().catch((error) => alert(error.message)));
+$("exportShedeWeeklyBtn").addEventListener("click", () => exportShedeWeeklyXlsx().catch((error) => alert(error.message)));
 $("exportRewardsBtn").addEventListener("click", () => exportRewardsXlsx().catch((error) => alert(error.message)));
 $("loadRewardsBtn").addEventListener("click", () => loadRewards().catch((error) => alert(error.message)));
 $("rewardsMonth").addEventListener("change", () => loadRewards().catch((error) => alert(error.message)));

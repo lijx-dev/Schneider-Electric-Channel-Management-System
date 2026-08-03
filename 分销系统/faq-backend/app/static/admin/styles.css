@@ -457,6 +457,39 @@ th {
   min-width: 104px;
 }
 
+/* 舍得每周排行榜 - 未答题行高亮 */
+.row-unanswered {
+  background: #fef2f2;
+}
+
+.row-unanswered:hover {
+  background: #fee2e2;
+}
+
+.status-answered {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 3px 10px;
+  background: #ecfdf5;
+  color: #059669;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-unanswered {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 3px 10px;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 @media (max-width: 860px) {
   .login-panel,
   .dashboard {

@@ -1999,3 +1999,282 @@ async def export_all_participation_report(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
     )
+
+
+# ==================== 苏州舍得每周答题排行榜 ====================
+
+SUZHOU_SHEDE_WHITELIST: dict[str, dict[str, str]] = {
+    "13771905270": {"name": "龚国胜", "role": "技术"},
+    "18962675595": {"name": "马超", "role": "销售"},
+    "13912648695": {"name": "王光海", "role": "销售"},
+    "15261650739": {"name": "杨健", "role": "技术"},
+    "15137942552": {"name": "杜永兴", "role": "技术"},
+    "17300571910": {"name": "黄沁", "role": "技术"},
+    "19118784083": {"name": "孔祥瑞", "role": "技术"},
+    "18626250343": {"name": "周朋伟", "role": "技术"},
+    "13673561934": {"name": "韩明威", "role": "技术"},
+    "13921717087": {"name": "徐梓恒", "role": "技术"},
+    "17625768429": {"name": "文龙", "role": "销售"},
+    "19107540117": {"name": "殷海翔", "role": "技术"},
+    "13438458759": {"name": "蒋晓辉", "role": "技术"},
+    "17828938368": {"name": "肖长江", "role": "技术"},
+    "13390783062": {"name": "王文钊", "role": "技术"},
+    "18961054872": {"name": "徐迈", "role": "技术"},
+    "13962723225": {"name": "孙志锋", "role": "技术"},
+    "16624767943": {"name": "王帅宇", "role": "技术"},
+    "18118837462": {"name": "宗臣", "role": "技术"},
+    "17785439020": {"name": "刘鉴颉", "role": "技术"},
+    "15152191810": {"name": "亓昊翔", "role": "技术"},
+    "18913053367": {"name": "汤思凯", "role": "技术"},
+    "15370307652": {"name": "赵田煜", "role": "技术"},
+    "13625174908": {"name": "黄翃", "role": "技术"},
+    "15736491923": {"name": "杨忠静", "role": "技术"},
+    "18952157055": {"name": "张庆杰", "role": "技术"},
+    "13236331689": {"name": "任世浩", "role": "技术"},
+    "15270057909": {"name": "杨晨", "role": "技术"},
+    "15387288005": {"name": "常希林", "role": "技术"},
+    "15995666847": {"name": "金长龙", "role": "技术"},
+    "15365570920": {"name": "朱佳怡", "role": "技术"},
+    "18307425743": {"name": "黄惠源", "role": "技术"},
+    "15722887914": {"name": "韩振", "role": "技术"},
+    "13323239534": {"name": "韩鑫", "role": "技术"},
+    "15133686354": {"name": "张天", "role": "技术"},
+    "13270991786": {"name": "陆恺楷", "role": "技术"},
+    "15937614586": {"name": "刘文浩", "role": "技术"},
+    "17768913396": {"name": "孙苏闽", "role": "技术"},
+    "18631126029": {"name": "赵志浩", "role": "技术"},
+    "18469028146": {"name": "李昶", "role": "技术"},
+    "18142551906": {"name": "王晋", "role": "技术"},
+    "18796801281": {"name": "马彦兵", "role": "技术"},
+    "18761966785": {"name": "吕和记", "role": "技术"},
+    "18248866739": {"name": "朱佳宸", "role": "技术"},
+    "19166180816": {"name": "李业强", "role": "技术"},
+    "18862504684": {"name": "董朝益", "role": "技术"},
+    "13685145682": {"name": "徐一凡", "role": "技术"},
+    "13353714190": {"name": "尹轩", "role": "技术"},
+    "19260285028": {"name": "胡文博", "role": "技术"},
+    "15231079391": {"name": "李晓楠", "role": "技术"},
+    "15225864744": {"name": "原小凯", "role": "技术"},
+    "13761604894": {"name": "朱海震", "role": "销售"},
+    "13862742492": {"name": "程志鹏", "role": "技术"},
+    "15995627502": {"name": "丁宇", "role": "技术"},
+    "15161947952": {"name": "崔越", "role": "技术"},
+    "19816552386": {"name": "周宸毅", "role": "技术"},
+    "17332115446": {"name": "董云文", "role": "技术"},
+    "18114438545": {"name": "严瑜栋", "role": "技术"},
+    "13862561917": {"name": "何昊垲", "role": "技术"},
+    "18851488616": {"name": "鲍文正", "role": "技术"},
+    "18550948906": {"name": "陈祖泰", "role": "技术"},
+    "18861919607": {"name": "李成晗", "role": "技术"},
+    "17302351487": {"name": "冉中华", "role": "技术"},
+    "13429405250": {"name": "谭杰", "role": "技术"},
+    "15062448470": {"name": "宾航", "role": "技术"},
+    "18949648731": {"name": "陈潇晴", "role": "技术"},
+    "13812640856": {"name": "张齐恒", "role": "技术"},
+    "18206668551": {"name": "梁伟伟", "role": "技术"},
+    "15323370619": {"name": "张文海", "role": "技术"},
+    "13151581418": {"name": "陈浩", "role": "技术"},
+    "15655220189": {"name": "杨魁", "role": "技术"},
+    "17856816937": {"name": "邵国庆", "role": "技术"},
+    "18795706703": {"name": "曹怡洋", "role": "技术"},
+    "18052607397": {"name": "朱骏远", "role": "技术"},
+    "13915403905": {"name": "李智明", "role": "技术"},
+    "19502551593": {"name": "王岩", "role": "技术"},
+    "16651139564": {"name": "薛瑞", "role": "技术"},
+    "17361881748": {"name": "赵昱杰", "role": "技术"},
+    "13222420483": {"name": "林发源", "role": "技术"},
+}
+
+
+@router.get("/reports/suzhou-shede-weekly-quiz")
+async def get_suzhou_shede_weekly_quiz(
+    quiz_date: str = Query(..., pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> dict[str, object]:
+    """苏州舍得电力科技有限公司每周答题排行榜"""
+    week_start, week_end = _week_bounds_from_date(quiz_date)
+
+    # 查询白名单中所有手机号对应的用户
+    phones = list(SUZHOU_SHEDE_WHITELIST.keys())
+    user_result = await db.execute(
+        select(User).where(User.phone.in_(phones))
+    )
+    db_users = {u.phone: u for u in user_result.scalars().all()}
+
+    # 查询这些用户本周的答题记录
+    user_ids = [u.id for u in db_users.values()]
+    stats_result = await db.execute(
+        select(
+            AnswerRecord.user_id,
+            func.count(AnswerRecord.id).label("answered_count"),
+            func.sum(case((AnswerRecord.is_correct == True, 1), else_=0)).label("correct_count"),
+            func.sum(AnswerRecord.score).label("total_score"),
+            func.sum(func.coalesce(AnswerRecord.time_spent, 0)).label("total_time_spent"),
+        )
+        .where(
+            AnswerRecord.user_id.in_(user_ids),
+            AnswerRecord.source == "daily",
+            AnswerRecord.quiz_date >= week_start,
+            AnswerRecord.quiz_date <= week_end,
+        )
+        .group_by(AnswerRecord.user_id)
+    ) if user_ids else None
+
+    stats_map: dict[str, dict[str, int]] = {}
+    if stats_result:
+        for row in stats_result.all():
+            stats_map[row.user_id] = {
+                "answered_count": int(row.answered_count or 0),
+                "correct_count": int(row.correct_count or 0),
+                "total_score": int(row.total_score or 0),
+                "total_time_spent": int(row.total_time_spent or 0),
+            }
+
+    # 按照白名单顺序构建排行榜
+    entries: list[dict[str, object]] = []
+    answered_count_total = 0
+    unanswered_count_total = 0
+
+    for phone, info in SUZHOU_SHEDE_WHITELIST.items():
+        user = db_users.get(phone)
+        stats = stats_map.get(user.id, {}) if user else {}
+        answered = stats.get("answered_count", 0) > 0
+
+        if answered:
+            answered_count_total += 1
+        else:
+            unanswered_count_total += 1
+
+        entries.append({
+            "name": info["name"],
+            "role": info["role"],
+            "phone": phone,
+            "user_id": user.id if user else "",
+            "registered": user is not None,
+            "answered_count": stats.get("answered_count", 0),
+            "correct_count": stats.get("correct_count", 0),
+            "total_score": stats.get("total_score", 0),
+            "total_time_spent": stats.get("total_time_spent", 0),
+            "answered": answered,
+        })
+
+    # 排序：已答题按答对数降序、用时升序；未答题排在最后按姓名排序
+    answered_entries = sorted(
+        [e for e in entries if e["answered"]],
+        key=lambda e: (-e["correct_count"], e["total_time_spent"]),
+    )
+    unanswered_entries = sorted(
+        [e for e in entries if not e["answered"]],
+        key=lambda e: e["name"],
+    )
+    sorted_entries = answered_entries + unanswered_entries
+
+    # 分配排名
+    for idx, entry in enumerate(sorted_entries):
+        entry["rank"] = idx + 1 if entry["answered"] else None
+
+    return {
+        "code": 0,
+        "data": {
+            "quiz_date": quiz_date,
+            "week_start": week_start,
+            "week_end": week_end,
+            "company": "苏州舍得电力科技有限公司",
+            "total": len(sorted_entries),
+            "answered_count": answered_count_total,
+            "unanswered_count": unanswered_count_total,
+            "entries": sorted_entries,
+        },
+    }
+
+
+@router.get("/reports/suzhou-shede-weekly-quiz/export")
+async def export_suzhou_shede_weekly_quiz(
+    quiz_date: str = Query(..., pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> StreamingResponse:
+    """导出苏州舍得每周答题排行榜 Excel"""
+    week_start, week_end = _week_bounds_from_date(quiz_date)
+
+    phones = list(SUZHOU_SHEDE_WHITELIST.keys())
+    user_result = await db.execute(
+        select(User).where(User.phone.in_(phones))
+    )
+    db_users = {u.phone: u for u in user_result.scalars().all()}
+
+    user_ids = [u.id for u in db_users.values()]
+    stats_result = await db.execute(
+        select(
+            AnswerRecord.user_id,
+            func.count(AnswerRecord.id).label("answered_count"),
+            func.sum(case((AnswerRecord.is_correct == True, 1), else_=0)).label("correct_count"),
+            func.sum(AnswerRecord.score).label("total_score"),
+            func.sum(func.coalesce(AnswerRecord.time_spent, 0)).label("total_time_spent"),
+        )
+        .where(
+            AnswerRecord.user_id.in_(user_ids),
+            AnswerRecord.source == "daily",
+            AnswerRecord.quiz_date >= week_start,
+            AnswerRecord.quiz_date <= week_end,
+        )
+        .group_by(AnswerRecord.user_id)
+    ) if user_ids else None
+
+    stats_map: dict[str, dict[str, int]] = {}
+    if stats_result:
+        for row in stats_result.all():
+            stats_map[row.user_id] = {
+                "answered_count": int(row.answered_count or 0),
+                "correct_count": int(row.correct_count or 0),
+                "total_score": int(row.total_score or 0),
+                "total_time_spent": int(row.total_time_spent or 0),
+            }
+
+    headers = ["排名", "姓名", "岗位", "手机号", "答题数", "答对数", "得分", "用时(秒)", "状态", "已注册"]
+    answered_rows: list[list[object]] = []
+    unanswered_rows: list[list[object]] = []
+
+    rank = 0
+    for phone, info in SUZHOU_SHEDE_WHITELIST.items():
+        user = db_users.get(phone)
+        stats = stats_map.get(user.id, {}) if user else {}
+        answered = stats.get("answered_count", 0) > 0
+        if answered:
+            rank += 1
+
+        row = [
+            rank if answered else "-",
+            info["name"],
+            info["role"],
+            phone,
+            stats.get("answered_count", 0),
+            stats.get("correct_count", 0),
+            stats.get("total_score", 0),
+            stats.get("total_time_spent", 0),
+            "已答题" if answered else "未答题",
+            "是" if user else "否",
+        ]
+        if answered:
+            answered_rows.append(row)
+        else:
+            unanswered_rows.append(row)
+
+    workbook = Workbook()
+    answered_sheet = workbook.active
+    answered_sheet.title = "本周已答题"
+    _append_xlsx_rows(answered_sheet, headers, answered_rows)
+
+    unanswered_sheet = workbook.create_sheet("本周未答题")
+    _append_xlsx_rows(unanswered_sheet, headers, unanswered_rows)
+
+    stream = BytesIO()
+    workbook.save(stream)
+    stream.seek(0)
+    filename = f"舍得每周答题排行榜-{week_start}.xlsx"
+    return StreamingResponse(
+        stream,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+    )
