@@ -2236,30 +2236,61 @@ async def export_suzhou_shede_weekly_quiz(
     answered_rows: list[list[object]] = []
     unanswered_rows: list[list[object]] = []
 
-    rank = 0
+    # 先收集所有条目，按正确顺序排序后分配排名
+    all_entries: list[dict[str, object]] = []
     for phone, info in SUZHOU_SHEDE_WHITELIST.items():
         user = db_users.get(phone)
         stats = stats_map.get(user.id, {}) if user else {}
-        answered = stats.get("answered_count", 0) > 0
-        if answered:
-            rank += 1
+        all_entries.append({
+            "name": info["name"],
+            "role": info["role"],
+            "phone": phone,
+            "answered_count": stats.get("answered_count", 0),
+            "correct_count": stats.get("correct_count", 0),
+            "total_score": stats.get("total_score", 0),
+            "total_time_spent": stats.get("total_time_spent", 0),
+            "answered": stats.get("answered_count", 0) > 0,
+            "registered": user is not None,
+        })
 
-        row = [
-            rank if answered else "-",
-            info["name"],
-            info["role"],
-            phone,
-            stats.get("answered_count", 0),
-            stats.get("correct_count", 0),
-            stats.get("total_score", 0),
-            stats.get("total_time_spent", 0),
-            "已答题" if answered else "未答题",
-            "是" if user else "否",
-        ]
-        if answered:
-            answered_rows.append(row)
-        else:
-            unanswered_rows.append(row)
+    # 排序：已答题按答对数降序、用时升序；未答题按姓名排序
+    answered_entries = sorted(
+        [e for e in all_entries if e["answered"]],
+        key=lambda e: (-e["correct_count"], e["total_time_spent"]),
+    )
+    unanswered_entries = sorted(
+        [e for e in all_entries if not e["answered"]],
+        key=lambda e: str(e["name"]),
+    )
+
+    for idx, entry in enumerate(answered_entries):
+        rank = idx + 1
+        answered_rows.append([
+            rank,
+            entry["name"],
+            entry["role"],
+            entry["phone"],
+            entry["answered_count"],
+            entry["correct_count"],
+            entry["total_score"],
+            entry["total_time_spent"],
+            "已答题",
+            "是" if entry["registered"] else "否",
+        ])
+
+    for entry in unanswered_entries:
+        unanswered_rows.append([
+            "-",
+            entry["name"],
+            entry["role"],
+            entry["phone"],
+            entry["answered_count"],
+            entry["correct_count"],
+            entry["total_score"],
+            entry["total_time_spent"],
+            "未答题",
+            "是" if entry["registered"] else "否",
+        ])
 
     workbook = Workbook()
     answered_sheet = workbook.active
