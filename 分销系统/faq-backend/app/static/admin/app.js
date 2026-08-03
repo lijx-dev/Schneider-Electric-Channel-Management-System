@@ -1218,9 +1218,9 @@ async function handleRunMonthlyLottery() {
 
   const monthLabel = targetMonth || "当前月份";
   const confirmed = window.confirm(
-    `确定要立即对 ${monthLabel} 全量参与用户执行抽奖吗？\n\n` +
+    `确定要立即对 ${monthLabel} 参与答题的用户执行抽奖吗？\n\n` +
     "执行后系统将：\n" +
-    "1. 自动从该月参与过答题的用户中随机抽取 30 名中奖者\n" +
+    `1. 自动从 ${monthLabel} 参与过答题的用户中随机抽取 30 名中奖者\n` +
     "2. 一等奖 10 名，每人发放 30 格施能量\n" +
     "3. 二等奖 10 名，每人发放 20 格施能量\n" +
     "4. 三等奖 10 名，每人发放 10 格施能量\n" +

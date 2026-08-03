@@ -757,7 +757,7 @@ async def list_admin_reward_records(
         lottery = lottery_by_user.get(user.id)
         is_lottery = transaction.type == "lottery_reward"
         is_activity = transaction.type == "activity_reward"
-        type_label = "月初抽奖" if is_lottery else ("活动奖励" if is_activity else "月底奖励")
+        type_label = "月度抽奖" if is_lottery else ("活动奖励" if is_activity else "月底奖励")
         items.append(
             {
                 "id": transaction.id,
@@ -895,7 +895,7 @@ async def export_admin_reward_records(
                 user.phone or "",
                 user.company or "",
                 _role_label(_effective_job_role(user)),
-                "月初抽奖" if is_lottery else ("活动奖励" if is_activity_export else "月底奖励"),
+                "月度抽奖" if is_lottery else ("活动奖励" if is_activity_export else "月底奖励"),
                 rank_or_prize,
                 transaction.amount or 0,
                 transaction.title or "",

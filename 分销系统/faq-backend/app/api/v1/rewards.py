@@ -10,7 +10,6 @@ from app.db.session import get_db
 from app.models.energy import EnergyTransaction
 from app.models.lottery import LotteryWinner
 from app.models.monthly import MonthlyRankSnapshot
-from app.services.lottery import previous_calendar_month_key
 from app.services.monthly_leaderboard import validate_month_key
 
 router = APIRouter(tags=["奖励记录"])
@@ -22,16 +21,6 @@ REWARD_NOTICE_TYPES = {"monthly_rank_reward", "lottery_reward"}
 class RewardNoticeReadRequest(BaseModel):
     reward_transaction_ids: list[int] = Field(default_factory=list)
     lottery_notice_ids: list[int] = Field(default_factory=list)
-
-
-def next_calendar_month_key(current_month: str) -> str:
-    month = validate_month_key(current_month)
-    year_text, month_text = month.split("-")
-    year = int(year_text)
-    month_number = int(month_text)
-    if month_number == 12:
-        return f"{year + 1}-01"
-    return f"{year}-{month_number + 1:02d}"
 
 
 def format_reward_notice_month(month_key: str) -> str:
@@ -212,10 +201,10 @@ async def build_latest_reward_notice(
 
     if latest.type == "lottery_reward":
         lottery_month = latest.related_month
-        monthly_month = previous_calendar_month_key(lottery_month)
+        monthly_month = latest.related_month
     else:
         monthly_month = latest.related_month
-        lottery_month = next_calendar_month_key(monthly_month)
+        lottery_month = latest.related_month
 
     monthly_transaction, monthly_snapshot = await fetch_monthly_notice(db, current_user_id, monthly_month)
     lottery_transaction, lottery_winner = await fetch_lottery_notice(db, current_user_id, lottery_month)

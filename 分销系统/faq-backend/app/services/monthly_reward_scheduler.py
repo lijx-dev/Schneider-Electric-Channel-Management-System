@@ -53,9 +53,9 @@ async def run_monthly_tasks_once(today: date | None = None) -> dict:
         "reason": "not_first_day",
     }
     if current.day == 1:
-        current_month = current.strftime("%Y-%m")
+        lottery_month = previous_month_key(today)
         async with AsyncSessionLocal() as session:
-            lottery = await run_monthly_lottery(session, current_month)
+            lottery = await run_monthly_lottery(session, lottery_month)
             await session.commit()
             logger.info("monthly_lottery_checked", **lottery)
 

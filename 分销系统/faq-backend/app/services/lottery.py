@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timezone
 import random
 
 from sqlalchemy import select
@@ -36,13 +36,6 @@ def format_lottery_month(month_key: str) -> str:
     month = validate_month_key(month_key)
     year_text, month_text = month.split("-")
     return f"{int(year_text)}年{int(month_text)}月"
-
-
-def previous_calendar_month_key(current_month: str) -> str:
-    month = validate_month_key(current_month)
-    first_day = date.fromisoformat(f"{month}-01")
-    previous_month_day = first_day - timedelta(days=1)
-    return previous_month_day.strftime("%Y-%m")
 
 
 async def fetch_lottery_candidates(db: AsyncSession, participant_month: str) -> list[User]:
@@ -106,7 +99,7 @@ async def run_monthly_lottery(db: AsyncSession, month_key: str) -> dict:
             "already_drawn": True,
         }
 
-    participant_month = previous_calendar_month_key(month)
+    participant_month = month
     candidates = await fetch_lottery_candidates(db, participant_month)
     now = datetime.now(timezone.utc)
     draw = LotteryDraw(
