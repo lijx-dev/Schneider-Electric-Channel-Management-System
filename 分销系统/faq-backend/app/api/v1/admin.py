@@ -884,7 +884,7 @@ async def export_admin_reward_records(
         rank_or_prize = ""
         if is_lottery and lottery:
             rank_or_prize = lottery.prize_name or lottery.prize_level or ""
-        elif snapshot and snapshot.rank:
+        elif transaction.type == "monthly_rank_reward" and snapshot and snapshot.rank:
             rank_or_prize = f"第{snapshot.rank}名"
         created_at = transaction.created_at.strftime("%Y-%m-%d %H:%M:%S") if transaction.created_at else ""
         rows.append(
