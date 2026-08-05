@@ -21,13 +21,13 @@
   </view>
 
   <view wx:else class="specialist-list">
-    <view wx:for="{{specialistList}}" wx:key="specialist_id" class="specialist-card">
+    <view wx:for="{{specialistList}}" wx:for-item="sp" wx:key="specialist_id" class="specialist-card">
       <view class="sp-header">
-        <text class="sp-name">{{item.specialist_name}}</text>
-        <text wx:if="{{item.scores}}" class="sp-rated">已评分</text>
+        <text class="sp-name">{{sp.specialist_name}}</text>
+        <text wx:if="{{sp.scores}}" class="sp-rated">已评分</text>
       </view>
 
-      <view wx:if="{{!item.scores}}">
+      <view wx:if="{{!sp.scores}}">
         <!-- 响应效率 -->
         <view class="dimension-row">
           <text class="dim-label-text">响应效率</text>
@@ -35,14 +35,15 @@
           <view class="score-options">
             <view
               wx:for="{{[0,1,2,3,4,5]}}"
+              wx:for-item="scoreVal"
               wx:key="*this"
-              class="score-option {{((scores[item.specialist_id] || {}).efficiency || 0) === item ? 'score-option-active' : ''}}"
-              data-specialist-id="{{item.specialist_id}}"
+              class="score-option {{scores[sp.specialist_id].efficiency === scoreVal ? 'score-option-active' : ''}}"
+              data-specialist-id="{{sp.specialist_id}}"
               data-dimension="efficiency"
-              data-value="{{item}}"
+              data-value="{{scoreVal}}"
               bindtap="onScoreTap"
             >
-              <text class="score-num">{{item === 0 ? 'N/A' : item}}</text>
+              <text class="score-num">{{scoreVal === 0 ? 'N/A' : scoreVal}}</text>
             </view>
           </view>
         </view>
@@ -53,14 +54,15 @@
           <view class="score-options">
             <view
               wx:for="{{[0,1,2,3,4,5]}}"
+              wx:for-item="scoreVal"
               wx:key="*this"
-              class="score-option {{((scores[item.specialist_id] || {}).response || 0) === item ? 'score-option-active' : ''}}"
-              data-specialist-id="{{item.specialist_id}}"
+              class="score-option {{scores[sp.specialist_id].response === scoreVal ? 'score-option-active' : ''}}"
+              data-specialist-id="{{sp.specialist_id}}"
               data-dimension="response"
-              data-value="{{item}}"
+              data-value="{{scoreVal}}"
               bindtap="onScoreTap"
             >
-              <text class="score-num">{{item === 0 ? 'N/A' : item}}</text>
+              <text class="score-num">{{scoreVal === 0 ? 'N/A' : scoreVal}}</text>
             </view>
           </view>
         </view>
@@ -71,14 +73,15 @@
           <view class="score-options">
             <view
               wx:for="{{[0,1,2,3,4,5]}}"
+              wx:for-item="scoreVal"
               wx:key="*this"
-              class="score-option {{((scores[item.specialist_id] || {}).training || 0) === item ? 'score-option-active' : ''}}"
-              data-specialist-id="{{item.specialist_id}}"
+              class="score-option {{scores[sp.specialist_id].training === scoreVal ? 'score-option-active' : ''}}"
+              data-specialist-id="{{sp.specialist_id}}"
               data-dimension="training"
-              data-value="{{item}}"
+              data-value="{{scoreVal}}"
               bindtap="onScoreTap"
             >
-              <text class="score-num">{{item === 0 ? 'N/A' : item}}</text>
+              <text class="score-num">{{scoreVal === 0 ? 'N/A' : scoreVal}}</text>
             </view>
           </view>
         </view>
@@ -89,14 +92,15 @@
           <view class="score-options">
             <view
               wx:for="{{[0,1,2,3,4,5]}}"
+              wx:for-item="scoreVal"
               wx:key="*this"
-              class="score-option {{((scores[item.specialist_id] || {}).communication || 0) === item ? 'score-option-active' : ''}}"
-              data-specialist-id="{{item.specialist_id}}"
+              class="score-option {{scores[sp.specialist_id].communication === scoreVal ? 'score-option-active' : ''}}"
+              data-specialist-id="{{sp.specialist_id}}"
               data-dimension="communication"
-              data-value="{{item}}"
+              data-value="{{scoreVal}}"
               bindtap="onScoreTap"
             >
-              <text class="score-num">{{item === 0 ? 'N/A' : item}}</text>
+              <text class="score-num">{{scoreVal === 0 ? 'N/A' : scoreVal}}</text>
             </view>
           </view>
         </view>
@@ -105,19 +109,19 @@
       <view wx:else class="submitted-scores">
         <view class="submitted-score-row">
           <text class="submitted-dim">响应效率</text>
-          <text class="submitted-val">{{item.scores.efficiency || 'N/A'}}</text>
+          <text class="submitted-val">{{sp.scores.efficiency || 'N/A'}}</text>
         </view>
         <view class="submitted-score-row">
           <text class="submitted-dim">问题解决</text>
-          <text class="submitted-val">{{item.scores.response || 'N/A'}}</text>
+          <text class="submitted-val">{{sp.scores.response || 'N/A'}}</text>
         </view>
         <view class="submitted-score-row">
           <text class="submitted-dim">培训指导</text>
-          <text class="submitted-val">{{item.scores.training || 'N/A'}}</text>
+          <text class="submitted-val">{{sp.scores.training || 'N/A'}}</text>
         </view>
         <view class="submitted-score-row">
           <text class="submitted-dim">沟通协作</text>
-          <text class="submitted-val">{{item.scores.communication || 'N/A'}}</text>
+          <text class="submitted-val">{{sp.scores.communication || 'N/A'}}</text>
         </view>
       </view>
     </view>

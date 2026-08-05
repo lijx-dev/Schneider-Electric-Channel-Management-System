@@ -28,10 +28,16 @@ Page({
         url: '/api/recognition/surveys/status'
       });
       const specialistList = result.specialists || [];
+      // 预初始化 scores，避免 WXML 中需要用 || {} 兜底导致 }} 解析错误
+      const scores = {};
+      specialistList.forEach(sp => {
+        scores[sp.specialist_id] = { efficiency: 0, response: 0, training: 0, communication: 0 };
+      });
       this.setData({
         loading: false,
         submitted: result.submitted,
         specialistList,
+        scores,
         surveyMonth: result.survey_month
       });
     } catch (err) {
