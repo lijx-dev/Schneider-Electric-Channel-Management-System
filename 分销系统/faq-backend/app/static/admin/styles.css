@@ -516,3 +516,252 @@ th {
     max-width: 100%;
   }
 }
+
+/* ==================== 认可计划管理 ==================== */
+
+.recognition-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--line);
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.rec-tab {
+  border: 0;
+  background: transparent;
+  padding: 10px 18px;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-size: 14px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.rec-tab:hover {
+  color: var(--text);
+}
+
+.rec-tab.active {
+  color: var(--brand-dark);
+  border-bottom-color: var(--brand);
+  font-weight: 700;
+}
+
+.rec-panel {
+  display: none;
+}
+
+.rec-panel.active {
+  display: block;
+}
+
+.rec-section {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  margin-bottom: 18px;
+}
+
+.rec-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.rec-section-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.rec-actions-bar {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+}
+
+/* 状态标签 */
+.rec-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rec-status-submitted {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.rec-status-approved {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.rec-status-rejected {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.rec-status-draft {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* 详情弹窗 */
+.rec-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.rec-detail-grid div {
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.rec-content-section {
+  margin-bottom: 10px;
+}
+
+.rec-json {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 10px;
+  font-size: 12px;
+  overflow-x: auto;
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.rec-rule-value {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+  margin: 0;
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 导出卡片 */
+.rec-export-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.rec-export-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rec-export-card h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.rec-export-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.rec-export-card .filters {
+  margin: 0;
+}
+
+/* 弹窗通用 */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-box {
+  background: #fff;
+  border-radius: 10px;
+  width: min(520px, calc(100% - 32px));
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+}
+
+.modal-box.modal-lg {
+  width: min(720px, calc(100% - 32px));
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.modal-head h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.modal-close {
+  background: none;
+  border: 0;
+  font-size: 22px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: var(--text);
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 860px) {
+  .rec-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rec-export-grid {
+    grid-template-columns: 1fr;
+  }
+}

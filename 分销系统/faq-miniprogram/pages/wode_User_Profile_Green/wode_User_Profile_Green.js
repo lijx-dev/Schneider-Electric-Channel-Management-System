@@ -7,7 +7,8 @@ Page({
     profileName: '',
     profileCompany: '',
     level: 1,
-    redeemCount: 0
+    redeemCount: 0,
+    recognitionRole: 'distributor'
   },
 
   onLoad() {
@@ -43,7 +44,8 @@ Page({
       profileName: '游客',
       profileCompany: '登录后完善个人资料',
       level: 1,
-      redeemCount: 0
+      redeemCount: 0,
+      recognitionRole: 'distributor'
     });
   },
 
@@ -88,7 +90,8 @@ Page({
         profileName,
         profileCompany: res.company || '',
         level: Math.floor((normalizedUserData.total_score || 0) / 1000) + 1,
-        redeemCount: Number(normalizedUserData.redemption_count) || 0
+        redeemCount: Number(normalizedUserData.redemption_count) || 0,
+        recognitionRole: res.recognition_role || 'distributor'
       });
     } catch (err) {
       console.error('Profile load error:', err);
@@ -139,6 +142,38 @@ Page({
 
   goToAboutAcademy() {
     wx.navigateTo({ url: '/pages/about-academy/index' });
+  },
+
+  goToRecognitionSubmit() {
+    if (this.data.isGuestMode) {
+      wx.navigateTo({ url: '/pages/login/login' });
+      return;
+    }
+    wx.navigateTo({ url: '/pages/recognition/submit/submit' });
+  },
+
+  goToRecognitionMyAwards() {
+    if (this.data.isGuestMode) {
+      wx.navigateTo({ url: '/pages/login/login' });
+      return;
+    }
+    wx.navigateTo({ url: '/pages/recognition/my-awards/my-awards' });
+  },
+
+  goToRecognitionRanking() {
+    if (this.data.isGuestMode) {
+      wx.navigateTo({ url: '/pages/login/login' });
+      return;
+    }
+    wx.navigateTo({ url: '/pages/recognition/ranking/ranking' });
+  },
+
+  goToSalesRating() {
+    if (this.data.isGuestMode) {
+      wx.navigateTo({ url: '/pages/login/login' });
+      return;
+    }
+    wx.navigateTo({ url: '/pages/recognition/sales-rate/sales-rate' });
   },
 
   logout() {

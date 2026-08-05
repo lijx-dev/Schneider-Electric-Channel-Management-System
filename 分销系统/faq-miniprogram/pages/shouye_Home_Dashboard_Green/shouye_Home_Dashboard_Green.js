@@ -54,7 +54,16 @@ Page({
     todayStudyTime: 0,
     answeredProgress: 0,
     showWeeklyQuizBadge: false,
-    lotteryNotice: null
+    lotteryNotice: null,
+    // 认可计划
+    recognitionRole: '',
+    recognitionScore: 0,
+    recognitionLevel: { level: '启明星', level_icon: '☆' },
+    // 销售评分提醒
+    showRatingReminder: false,
+    // 管理看板
+    pendingReviewCount: 0,
+    surveyProgress: null
   },
 
   clampProgress(answeredCount, totalCount) {
@@ -178,10 +187,18 @@ Page({
         fileIdField: 'avatar_file_id'
       });
 
+      // 认可计划角色和积分
+      const recognitionRole = userInfo.recognition_role || 'distributor';
+      const recognitionScore = userInfo.recognition_score || 0;
+      const recognitionLevel = this.getRecognitionLevel(recognitionScore);
+
       this.setData({
         isGuestMode: false,
         rankData: normalizedRankData,
-        userInfo
+        userInfo,
+        recognitionRole,
+        recognitionScore,
+        recognitionLevel
       });
 
       const lbRes = await app.request({
@@ -211,6 +228,13 @@ Page({
       });
 
       this.loadLotteryNotice();
+
+      // 按角色加载认可计划数据
+      if (recognitionRole === 'sales') {
+        this.loadSalesRatingReminder();
+      } else if (recognitionRole === 'manager') {
+        this.loadManagerDashboard();
+      }
     } catch (err) {
       console.error('Home loadData error:', err);
     } finally {
@@ -283,6 +307,108 @@ Page({
     wx.navigateTo({
       url: '/pages/certificate/index'
     });
+  },
+
+  // ── 认可计划辅助函数 ─────────────────────────────────────────────────────
+
+  getRecognitionLevel(score) {
+    const s = score || 0;
+    if (s <= 100) return { level: '启明星', level_icon: '☆' };
+    if (s <= 300) return { level: '灿星', level_icon: '★' };
+    if (s <= 600) return { level: '耀星', level_icon: '✦' };
+    return { level: '极星', level_icon: '✧' };
+  },
+
+  isLastThreeWorkdays() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const lastDay = new Date(year, month + 1, 0);
+    let workdayCount = 0;
+    const d = new Date(lastDay);
+    while (workdayCount < 3) {
+      if (d.getDay() !== 0 && d.getDay() !== 6) {
+        workdayCount++;
+      }
+      if (d.getDate() === now.getDate() && d.getMonth() === now.getMonth()) {
+        return true;
+      }
+      d.setDate(d.getDate() - 1);
+    }
+    return false;
+  },
+
+  async loadSalesRatingReminder() {
+    try {
+      const result = await app.request({
+        url: '/api/recognition/surveys/status',
+        retryCount: 0
+      });
+      const today = new Date();
+      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      let workdaysLeft = 0;
+      const checkDay = new Date(lastDay);
+      while (workdaysLeft < 3) {
+        if (checkDay.getDay() !== 0 && checkDay.getDay() !== 6) {
+          workdaysLeft++;
+          if (checkDay.toDateString() === today.toDateString()) {
+            this.setData({ showRatingReminder: true });
+            return;
+          }
+        }
+        checkDay.setDate(checkDay.getDate() - 1);
+      }
+      this.setData({ showRatingReminder: !result || !result.submitted });
+    } catch (err) {
+      console.warn('Rating reminder load failed:', err);
+    }
+  },
+
+  async loadManagerDashboard() {
+    try {
+      const [submissions, progress] = await Promise.all([
+        app.request({ url: '/api/recognition/submissions/all?status=submitted', retryCount: 0 }),
+        app.request({ url: '/api/recognition/surveys/progress', retryCount: 0 })
+      ]);
+      this.setData({
+        pendingReviewCount: Array.isArray(submissions) ? submissions.length : 0,
+        surveyProgress: progress
+      });
+    } catch (err) {
+      console.warn('Manager dashboard load failed:', err);
+    }
+  },
+
+  // ── 认可计划导航 ─────────────────────────────────────────────────────────
+
+  goToRecognitionSubmit() {
+    if (!app.requireLogin()) return;
+    wx.navigateTo({ url: '/pages/recognition/submit/submit' });
+  },
+
+  goToRecognitionMyAwards() {
+    if (!app.requireLogin()) return;
+    wx.navigateTo({ url: '/pages/recognition/my-awards/my-awards' });
+  },
+
+  goToRecognitionRanking() {
+    if (!app.requireLogin()) return;
+    wx.navigateTo({ url: '/pages/recognition/ranking/ranking' });
+  },
+
+  goToSalesRating() {
+    if (!app.requireLogin()) return;
+    wx.navigateTo({ url: '/pages/recognition/sales-rate/sales-rate' });
+  },
+
+  goToSurveyResults() {
+    if (!app.requireLogin()) return;
+    wx.navigateTo({ url: '/pages/recognition/ranking/ranking' });
+  },
+
+  goToManagerReview() {
+    if (!app.requireLogin()) return;
+    wx.navigateTo({ url: '/pages/recognition/submit/submit' });
   },
 
   onShareAppMessage() {

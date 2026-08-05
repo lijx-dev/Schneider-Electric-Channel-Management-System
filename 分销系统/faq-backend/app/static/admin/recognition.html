@@ -1,0 +1,1213 @@
+<!-- 认可计划管理 - 内容片段（由 index.html 动态加载） -->
+<div class="recognition-tabs">
+  <button class="rec-tab active" data-rec-tab="submissions">审核申报</button>
+  <button class="rec-tab" data-rec-tab="awards">评选发布</button>
+  <button class="rec-tab" data-rec-tab="users">用户管理</button>
+  <button class="rec-tab" data-rec-tab="rules">规则配置</button>
+  <button class="rec-tab" data-rec-tab="criteria">评分标准管理</button>
+  <button class="rec-tab" data-rec-tab="export">数据导出</button>
+</div>
+
+<!-- ==================== Tab 1: 审核申报 ==================== -->
+<div class="rec-panel active" id="recSubmissionsPanel">
+  <div class="filters">
+    <label><span>状态筛选</span>
+      <select id="recSubmissionsStatus">
+        <option value="">全部</option>
+        <option value="submitted">待审核</option>
+        <option value="approved">已通过</option>
+        <option value="rejected">已驳回</option>
+      </select>
+    </label>
+    <label><span>类型筛选</span>
+      <select id="recSubmissionsType">
+        <option value="">全部类型</option>
+        <option value="nomination">微光提名</option>
+        <option value="order_guardian">报备秩序</option>
+        <option value="distributor_pioneer">分销商支持</option>
+        <option value="distributor_mentor">分销商成长</option>
+        <option value="efficiency_innovator">效能提升</option>
+      </select>
+    </label>
+    <button class="ghost-btn" id="recLoadSubmissionsBtn">查询</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>申报人</th>
+          <th>申报类型</th>
+          <th>状态</th>
+          <th>提交时间</th>
+          <th>审核人</th>
+          <th>评分</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="recSubmissionsBody"></tbody>
+    </table>
+  </div>
+  <div id="recSubmissionsSummary" class="summary-line"></div>
+</div>
+
+<!-- ==================== Tab 2: 评选发布 ==================== -->
+<div class="rec-panel" id="recAwardsPanel">
+  <!-- 月度评选 -->
+  <div class="rec-section">
+    <div class="rec-section-head">
+      <h3>月度评选</h3>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <label style="display:flex;align-items:center;gap:6px;margin:0;">
+          <span>月份</span>
+          <input id="recMonthlyMonth" type="month" style="width:150px;">
+        </label>
+        <button class="primary-btn" id="recCalcMonthlyBtn">计算月度评选</button>
+        <button class="ghost-btn" id="recLoadMonthlyAwardsBtn">刷新</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="recSelectAllMonthly"></th>
+            <th>奖项</th>
+            <th>获奖人</th>
+            <th>排名</th>
+            <th>积分</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="recMonthlyAwardsBody"></tbody>
+      </table>
+    </div>
+    <div class="rec-actions-bar">
+      <button class="primary-btn" id="recPublishMonthlyBtn">一键发布月度评选</button>
+    </div>
+  </div>
+
+  <!-- 季度评选 -->
+  <div class="rec-section">
+    <div class="rec-section-head">
+      <h3>季度评选</h3>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <label style="display:flex;align-items:center;gap:6px;margin:0;">
+          <span>年份</span>
+          <input id="recQuarterlyYear" type="number" style="width:100px;" min="2024" max="2030">
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;margin:0;">
+          <span>季度</span>
+          <select id="recQuarterlyQuarter" style="width:80px;">
+            <option value="1">Q1</option>
+            <option value="2">Q2</option>
+            <option value="3">Q3</option>
+            <option value="4">Q4</option>
+          </select>
+        </label>
+        <button class="primary-btn" id="recCalcQuarterlyBtn">计算季度评选</button>
+        <button class="ghost-btn" id="recLoadQuarterlyAwardsBtn">刷新</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="recSelectAllQuarterly"></th>
+            <th>奖项</th>
+            <th>获奖人</th>
+            <th>排名</th>
+            <th>得分</th>
+            <th>积分</th>
+            <th>状态</th>
+          </tr>
+        </thead>
+        <tbody id="recQuarterlyAwardsBody"></tbody>
+      </table>
+    </div>
+    <div class="rec-actions-bar">
+      <button class="primary-btn" id="recPublishQuarterlyBtn">一键发布季度评选</button>
+    </div>
+  </div>
+
+  <!-- 年度评选 -->
+  <div class="rec-section">
+    <div class="rec-section-head">
+      <h3>年度评选</h3>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <label style="display:flex;align-items:center;gap:6px;margin:0;">
+          <span>年份</span>
+          <input id="recAnnualYear" type="number" style="width:100px;" min="2024" max="2030">
+        </label>
+        <button class="primary-btn" id="recCalcAnnualBtn">计算年度评选</button>
+        <button class="ghost-btn" id="recLoadAnnualAwardsBtn">刷新</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="recSelectAllAnnual"></th>
+            <th>获奖人</th>
+            <th>排名</th>
+            <th>加权得分</th>
+            <th>积分</th>
+            <th>状态</th>
+          </tr>
+        </thead>
+        <tbody id="recAnnualAwardsBody"></tbody>
+      </table>
+    </div>
+    <div class="rec-actions-bar">
+      <button class="primary-btn" id="recPublishAnnualBtn">一键发布年度评选</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Tab 3: 用户管理 ==================== -->
+<div class="rec-panel" id="recUsersPanel">
+  <!-- 用户列表 -->
+  <div class="rec-section">
+    <div class="rec-section-head">
+      <h3>认可计划用户</h3>
+      <button class="ghost-btn" id="recLoadUsersBtn">刷新</button>
+    </div>
+    <div class="filters">
+      <label><span>角色筛选</span>
+        <select id="recUsersRoleFilter">
+          <option value="">全部角色</option>
+          <option value="sales">销售</option>
+          <option value="specialist">专员</option>
+          <option value="manager">经理</option>
+        </select>
+      </label>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>姓名</th>
+            <th>公司</th>
+            <th>认可角色</th>
+            <th>认可积分</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="recUsersBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 对接关系管理 -->
+  <div class="rec-section">
+    <div class="rec-section-head">
+      <h3>销售-专员对接关系</h3>
+      <button class="ghost-btn" id="recLoadMappingsBtn">刷新</button>
+    </div>
+    <div class="filters">
+      <button class="primary-btn" id="recAddMappingBtn">+ 添加对接关系</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>销售</th>
+            <th>专员</th>
+            <th>创建时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="recMappingsBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Tab 4: 规则配置 ==================== -->
+<div class="rec-panel" id="recRulesPanel">
+  <div class="rec-section">
+    <div class="rec-section-head">
+      <h3>积分与评选规则</h3>
+      <button class="ghost-btn" id="recLoadRulesBtn">刷新</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>规则键</th>
+            <th>规则值</th>
+            <th>说明</th>
+            <th>更新时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="recRulesBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Tab 5: 评分标准管理 ==================== -->
+<div class="rec-panel" id="recCriteriaPanel">
+  <div class="rec-section">
+    <div class="rec-section-head">
+      <h3>评分标准管理</h3>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <label style="display:flex;align-items:center;gap:6px;margin:0;">
+          <span>奖项类型</span>
+          <select id="recCriteriaAwardType">
+            <option value="">全部</option>
+            <option value="order_guardian">报备秩序卫士</option>
+            <option value="distributor_pioneer">分销商支持先锋</option>
+            <option value="distributor_mentor">分销商成长伯乐</option>
+            <option value="efficiency_innovator">效能提升创新者</option>
+          </select>
+        </label>
+        <button class="primary-btn" id="recAddCriteriaBtn">+ 新增评分项</button>
+        <button class="ghost-btn" id="recLoadCriteriaBtn">刷新</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>排序</th>
+            <th>名称</th>
+            <th>item_key</th>
+            <th>控件类型</th>
+            <th>分值</th>
+            <th>单位</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="recCriteriaBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Tab 6: 数据导出 ==================== -->
+<div class="rec-panel" id="recExportPanel">
+  <div class="rec-export-grid">
+    <div class="rec-export-card">
+      <h3>提名记录导出</h3>
+      <p>导出所有申报记录为 Excel 文件。</p>
+      <div class="filters">
+        <label><span>月份</span><input id="recExportNomMonth" type="month"></label>
+      </div>
+      <button class="primary-btn" id="recExportNominationsBtn">导出提名记录 Excel</button>
+    </div>
+    <div class="rec-export-card">
+      <h3>评分明细导出</h3>
+      <p>导出销售评分明细数据。</p>
+      <div class="filters">
+        <label><span>月份</span><input id="recExportSurveyMonth" type="month"></label>
+      </div>
+      <button class="primary-btn" id="recExportSurveysBtn">导出评分明细 Excel</button>
+    </div>
+    <div class="rec-export-card">
+      <h3>积分明细导出</h3>
+      <p>导出所有用户积分变动记录。</p>
+      <button class="primary-btn" id="recExportPointsBtn">导出积分明细 Excel</button>
+    </div>
+    <div class="rec-export-card">
+      <h3>获奖记录导出</h3>
+      <p>导出所有获奖记录。</p>
+      <div class="filters">
+        <label><span>年份</span><input id="recExportAwardYear" type="number" min="2024" max="2030" style="width:100px;"></label>
+      </div>
+      <button class="primary-btn" id="recExportAwardsBtn">导出获奖记录 Excel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 弹窗：审核详情 ==================== -->
+<div class="modal-overlay hidden" id="recReviewModal">
+  <div class="modal-box modal-lg">
+    <div class="modal-head">
+      <h3>申报详情</h3>
+      <button class="modal-close" id="recReviewModalClose">&times;</button>
+    </div>
+    <div class="modal-body" id="recReviewModalBody"></div>
+    <div class="modal-foot" id="recReviewModalFoot"></div>
+  </div>
+</div>
+
+<!-- ==================== 弹窗：编辑规则 ==================== -->
+<div class="modal-overlay hidden" id="recRuleEditModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>编辑规则</h3>
+      <button class="modal-close" id="recRuleEditModalClose">&times;</button>
+    </div>
+    <div class="modal-body" id="recRuleEditModalBody"></div>
+    <div class="modal-foot">
+      <button class="ghost-btn" id="recRuleEditCancelBtn">取消</button>
+      <button class="primary-btn" id="recRuleEditSaveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 弹窗：新增/编辑评分标准 ==================== -->
+<div class="modal-overlay hidden" id="recCriteriaFormModal">
+  <div class="modal-box modal-lg">
+    <div class="modal-head">
+      <h3 id="recCriteriaFormTitle">新增评分项</h3>
+      <button class="modal-close" id="recCriteriaFormModalClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <label><span>奖项类型</span>
+          <select id="recCriteriaFormAwardType">
+            <option value="order_guardian">报备秩序卫士</option>
+            <option value="distributor_pioneer">分销商支持先锋</option>
+            <option value="distributor_mentor">分销商成长伯乐</option>
+            <option value="efficiency_innovator">效能提升创新者</option>
+          </select>
+        </label>
+        <label><span>名称 *</span><input id="recCriteriaFormName" placeholder="如：报备数量"></label>
+        <label><span>item_key *</span><input id="recCriteriaFormKey" placeholder="如：order_count"></label>
+        <label><span>控件类型</span>
+          <select id="recCriteriaFormType">
+            <option value="text_list">文本列表</option>
+            <option value="number">数字输入</option>
+            <option value="textarea">文本域</option>
+            <option value="select">下拉选择</option>
+          </select>
+        </label>
+        <label><span>占位提示</span><input id="recCriteriaFormPlaceholder" placeholder="输入提示文字"></label>
+        <label><span>帮助说明</span><input id="recCriteriaFormHelp" placeholder="帮助说明文字"></label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="recCriteriaFormAllowMultiple" checked>
+          <span>允许多个</span>
+        </label>
+        <label><span>分值 *</span><input id="recCriteriaFormPoints" type="number" min="1" placeholder="每个单位的分值"></label>
+        <label><span>单位说明</span><input id="recCriteriaFormUnit" placeholder="如：个/次/份"></label>
+        <label><span>最大分值</span><input id="recCriteriaFormMaxPoints" type="number" min="0" placeholder="留空表示不限制"></label>
+        <label><span>排序</span><input id="recCriteriaFormSortOrder" type="number" min="0" value="0"></label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="recCriteriaFormActive" checked>
+          <span>启用</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <input type="hidden" id="recCriteriaFormId">
+      <button class="ghost-btn" id="recCriteriaFormCancelBtn">取消</button>
+      <button class="primary-btn" id="recCriteriaFormSaveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 弹窗：添加对接关系 ==================== -->
+<div class="modal-overlay hidden" id="recMappingAddModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>添加对接关系</h3>
+      <button class="modal-close" id="recMappingAddModalClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <label><span>销售用户ID *</span><input id="recMappingSalesId" placeholder="输入销售用户ID"></label>
+        <label><span>专员用户ID *</span><input id="recMappingSpecialistId" placeholder="输入专员用户ID"></label>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="ghost-btn" id="recMappingAddCancelBtn">取消</button>
+      <button class="primary-btn" id="recMappingAddSaveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 弹窗：修改用户角色 ==================== -->
+<div class="modal-overlay hidden" id="recUserRoleModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>修改用户角色</h3>
+      <button class="modal-close" id="recUserRoleModalClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="recUserRoleUserName" style="font-weight:bold;margin-bottom:12px;"></p>
+      <label><span>认可角色</span>
+        <select id="recUserRoleSelect">
+          <option value="distributor">分销商</option>
+          <option value="sales">销售</option>
+          <option value="specialist">专员</option>
+          <option value="manager">经理</option>
+        </select>
+      </label>
+      <input type="hidden" id="recUserRoleUserId">
+    </div>
+    <div class="modal-foot">
+      <button class="ghost-btn" id="recUserRoleCancelBtn">取消</button>
+      <button class="primary-btn" id="recUserRoleSaveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 弹窗：通用确认 ==================== -->
+<div class="modal-overlay hidden" id="recConfirmModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>确认操作</h3>
+      <button class="modal-close" id="recConfirmModalClose">&times;</button>
+    </div>
+    <div class="modal-body" id="recConfirmModalBody"></div>
+    <div class="modal-foot">
+      <button class="ghost-btn" id="recConfirmCancelBtn">取消</button>
+      <button class="danger-btn" id="recConfirmOkBtn">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- 页面脚本 -->
+<script>
+(function() {
+  // 使用主页面 app.js 中的 API_BASE, TOKEN_KEY, request(), $(), escapeHtml(), formatDateTime(), downloadFile(), setFeedback()
+
+  const REC_API = '/api/v1/recognition';
+  const REC_ADMIN = '/api/admin/recognition';
+
+  // 状态
+  const recState = {
+    submissions: [],
+    monthlyAwards: [],
+    quarterlyAwards: [],
+    annualAwards: [],
+    users: [],
+    mappings: [],
+    rules: [],
+    criteria: [],
+    confirmCallback: null,
+  };
+
+  // Helper
+  function recEl(id) { return document.getElementById(id); }
+
+  function recSubTypeLabel(type) {
+    var map = { nomination: '微光提名', order_guardian: '报备秩序', distributor_pioneer: '分销商支持', distributor_mentor: '分销商成长', efficiency_innovator: '效能提升' };
+    return map[type] || type;
+  }
+
+  function recStatusLabel(status) {
+    var map = { submitted: '待审核', approved: '已通过', rejected: '已驳回', draft: '草稿' };
+    return '<span class="rec-status rec-status-' + status + '">' + (map[status] || status) + '</span>';
+  }
+
+  function recRoleLabel(role) {
+    var map = { distributor: '分销商', sales: '销售', specialist: '专员', manager: '经理' };
+    return map[role] || role || '未设置';
+  }
+
+  function recAwardTypeLabel(type) {
+    var map = { monthly_star: '微光之星', monthly_mvp: '销圈人气王', order_guardian: '报备秩序卫士', distributor_pioneer: '分销商支持先锋', distributor_mentor: '分销商成长伯乐', efficiency_innovator: '效能提升创新者', annual_star: '年度渠道之星' };
+    return map[type] || type;
+  }
+
+  function recPublishedLabel(pub) {
+    return pub ? '<span class="rec-status rec-status-approved">已发布</span>' : '<span class="rec-status rec-status-submitted">未发布</span>';
+  }
+
+  // 弹窗
+  function recShowModal(id) { recEl(id).classList.remove('hidden'); }
+  function recHideModal(id) { recEl(id).classList.add('hidden'); }
+
+  function recShowConfirm(msg, cb) {
+    recEl('recConfirmModalBody').innerHTML = '<p>' + msg + '</p>';
+    recState.confirmCallback = cb;
+    recShowModal('recConfirmModal');
+  }
+
+  // Tab 切换
+  document.querySelectorAll('.rec-tab').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.rec-tab').forEach(function(b) { b.classList.remove('active'); });
+      document.querySelectorAll('.rec-panel').forEach(function(p) { p.classList.remove('active'); });
+      btn.classList.add('active');
+      var tab = btn.getAttribute('data-rec-tab');
+      recEl('rec' + tab.charAt(0).toUpperCase() + tab.slice(1) + 'Panel').classList.add('active');
+      if (tab === 'submissions') recLoadSubmissions();
+      else if (tab === 'awards') { recLoadMonthlyAwards(); recLoadQuarterlyAwards(); recLoadAnnualAwards(); }
+      else if (tab === 'users') { recLoadUsers(); recLoadMappings(); }
+      else if (tab === 'rules') recLoadRules();
+      else if (tab === 'criteria') recLoadCriteria();
+    });
+  });
+
+  // 设置默认月份
+  var now = new Date();
+  var defaultMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  if (recEl('recMonthlyMonth')) recEl('recMonthlyMonth').value = defaultMonth;
+  if (recEl('recQuarterlyYear')) recEl('recQuarterlyYear').value = now.getFullYear();
+  var q = Math.ceil((now.getMonth() + 1) / 3);
+  if (recEl('recQuarterlyQuarter')) recEl('recQuarterlyQuarter').value = String(q);
+  if (recEl('recAnnualYear')) recEl('recAnnualYear').value = now.getFullYear();
+  if (recEl('recExportNomMonth')) recEl('recExportNomMonth').value = defaultMonth;
+  if (recEl('recExportSurveyMonth')) recEl('recExportSurveyMonth').value = defaultMonth;
+  if (recEl('recExportAwardYear')) recEl('recExportAwardYear').value = now.getFullYear();
+
+  // ==================== Tab 1: 审核申报 ====================
+  async function recLoadSubmissions() {
+    try {
+      var params = new URLSearchParams();
+      var status = recEl('recSubmissionsStatus').value;
+      var type = recEl('recSubmissionsType').value;
+      if (status) params.set('status', status);
+      if (type) params.set('type', type);
+      var data = await request(REC_API + '/submissions/all?' + params.toString());
+      recState.submissions = Array.isArray(data) ? data : [];
+      recRenderSubmissions();
+    } catch (e) {
+      recEl('recSubmissionsBody').innerHTML = '<tr><td colspan="8" style="color:var(--danger);">加载失败：' + escapeHtml(e.message) + '</td></tr>';
+    }
+  }
+
+  function recRenderSubmissions() {
+    recEl('recSubmissionsSummary').textContent = '共 ' + recState.submissions.length + ' 条申报';
+    recEl('recSubmissionsBody').innerHTML = recState.submissions.map(function(s) {
+      return '<tr>' +
+        '<td>' + escapeHtml(s.id) + '</td>' +
+        '<td>' + escapeHtml(s.applicant_name) + '</td>' +
+        '<td><span class="pill">' + escapeHtml(recSubTypeLabel(s.submission_type)) + '</span></td>' +
+        '<td>' + recStatusLabel(s.status) + '</td>' +
+        '<td>' + escapeHtml(formatDateTime(s.created_at)) + '</td>' +
+        '<td>' + escapeHtml(s.reviewer_name || '-') + '</td>' +
+        '<td>' + (s.review_score != null ? s.review_score + '分' : '-') + '</td>' +
+        '<td><div class="row-actions">' +
+          '<button class="ghost-btn rec-detail-btn" data-id="' + s.id + '">查看详情</button>' +
+          (s.status === 'submitted' ? '<button class="primary-btn rec-review-btn" data-id="' + s.id + '">审核</button>' : '') +
+        '</div></td>' +
+      '</tr>';
+    }).join('');
+
+    // 绑定事件
+    recEl('recSubmissionsBody').querySelectorAll('.rec-detail-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() { recShowDetail(parseInt(this.getAttribute('data-id'))); });
+    });
+    recEl('recSubmissionsBody').querySelectorAll('.rec-review-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() { recShowReview(parseInt(this.getAttribute('data-id'))); });
+    });
+  }
+
+  function recShowDetail(id) {
+    var s = recState.submissions.find(function(item) { return item.id === id; });
+    if (!s) return;
+    var content = s.content_json;
+    if (typeof content === 'string') { try { content = JSON.parse(content); } catch(e) {} }
+    var html = '<div class="rec-detail-grid">' +
+      '<div><strong>申报人：</strong>' + escapeHtml(s.applicant_name) + '</div>' +
+      '<div><strong>类型：</strong>' + escapeHtml(recSubTypeLabel(s.submission_type)) + '</div>' +
+      '<div><strong>状态：</strong>' + recStatusLabel(s.status) + '</div>' +
+      '<div><strong>提交时间：</strong>' + escapeHtml(formatDateTime(s.created_at)) + '</div>' +
+      '<div><strong>审核人：</strong>' + escapeHtml(s.reviewer_name || '-') + '</div>' +
+      '<div><strong>审核评分：</strong>' + (s.review_score != null ? s.review_score + '分' : '-') + '</div>' +
+      '<div><strong>审核意见：</strong>' + escapeHtml(s.review_comment || '-') + '</div>' +
+    '</div>';
+    html += '<h4 style="margin-top:16px;">申报内容</h4>';
+    if (content && typeof content === 'object') {
+      if (content.predefined) {
+        html += '<div class="rec-content-section"><strong>预定义项：</strong><pre class="rec-json">' + escapeHtml(JSON.stringify(content.predefined, null, 2)) + '</pre></div>';
+      }
+      if (content.custom) {
+        html += '<div class="rec-content-section"><strong>自定义项：</strong><pre class="rec-json">' + escapeHtml(JSON.stringify(content.custom, null, 2)) + '</pre></div>';
+      }
+      if (!content.predefined && !content.custom) {
+        html += '<pre class="rec-json">' + escapeHtml(JSON.stringify(content, null, 2)) + '</pre>';
+      }
+    } else {
+      html += '<pre class="rec-json">' + escapeHtml(JSON.stringify(content, null, 2)) + '</pre>';
+    }
+    recEl('recReviewModalBody').innerHTML = html;
+    recEl('recReviewModalFoot').innerHTML = '<button class="ghost-btn" id="recDetailCloseBtn">关闭</button>';
+    recShowModal('recReviewModal');
+    recEl('recDetailCloseBtn').addEventListener('click', function() { recHideModal('recReviewModal'); });
+  }
+
+  function recShowReview(id) {
+    var s = recState.submissions.find(function(item) { return item.id === id; });
+    if (!s) return;
+    recShowDetail(id);
+    var footHtml = '<label style="display:flex;align-items:center;gap:8px;margin-right:auto;">' +
+      '<span>审核意见</span><input id="recReviewComment" placeholder="输入审核意见" style="width:200px;">' +
+    '</label>' +
+    '<label style="display:flex;align-items:center;gap:8px;">' +
+      '<span>评分(1-5)</span><select id="recReviewScore"><option value="">不评分</option>' +
+      [1,2,3,4,5].map(function(v) { return '<option value="' + v + '">' + v + '分</option>'; }).join('') +
+    '</select></label>' +
+    '<button class="danger-btn" id="recRejectBtn">驳回</button>' +
+    '<button class="primary-btn" id="recApproveBtn">通过</button>';
+    recEl('recReviewModalFoot').innerHTML = footHtml;
+
+    recEl('recApproveBtn').addEventListener('click', function() {
+      recHideModal('recReviewModal');
+      recDoReview(id, 'approve');
+    });
+    recEl('recRejectBtn').addEventListener('click', function() {
+      recHideModal('recReviewModal');
+      recDoReview(id, 'reject');
+    });
+  }
+
+  async function recDoReview(id, action) {
+    var comment = recEl('recReviewComment') ? recEl('recReviewComment').value : '';
+    var score = recEl('recReviewScore') ? recEl('recReviewScore').value : '';
+    try {
+      await request(REC_API + '/submissions/' + id + '/review', {
+        method: 'POST',
+        body: { action: action, review_comment: comment, review_score: score ? parseInt(score) : null }
+      });
+      alert(action === 'approve' ? '审核通过' : '已驳回');
+      recLoadSubmissions();
+    } catch (e) {
+      alert('审核失败：' + e.message);
+    }
+  }
+
+  if (recEl('recLoadSubmissionsBtn')) recEl('recLoadSubmissionsBtn').addEventListener('click', recLoadSubmissions);
+  if (recEl('recReviewModalClose')) recEl('recReviewModalClose').addEventListener('click', function() { recHideModal('recReviewModal'); });
+
+  // ==================== Tab 2: 评选发布 ====================
+  async function recLoadMonthlyAwards() {
+    try {
+      var month = recEl('recMonthlyMonth').value;
+      var data = await request(REC_API + '/awards/results?type=monthly_star&type=monthly_mvp&month=' + encodeURIComponent(month));
+      recState.monthlyAwards = Array.isArray(data) ? data : [];
+      // 也加载未发布的
+      var unpub = await request(REC_API + '/awards/results?published=false');
+      var unpubMonthly = (Array.isArray(unpub) ? unpub : []).filter(function(a) {
+        return a.award_month === month && (a.award_type === 'monthly_star' || a.award_type === 'monthly_mvp');
+      });
+      // 合并去重
+      var existingIds = new Set(recState.monthlyAwards.map(function(a) { return a.id; }));
+      unpubMonthly.forEach(function(a) {
+        if (!existingIds.has(a.id)) { recState.monthlyAwards.push(a); existingIds.add(a.id); }
+      });
+      recRenderMonthlyAwards();
+    } catch (e) {
+      recEl('recMonthlyAwardsBody').innerHTML = '<tr><td colspan="7" style="color:var(--danger);">加载失败：' + escapeHtml(e.message) + '</td></tr>';
+    }
+  }
+
+  function recRenderMonthlyAwards() {
+    recEl('recMonthlyAwardsBody').innerHTML = recState.monthlyAwards.map(function(a) {
+      return '<tr>' +
+        '<td><input type="checkbox" class="rec-monthly-cb" data-id="' + a.id + '"' + (a.published ? ' disabled' : '') + '></td>' +
+        '<td><span class="pill">' + escapeHtml(recAwardTypeLabel(a.award_type)) + '</span></td>' +
+        '<td>' + escapeHtml(a.user_name) + '</td>' +
+        '<td>' + escapeHtml(a.rank || '-') + '</td>' +
+        '<td>' + escapeHtml(a.points_awarded) + '</td>' +
+        '<td>' + recPublishedLabel(a.published) + '</td>' +
+        '<td>' + (!a.published ? '<button class="ghost-btn rec-edit-award-btn" data-id="' + a.id + '">调整</button>' : '') + '</td>' +
+      '</tr>';
+    }).join('') || '<tr><td colspan="7">暂无数据，请先点击"计算月度评选"</td></tr>';
+
+    recEl('recSelectAllMonthly').checked = false;
+  }
+
+  async function recCalcMonthly() {
+    if (!confirm('确定要计算' + recEl('recMonthlyMonth').value + '的月度评选吗？将自动计算微光之星和销圈人气王。')) return;
+    try {
+      var data = await request(REC_API + '/awards/calculate-monthly', {
+        method: 'POST',
+        body: { month: recEl('recMonthlyMonth').value }
+      });
+      alert('计算完成，共产生 ' + (data.results ? data.results.length : 0) + ' 条获奖记录');
+      recLoadMonthlyAwards();
+    } catch (e) { alert('计算失败：' + e.message); }
+  }
+
+  async function recPublishMonthly() {
+    var cbs = recEl('recMonthlyAwardsBody').querySelectorAll('.rec-monthly-cb:checked');
+    var ids = [];
+    cbs.forEach(function(cb) { ids.push(parseInt(cb.getAttribute('data-id'))); });
+    if (!ids.length) { alert('请选择要发布的获奖记录'); return; }
+    if (!confirm('确定要发布选中的 ' + ids.length + ' 条月度获奖记录吗？发布后将发放积分。')) return;
+    try {
+      await request(REC_API + '/awards/publish', { method: 'POST', body: { award_ids: ids } });
+      alert('发布成功');
+      recLoadMonthlyAwards();
+    } catch (e) { alert('发布失败：' + e.message); }
+  }
+
+  async function recLoadQuarterlyAwards() {
+    try {
+      var year = recEl('recQuarterlyYear').value;
+      var quarter = recEl('recQuarterlyQuarter').value;
+      var data = await request(REC_API + '/awards/results?year=' + year + '&type=order_guardian&type=distributor_pioneer&type=distributor_mentor&type=efficiency_innovator');
+      recState.quarterlyAwards = (Array.isArray(data) ? data : []).filter(function(a) {
+        return a.award_quarter === year + '-Q' + quarter;
+      });
+      recRenderQuarterlyAwards();
+    } catch (e) {
+      recEl('recQuarterlyAwardsBody').innerHTML = '<tr><td colspan="7" style="color:var(--danger);">加载失败：' + escapeHtml(e.message) + '</td></tr>';
+    }
+  }
+
+  function recRenderQuarterlyAwards() {
+    recEl('recQuarterlyAwardsBody').innerHTML = recState.quarterlyAwards.map(function(a) {
+      return '<tr>' +
+        '<td><input type="checkbox" class="rec-quarterly-cb" data-id="' + a.id + '"' + (a.published ? ' disabled' : '') + '></td>' +
+        '<td><span class="pill">' + escapeHtml(recAwardTypeLabel(a.award_type)) + '</span></td>' +
+        '<td>' + escapeHtml(a.user_name) + '</td>' +
+        '<td>' + escapeHtml(a.rank || '-') + '</td>' +
+        '<td>' + (a.score != null ? a.score.toFixed(1) : '-') + '</td>' +
+        '<td>' + escapeHtml(a.points_awarded) + '</td>' +
+        '<td>' + recPublishedLabel(a.published) + '</td>' +
+      '</tr>';
+    }).join('') || '<tr><td colspan="7">暂无数据，请先点击"计算季度评选"</td></tr>';
+
+    recEl('recSelectAllQuarterly').checked = false;
+  }
+
+  async function recCalcQuarterly() {
+    if (!confirm('确定要计算' + recEl('recQuarterlyYear').value + ' Q' + recEl('recQuarterlyQuarter').value + '的季度评选吗？')) return;
+    try {
+      await request(REC_API + '/awards/calculate-quarterly', {
+        method: 'POST',
+        body: { quarter: parseInt(recEl('recQuarterlyQuarter').value), year: parseInt(recEl('recQuarterlyYear').value) }
+      });
+      alert('计算完成');
+      recLoadQuarterlyAwards();
+    } catch (e) { alert('计算失败：' + e.message); }
+  }
+
+  async function recPublishQuarterly() {
+    var cbs = recEl('recQuarterlyAwardsBody').querySelectorAll('.rec-quarterly-cb:checked');
+    var ids = [];
+    cbs.forEach(function(cb) { ids.push(parseInt(cb.getAttribute('data-id'))); });
+    if (!ids.length) { alert('请选择要发布的获奖记录'); return; }
+    if (!confirm('确定要发布选中的 ' + ids.length + ' 条季度获奖记录吗？')) return;
+    try {
+      await request(REC_API + '/awards/publish', { method: 'POST', body: { award_ids: ids } });
+      alert('发布成功');
+      recLoadQuarterlyAwards();
+    } catch (e) { alert('发布失败：' + e.message); }
+  }
+
+  async function recLoadAnnualAwards() {
+    try {
+      var year = recEl('recAnnualYear').value;
+      var data = await request(REC_API + '/awards/results?year=' + year + '&type=annual_star');
+      recState.annualAwards = Array.isArray(data) ? data : [];
+      recRenderAnnualAwards();
+    } catch (e) {
+      recEl('recAnnualAwardsBody').innerHTML = '<tr><td colspan="6" style="color:var(--danger);">加载失败：' + escapeHtml(e.message) + '</td></tr>';
+    }
+  }
+
+  function recRenderAnnualAwards() {
+    recEl('recAnnualAwardsBody').innerHTML = recState.annualAwards.map(function(a) {
+      return '<tr>' +
+        '<td><input type="checkbox" class="rec-annual-cb" data-id="' + a.id + '"' + (a.published ? ' disabled' : '') + '></td>' +
+        '<td>' + escapeHtml(a.user_name) + '</td>' +
+        '<td>' + escapeHtml(a.rank || '-') + '</td>' +
+        '<td>' + (a.score != null ? a.score.toFixed(1) : '-') + '</td>' +
+        '<td>' + escapeHtml(a.points_awarded) + '</td>' +
+        '<td>' + recPublishedLabel(a.published) + '</td>' +
+      '</tr>';
+    }).join('') || '<tr><td colspan="6">暂无数据，请先点击"计算年度评选"</td></tr>';
+
+    recEl('recSelectAllAnnual').checked = false;
+  }
+
+  async function recCalcAnnual() {
+    if (!confirm('确定要计算' + recEl('recAnnualYear').value + '年的年度评选吗？')) return;
+    try {
+      await request(REC_API + '/awards/calculate-annual', {
+        method: 'POST',
+        body: { year: parseInt(recEl('recAnnualYear').value) }
+      });
+      alert('计算完成');
+      recLoadAnnualAwards();
+    } catch (e) { alert('计算失败：' + e.message); }
+  }
+
+  async function recPublishAnnual() {
+    var cbs = recEl('recAnnualAwardsBody').querySelectorAll('.rec-annual-cb:checked');
+    var ids = [];
+    cbs.forEach(function(cb) { ids.push(parseInt(cb.getAttribute('data-id'))); });
+    if (!ids.length) { alert('请选择要发布的获奖记录'); return; }
+    if (!confirm('确定要发布选中的 ' + ids.length + ' 条年度获奖记录吗？')) return;
+    try {
+      await request(REC_API + '/awards/publish', { method: 'POST', body: { award_ids: ids } });
+      alert('发布成功');
+      recLoadAnnualAwards();
+    } catch (e) { alert('发布失败：' + e.message); }
+  }
+
+  // 全选
+  if (recEl('recSelectAllMonthly')) recEl('recSelectAllMonthly').addEventListener('change', function() {
+    recEl('recMonthlyAwardsBody').querySelectorAll('.rec-monthly-cb:not([disabled])').forEach(function(cb) { cb.checked = this.checked; }.bind(this));
+  });
+  if (recEl('recSelectAllQuarterly')) recEl('recSelectAllQuarterly').addEventListener('change', function() {
+    recEl('recQuarterlyAwardsBody').querySelectorAll('.rec-quarterly-cb:not([disabled])').forEach(function(cb) { cb.checked = this.checked; }.bind(this));
+  });
+  if (recEl('recSelectAllAnnual')) recEl('recSelectAllAnnual').addEventListener('change', function() {
+    recEl('recAnnualAwardsBody').querySelectorAll('.rec-annual-cb:not([disabled])').forEach(function(cb) { cb.checked = this.checked; }.bind(this));
+  });
+
+  if (recEl('recCalcMonthlyBtn')) recEl('recCalcMonthlyBtn').addEventListener('click', recCalcMonthly);
+  if (recEl('recLoadMonthlyAwardsBtn')) recEl('recLoadMonthlyAwardsBtn').addEventListener('click', recLoadMonthlyAwards);
+  if (recEl('recPublishMonthlyBtn')) recEl('recPublishMonthlyBtn').addEventListener('click', recPublishMonthly);
+  if (recEl('recCalcQuarterlyBtn')) recEl('recCalcQuarterlyBtn').addEventListener('click', recCalcQuarterly);
+  if (recEl('recLoadQuarterlyAwardsBtn')) recEl('recLoadQuarterlyAwardsBtn').addEventListener('click', recLoadQuarterlyAwards);
+  if (recEl('recPublishQuarterlyBtn')) recEl('recPublishQuarterlyBtn').addEventListener('click', recPublishQuarterly);
+  if (recEl('recCalcAnnualBtn')) recEl('recCalcAnnualBtn').addEventListener('click', recCalcAnnual);
+  if (recEl('recLoadAnnualAwardsBtn')) recEl('recLoadAnnualAwardsBtn').addEventListener('click', recLoadAnnualAwards);
+  if (recEl('recPublishAnnualBtn')) recEl('recPublishAnnualBtn').addEventListener('click', recPublishAnnual);
+
+  // ==================== Tab 3: 用户管理 ====================
+  async function recLoadUsers() {
+    try {
+      var role = recEl('recUsersRoleFilter').value;
+      var params = new URLSearchParams();
+      if (role) params.set('role', role);
+      var data = await request(REC_API + '/users?' + params.toString());
+      recState.users = Array.isArray(data) ? data : [];
+      recRenderUsers();
+    } catch (e) {
+      recEl('recUsersBody').innerHTML = '<tr><td colspan="5" style="color:var(--danger);">加载失败：' + escapeHtml(e.message) + '</td></tr>';
+    }
+  }
+
+  function recRenderUsers() {
+    recEl('recUsersBody').innerHTML = recState.users.map(function(u) {
+      return '<tr>' +
+        '<td>' + escapeHtml(u.real_name) + '</td>' +
+        '<td>' + escapeHtml(u.company) + '</td>' +
+        '<td><span class="pill">' + escapeHtml(recRoleLabel(u.recognition_role)) + '</span></td>' +
+        '<td>' + escapeHtml(u.recognition_score) + '</td>' +
+        '<td><button class="ghost-btn rec-edit-role-btn" data-id="' + u.id + '" data-name="' + escapeHtml(u.real_name || u.id) + '" data-role="' + u.recognition_role + '">修改角色</button></td>' +
+      '</tr>';
+    }).join('');
+
+    recEl('recUsersBody').querySelectorAll('.rec-edit-role-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        recEl('recUserRoleUserId').value = this.getAttribute('data-id');
+        recEl('recUserRoleUserName').textContent = '用户：' + this.getAttribute('data-name');
+        recEl('recUserRoleSelect').value = this.getAttribute('data-role');
+        recShowModal('recUserRoleModal');
+      });
+    });
+  }
+
+  async function recUpdateUserRole() {
+    try {
+      await request(REC_API + '/users/' + recEl('recUserRoleUserId').value + '/role', {
+        method: 'PUT',
+        body: { recognition_role: recEl('recUserRoleSelect').value }
+      });
+      recHideModal('recUserRoleModal');
+      recLoadUsers();
+    } catch (e) { alert('修改失败：' + e.message); }
+  }
+
+  async function recLoadMappings() {
+    try {
+      var data = await request(REC_API + '/mappings');
+      recState.mappings = Array.isArray(data) ? data : [];
+      recRenderMappings();
+    } catch (e) {
+      recEl('recMappingsBody').innerHTML = '<tr><td colspan="4" style="color:var(--danger);">加载失败：' + escapeHtml(e.message) + '</td></tr>';
+    }
+  }
+
+  function recRenderMappings() {
+    recEl('recMappingsBody').innerHTML = recState.mappings.map(function(m) {
+      return '<tr>' +
+        '<td>' + escapeHtml(m.sales_name) + ' <span class="muted">(' + escapeHtml(m.sales_id) + ')</span></td>' +
+        '<td>' + escapeHtml(m.specialist_name) + ' <span class="muted">(' + escapeHtml(m.specialist_id) + ')</span></td>' +
+        '<td>' + escapeHtml(formatDateTime(m.created_at)) + '</td>' +
+        '<td><button class="danger-btn rec-del-mapping-btn" data-id="' + m.id + '">删除</button></td>' +
+      '</tr>';
+    }).join('') || '<tr><td colspan="4">暂无对接关系</td></tr>';
+
+    recEl('recMappingsBody').querySelectorAll('.rec-del-mapping-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var id = parseInt(this.getAttribute('data-id'));
+        recShowConfirm('确定要删除该对接关系吗？', function() { recDeleteMapping(id); });
+      });
+    });
+  }
+
+  async function recDeleteMapping(id) {
+    try {
+      await request(REC_API + '/mappings/' + id, { method: 'DELETE' });
+      recHideModal('recConfirmModal');
+      recLoadMappings();
+    } catch (e) { alert('删除失败：' + e.message); }
+  }
+
+  async function recAddMapping() {
+    var salesId = recEl('recMappingSalesId').value.trim();
+    var specialistId = recEl('recMappingSpecialistId').value.trim();
+    if (!salesId || !specialistId) { alert('请填写销售和专员用户ID'); return; }
+    try {
+      await request(REC_API + '/mappings', {
+        method: 'POST',
+        body: { sales_id: salesId, specialist_id: specialistId }
+      });
+      recHideModal('recMappingAddModal');
+      recLoadMappings();
+      recEl('recMappingSalesId').value = '';
+      recEl('recMappingSpecialistId').value = '';
+    } catch (e) { alert('添加失败：' + e.message); }
+  }
+
+  if (recEl('recLoadUsersBtn')) recEl('recLoadUsersBtn').addEventListener('click', recLoadUsers);
+  if (recEl('recUsersRoleFilter')) recEl('recUsersRoleFilter').addEventListener('change', recLoadUsers);
+  if (recEl('recLoadMappingsBtn')) recEl('recLoadMappingsBtn').addEventListener('click', recLoadMappings);
+  if (recEl('recAddMappingBtn')) recEl('recAddMappingBtn').addEventListener('click', function() { recShowModal('recMappingAddModal'); });
+  if (recEl('recMappingAddSaveBtn')) recEl('recMappingAddSaveBtn').addEventListener('click', recAddMapping);
+  if (recEl('recMappingAddCancelBtn')) recEl('recMappingAddCancelBtn').addEventListener('click', function() { recHideModal('recMappingAddModal'); });
+  if (recEl('recMappingAddModalClose')) recEl('recMappingAddModalClose').addEventListener('click', function() { recHideModal('recMappingAddModal'); });
+  if (recEl('recUserRoleSaveBtn')) recEl('recUserRoleSaveBtn').addEventListener('click', recUpdateUserRole);
+  if (recEl('recUserRoleCancelBtn')) recEl('recUserRoleCancelBtn').addEventListener('click', function() { recHideModal('recUserRoleModal'); });
+  if (recEl('recUserRoleModalClose')) recEl('recUserRoleModalClose').addEventListener('click', function() { recHideModal('recUserRoleModal'); });
+
+  // ==================== Tab 4: 规则配置 ====================
+  async function recLoadRules() {
+    try {
+      var data = await request(REC_API + '/rules');
+      recState.rules = Array.isArray(data) ? data : [];
+      recRenderRules();
+    } catch (e) {
+      recEl('recRulesBody').innerHTML = '<tr><td colspan="5" style="color:var(--danger);">加载失败：' + escapeHtml(e.message) + '</td></tr>';
+    }
+  }
+
+  function recRenderRules() {
+    recEl('recRulesBody').innerHTML = recState.rules.map(function(r) {
+      var val = r.rule_value;
+      try { var parsed = JSON.parse(val); val = JSON.stringify(parsed, null, 2); } catch(e) {}
+      return '<tr>' +
+        '<td><strong>' + escapeHtml(r.rule_key) + '</strong></td>' +
+        '<td><pre class="rec-rule-value">' + escapeHtml(val) + '</pre></td>' +
+        '<td>' + escapeHtml(r.description || '-') + '</td>' +
+        '<td>' + escapeHtml(formatDateTime(r.updated_at)) + '</td>' +
+        '<td><button class="ghost-btn rec-edit-rule-btn" data-key="' + escapeHtml(r.rule_key) + '" data-value="' + escapeHtml(r.rule_value) + '" data-desc="' + escapeHtml(r.description || '') + '">编辑</button></td>' +
+      '</tr>';
+    }).join('') || '<tr><td colspan="5">暂无规则配置</td></tr>';
+
+    recEl('recRulesBody').querySelectorAll('.rec-edit-rule-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        recEl('recRuleEditModalBody').innerHTML =
+          '<label><span>规则键</span><input id="recRuleEditKey" value="' + this.getAttribute('data-key') + '" readonly style="background:#f5f5f5;"></label>' +
+          '<label><span>规则值</span><textarea id="recRuleEditValue" rows="6" style="font-family:monospace;">' + this.getAttribute('data-value') + '</textarea></label>' +
+          '<label><span>说明</span><input id="recRuleEditDesc" value="' + this.getAttribute('data-desc') + '"></label>';
+        recShowModal('recRuleEditModal');
+      });
+    });
+  }
+
+  async function recSaveRule() {
+    var key = recEl('recRuleEditKey').value;
+    var value = recEl('recRuleEditValue').value;
+    var desc = recEl('recRuleEditDesc').value;
+    try {
+      await request(REC_API + '/rules/' + encodeURIComponent(key), {
+        method: 'PUT',
+        body: { rule_value: value, description: desc }
+      });
+      recHideModal('recRuleEditModal');
+      recLoadRules();
+    } catch (e) { alert('保存失败：' + e.message); }
+  }
+
+  if (recEl('recLoadRulesBtn')) recEl('recLoadRulesBtn').addEventListener('click', recLoadRules);
+  if (recEl('recRuleEditSaveBtn')) recEl('recRuleEditSaveBtn').addEventListener('click', recSaveRule);
+  if (recEl('recRuleEditCancelBtn')) recEl('recRuleEditCancelBtn').addEventListener('click', function() { recHideModal('recRuleEditModal'); });
+  if (recEl('recRuleEditModalClose')) recEl('recRuleEditModalClose').addEventListener('click', function() { recHideModal('recRuleEditModal'); });
+
+  // ==================== Tab 5: 评分标准管理 ====================
+  async function recLoadCriteria() {
+    try {
+      var type = recEl('recCriteriaAwardType').value;
+      var params = new URLSearchParams();
+      if (type) params.set('award_type', type);
+      var data = await request(REC_API + '/scoring-criteria?' + params.toString());
+      recState.criteria = Array.isArray(data) ? data : [];
+      recRenderCriteria();
+    } catch (e) {
+      recEl('recCriteriaBody').innerHTML = '<tr><td colspan="8" style="color:var(--danger);">加载失败：' + escapeHtml(e.message) + '</td></tr>';
+    }
+  }
+
+  function recRenderCriteria() {
+    recEl('recCriteriaBody').innerHTML = recState.criteria.map(function(c) {
+      return '<tr>' +
+        '<td>' + escapeHtml(c.sort_order) + '</td>' +
+        '<td>' + escapeHtml(c.item_name) + '</td>' +
+        '<td><code>' + escapeHtml(c.item_key) + '</code></td>' +
+        '<td>' + escapeHtml(c.item_type) + '</td>' +
+        '<td>' + escapeHtml(c.points_per_unit) + (c.max_points ? ' (上限' + c.max_points + ')' : '') + '</td>' +
+        '<td>' + escapeHtml(c.unit_description || '-') + '</td>' +
+        '<td>' + (c.is_active ? '<span class="rec-status rec-status-approved">启用</span>' : '<span class="rec-status rec-status-rejected">禁用</span>') + '</td>' +
+        '<td><div class="row-actions">' +
+          '<button class="ghost-btn rec-edit-criteria-btn" data-id="' + c.id + '">编辑</button>' +
+          '<button class="ghost-btn rec-toggle-criteria-btn" data-id="' + c.id + '" data-active="' + c.is_active + '">' + (c.is_active ? '禁用' : '启用') + '</button>' +
+          '<button class="danger-btn rec-del-criteria-btn" data-id="' + c.id + '">删除</button>' +
+        '</div></td>' +
+      '</tr>';
+    }).join('') || '<tr><td colspan="8">暂无评分标准</td></tr>';
+
+    recEl('recCriteriaBody').querySelectorAll('.rec-edit-criteria-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var id = parseInt(this.getAttribute('data-id'));
+        var c = recState.criteria.find(function(item) { return item.id === id; });
+        if (!c) return;
+        recEl('recCriteriaFormTitle').textContent = '编辑评分项';
+        recEl('recCriteriaFormId').value = c.id;
+        recEl('recCriteriaFormAwardType').value = c.award_type;
+        recEl('recCriteriaFormName').value = c.item_name;
+        recEl('recCriteriaFormKey').value = c.item_key;
+        recEl('recCriteriaFormType').value = c.item_type;
+        recEl('recCriteriaFormPlaceholder').value = c.item_placeholder || '';
+        recEl('recCriteriaFormHelp').value = c.item_help_text || '';
+        recEl('recCriteriaFormAllowMultiple').checked = c.allow_multiple;
+        recEl('recCriteriaFormPoints').value = c.points_per_unit;
+        recEl('recCriteriaFormUnit').value = c.unit_description || '';
+        recEl('recCriteriaFormMaxPoints').value = c.max_points || '';
+        recEl('recCriteriaFormSortOrder').value = c.sort_order;
+        recEl('recCriteriaFormActive').checked = c.is_active;
+        recShowModal('recCriteriaFormModal');
+      });
+    });
+
+    recEl('recCriteriaBody').querySelectorAll('.rec-toggle-criteria-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var id = parseInt(this.getAttribute('data-id'));
+        var active = this.getAttribute('data-active') === 'true';
+        recToggleCriteria(id, !active);
+      });
+    });
+
+    recEl('recCriteriaBody').querySelectorAll('.rec-del-criteria-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var id = parseInt(this.getAttribute('data-id'));
+        recShowConfirm('确定要删除该评分标准项吗？此操作不可撤销。', function() { recDeleteCriteria(id); });
+      });
+    });
+  }
+
+  async function recSaveCriteria() {
+    var id = recEl('recCriteriaFormId').value;
+    var body = {
+      award_type: recEl('recCriteriaFormAwardType').value,
+      item_name: recEl('recCriteriaFormName').value,
+      item_key: recEl('recCriteriaFormKey').value,
+      item_type: recEl('recCriteriaFormType').value,
+      item_placeholder: recEl('recCriteriaFormPlaceholder').value || null,
+      item_help_text: recEl('recCriteriaFormHelp').value || null,
+      allow_multiple: recEl('recCriteriaFormAllowMultiple').checked,
+      points_per_unit: parseInt(recEl('recCriteriaFormPoints').value) || 0,
+      unit_description: recEl('recCriteriaFormUnit').value || null,
+      max_points: recEl('recCriteriaFormMaxPoints').value ? parseInt(recEl('recCriteriaFormMaxPoints').value) : null,
+      sort_order: parseInt(recEl('recCriteriaFormSortOrder').value) || 0,
+      is_active: recEl('recCriteriaFormActive').checked,
+    };
+    if (!body.item_name || !body.item_key || !body.points_per_unit) {
+      alert('请填写名称、item_key和分值');
+      return;
+    }
+    try {
+      if (id) {
+        await request(REC_API + '/scoring-criteria/' + id, { method: 'PUT', body: body });
+      } else {
+        await request(REC_API + '/scoring-criteria', { method: 'POST', body: body });
+      }
+      recHideModal('recCriteriaFormModal');
+      recLoadCriteria();
+    } catch (e) { alert('保存失败：' + e.message); }
+  }
+
+  async function recToggleCriteria(id, active) {
+    try {
+      await request(REC_API + '/scoring-criteria/' + id, { method: 'PUT', body: { is_active: active } });
+      recLoadCriteria();
+    } catch (e) { alert('操作失败：' + e.message); }
+  }
+
+  async function recDeleteCriteria(id) {
+    try {
+      await request(REC_API + '/scoring-criteria/' + id, { method: 'DELETE' });
+      recHideModal('recConfirmModal');
+      recLoadCriteria();
+    } catch (e) { alert('删除失败：' + e.message); }
+  }
+
+  if (recEl('recLoadCriteriaBtn')) recEl('recLoadCriteriaBtn').addEventListener('click', recLoadCriteria);
+  if (recEl('recCriteriaAwardType')) recEl('recCriteriaAwardType').addEventListener('change', recLoadCriteria);
+  if (recEl('recAddCriteriaBtn')) recEl('recAddCriteriaBtn').addEventListener('click', function() {
+    recEl('recCriteriaFormTitle').textContent = '新增评分项';
+    recEl('recCriteriaFormId').value = '';
+    recEl('recCriteriaFormAwardType').value = 'order_guardian';
+    recEl('recCriteriaFormName').value = '';
+    recEl('recCriteriaFormKey').value = '';
+    recEl('recCriteriaFormType').value = 'text_list';
+    recEl('recCriteriaFormPlaceholder').value = '';
+    recEl('recCriteriaFormHelp').value = '';
+    recEl('recCriteriaFormAllowMultiple').checked = true;
+    recEl('recCriteriaFormPoints').value = '';
+    recEl('recCriteriaFormUnit').value = '';
+    recEl('recCriteriaFormMaxPoints').value = '';
+    recEl('recCriteriaFormSortOrder').value = '0';
+    recEl('recCriteriaFormActive').checked = true;
+    recShowModal('recCriteriaFormModal');
+  });
+  if (recEl('recCriteriaFormSaveBtn')) recEl('recCriteriaFormSaveBtn').addEventListener('click', recSaveCriteria);
+  if (recEl('recCriteriaFormCancelBtn')) recEl('recCriteriaFormCancelBtn').addEventListener('click', function() { recHideModal('recCriteriaFormModal'); });
+  if (recEl('recCriteriaFormModalClose')) recEl('recCriteriaFormModalClose').addEventListener('click', function() { recHideModal('recCriteriaFormModal'); });
+
+  // ==================== Tab 6: 数据导出 ====================
+  async function recExportNominations() {
+    try {
+      await downloadFile(REC_API + '/submissions/export?month=' + encodeURIComponent(recEl('recExportNomMonth').value),
+        '提名记录-' + recEl('recExportNomMonth').value + '.xlsx');
+    } catch (e) { alert('导出失败：' + e.message); }
+  }
+
+  async function recExportSurveys() {
+    try {
+      await downloadFile(REC_API + '/surveys/export?month=' + encodeURIComponent(recEl('recExportSurveyMonth').value),
+        '评分明细-' + recEl('recExportSurveyMonth').value + '.xlsx');
+    } catch (e) { alert('导出失败：' + e.message); }
+  }
+
+  async function recExportPoints() {
+    try {
+      await downloadFile(REC_API + '/points/export', '积分明细-' + new Date().toISOString().slice(0, 10) + '.xlsx');
+    } catch (e) { alert('导出失败：' + e.message); }
+  }
+
+  async function recExportAwards() {
+    try {
+      await downloadFile(REC_API + '/awards/export?year=' + encodeURIComponent(recEl('recExportAwardYear').value),
+        '获奖记录-' + recEl('recExportAwardYear').value + '.xlsx');
+    } catch (e) { alert('导出失败：' + e.message); }
+  }
+
+  if (recEl('recExportNominationsBtn')) recEl('recExportNominationsBtn').addEventListener('click', recExportNominations);
+  if (recEl('recExportSurveysBtn')) recEl('recExportSurveysBtn').addEventListener('click', recExportSurveys);
+  if (recEl('recExportPointsBtn')) recEl('recExportPointsBtn').addEventListener('click', recExportPoints);
+  if (recEl('recExportAwardsBtn')) recEl('recExportAwardsBtn').addEventListener('click', recExportAwards);
+
+  // ==================== 通用弹窗事件 ====================
+  if (recEl('recConfirmOkBtn')) recEl('recConfirmOkBtn').addEventListener('click', function() {
+    if (recState.confirmCallback) { recState.confirmCallback(); recState.confirmCallback = null; }
+    recHideModal('recConfirmModal');
+  });
+  if (recEl('recConfirmCancelBtn')) recEl('recConfirmCancelBtn').addEventListener('click', function() {
+    recState.confirmCallback = null;
+    recHideModal('recConfirmModal');
+  });
+  if (recEl('recConfirmModalClose')) recEl('recConfirmModalClose').addEventListener('click', function() {
+    recState.confirmCallback = null;
+    recHideModal('recConfirmModal');
+  });
+
+  // 初始加载
+  recLoadSubmissions();
+})();
+</script>

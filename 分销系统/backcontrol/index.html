@@ -42,6 +42,7 @@
           <button class="tab-btn" data-tab="orders">兑换订单<span class="order-dot hidden" id="ordersPendingDot"></span></button>
           <button class="tab-btn" data-tab="rewards">奖励记录</button>
           <button class="tab-btn" data-tab="participation">答题参与统计</button>
+          <button class="tab-btn" data-tab="recognition">认可计划管理</button>
         </nav>
         <button id="logoutBtn" class="ghost-btn">退出登录</button>
       </aside>
@@ -416,6 +417,183 @@
                   <tbody id="monthlyBody"></tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+        <section class="view" id="recognitionView">
+          <div class="section-head">
+            <div>
+              <h2>认可计划管理</h2>
+              <p>管理用户角色、销售-专员对接关系、评分标准、规则配置，并触发评选计算。</p>
+            </div>
+          </div>
+
+          <div class="recognition-tabs">
+            <button class="sub-tab-btn active" data-subtab="recognition-users">用户角色</button>
+            <button class="sub-tab-btn" data-subtab="recognition-mappings">对接关系</button>
+            <button class="sub-tab-btn" data-subtab="recognition-criteria">评分标准</button>
+            <button class="sub-tab-btn" data-subtab="recognition-rules">规则配置</button>
+            <button class="sub-tab-btn" data-subtab="recognition-calc">评选计算</button>
+          </div>
+
+          <!-- 用户角色管理 -->
+          <div class="recognition-subview active" id="recognitionUsersPanel">
+            <div class="filters">
+              <label>
+                <span>角色筛选</span>
+                <select id="recognitionRoleFilter">
+                  <option value="">全部</option>
+                  <option value="specialist">专员</option>
+                  <option value="sales">销售</option>
+                  <option value="manager">经理</option>
+                </select>
+              </label>
+              <button class="ghost-btn" id="refreshRecognitionUsersBtn">刷新</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>姓名</th><th>公司</th><th>当前角色</th><th>认可积分</th><th>操作</th></tr>
+                </thead>
+                <tbody id="recognitionUsersBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 对接关系管理 -->
+          <div class="recognition-subview" id="recognitionMappingsPanel">
+            <div class="form-card">
+              <div class="form-grid">
+                <label><span>销售用户ID</span><input id="mappingSalesId" placeholder="输入销售用户ID"></label>
+                <label><span>专员用户ID</span><input id="mappingSpecialistId" placeholder="输入专员用户ID"></label>
+              </div>
+              <div class="form-actions">
+                <button class="primary-btn" id="addMappingBtn">添加对接关系</button>
+                <p id="mappingFeedback" class="feedback"></p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>销售</th><th>专员</th><th>创建时间</th><th>操作</th></tr></thead>
+                <tbody id="mappingsBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 评分标准管理 -->
+          <div class="recognition-subview" id="recognitionCriteriaPanel">
+            <div class="filters">
+              <label>
+                <span>奖项类型</span>
+                <select id="criteriaAwardType">
+                  <option value="">全部</option>
+                  <option value="order_guardian">报备秩序卫士</option>
+                  <option value="distributor_pioneer">分销商支持先锋</option>
+                  <option value="distributor_mentor">分销商成长伯乐</option>
+                  <option value="efficiency_innovator">效率提升创新</option>
+                </select>
+              </label>
+              <button class="ghost-btn" id="refreshCriteriaBtn">刷新</button>
+            </div>
+            <div class="form-card">
+              <div class="form-grid">
+                <label><span>奖项类型</span><select id="newCriteriaAwardType">
+                  <option value="order_guardian">报备秩序卫士</option>
+                  <option value="distributor_pioneer">分销商支持先锋</option>
+                  <option value="distributor_mentor">分销商成长伯乐</option>
+                  <option value="efficiency_innovator">效率提升创新</option>
+                </select></label>
+                <label><span>评分项名称</span><input id="newCriteriaName" placeholder="如：冲突解决"></label>
+                <label><span>键名(item_key)</span><input id="newCriteriaKey" placeholder="如：conflict_cases"></label>
+                <label><span>控件类型</span><select id="newCriteriaType">
+                  <option value="text_list">多行文本列表</option>
+                  <option value="checkbox">勾选框</option>
+                  <option value="text_number">文本+数字</option>
+                </select></label>
+                <label><span>每单位分值</span><input id="newCriteriaPoints" type="number" value="10"></label>
+                <label><span>单位说明</span><input id="newCriteriaUnit" placeholder="如：每例"></label>
+                <label><span>分值上限</span><input id="newCriteriaMax" type="number" placeholder="留空表示无上限"></label>
+                <label><span>排序</span><input id="newCriteriaSort" type="number" value="0"></label>
+                <label class="checkbox-row"><input type="checkbox" id="newCriteriaActive" checked><span>启用</span></label>
+              </div>
+              <div class="form-actions">
+                <button class="primary-btn" id="addCriteriaBtn">新增评分标准</button>
+                <p id="criteriaFeedback" class="feedback"></p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>奖项</th><th>名称</th><th>键名</th><th>类型</th><th>分值</th><th>上限</th><th>启用</th><th>操作</th></tr></thead>
+                <tbody id="criteriaBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 规则配置 -->
+          <div class="recognition-subview" id="recognitionRulesPanel">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>规则键</th><th>当前值</th><th>说明</th><th>新值</th><th>操作</th></tr></thead>
+                <tbody id="rulesBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 评选计算 -->
+          <div class="recognition-subview" id="recognitionCalcPanel">
+            <div class="report-grid">
+              <div class="report-panel">
+                <div class="panel-title"><h3>月度评选</h3></div>
+                <div class="form-card">
+                  <label><span>月份</span><input id="calcMonth" type="month"></label>
+                  <div class="form-actions">
+                    <button class="primary-btn" id="calcMonthlyBtn">计算月度奖项</button>
+                    <p id="calcMonthlyFeedback" class="feedback"></p>
+                  </div>
+                  <div id="calcMonthlyResult" class="summary-line"></div>
+                </div>
+              </div>
+              <div class="report-panel">
+                <div class="panel-title"><h3>季度评选</h3></div>
+                <div class="form-card">
+                  <label><span>年份</span><input id="calcQuarterYear" type="number" value="2026"></label>
+                  <label><span>季度</span><select id="calcQuarter">
+                    <option value="1">Q1</option><option value="2">Q2</option><option value="3">Q3</option><option value="4">Q4</option>
+                  </select></label>
+                  <div class="form-actions">
+                    <button class="primary-btn" id="calcQuarterlyBtn">计算季度奖项</button>
+                    <p id="calcQuarterlyFeedback" class="feedback"></p>
+                  </div>
+                  <div id="calcQuarterlyResult" class="summary-line"></div>
+                </div>
+              </div>
+              <div class="report-panel">
+                <div class="panel-title"><h3>年度评选</h3></div>
+                <div class="form-card">
+                  <label><span>年份</span><input id="calcAnnualYear" type="number" value="2026"></label>
+                  <div class="form-actions">
+                    <button class="primary-btn" id="calcAnnualBtn">计算年度奖项</button>
+                    <p id="calcAnnualFeedback" class="feedback"></p>
+                  </div>
+                  <div id="calcAnnualResult" class="summary-line"></div>
+                </div>
+              </div>
+            </div>
+            <div class="section-head" style="margin-top:16px">
+              <div><h3>待发布奖项</h3></div>
+              <button class="ghost-btn" id="refreshUnpublishedBtn">刷新</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th><input type="checkbox" id="selectAllAwards"></th><th>用户</th><th>奖项</th><th>排名</th><th>积分</th><th>时间</th></tr></thead>
+                <tbody id="unpublishedAwardsBody"></tbody>
+              </table>
+            </div>
+            <div class="form-actions">
+              <button class="primary-btn" id="publishAwardsBtn">发布选中奖项并发放积分</button>
+              <p id="publishFeedback" class="feedback"></p>
             </div>
           </div>
         </section>

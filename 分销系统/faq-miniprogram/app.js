@@ -618,6 +618,13 @@ App({
       this.globalData.userInfo = userInfo || null;
       this.globalData.guestMode = false;
       if (userInfo) {
+        // 同步 recognition_role 和 recognition_score
+        if (userInfo.recognition_role !== undefined) {
+          this.globalData.userInfo.recognition_role = userInfo.recognition_role;
+        }
+        if (userInfo.recognition_score !== undefined) {
+          this.globalData.userInfo.recognition_score = userInfo.recognition_score;
+        }
         wx.setStorageSync('userInfo', userInfo);
       }
       return true;

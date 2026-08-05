@@ -1,0 +1,99 @@
+.page {
+  background: #f5f7fa;
+  min-height: 100vh;
+  padding: 24rpx;
+}
+
+.header {
+  padding: 20rpx 0 32rpx;
+}
+
+.header-title {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #0f172a;
+  display: block;
+}
+
+.header-desc {
+  font-size: 26rpx;
+  color: #64748b;
+  margin-top: 8rpx;
+  display: block;
+}
+
+.type-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.type-card {
+  border-radius: 24rpx;
+  padding: 28rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+  border: 2rpx solid rgba(0, 0, 0, 0.04);
+}
+
+.type-card-top {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.type-icon-wrap {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 40rpx;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.type-icon {
+  font-size: 40rpx;
+}
+
+.type-card-info {
+  flex: 1;
+  margin-left: 20rpx;
+  min-width: 0;
+}
+
+.type-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #0f172a;
+  display: block;
+}
+
+.type-desc {
+  font-size: 22rpx;
+  color: #64748b;
+  margin-top: 6rpx;
+  display: block;
+  line-height: 1.4;
+}
+
+.type-arrow {
+  color: #94a3b8;
+  font-size: 28rpx;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.type-award-tag {
+  margin-top: 16rpx;
+  padding: 8rpx 16rpx;
+  background: rgba(0, 176, 80, 0.08);
+  border-radius: 8rpx;
+  align-self: flex-start;
+}
+
+.type-award-text {
+  font-size: 20rpx;
+  color: #00B050;
+  font-weight: 500;
+}

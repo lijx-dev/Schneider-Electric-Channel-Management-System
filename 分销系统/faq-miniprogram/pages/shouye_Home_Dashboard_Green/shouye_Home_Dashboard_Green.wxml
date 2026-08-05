@@ -67,6 +67,103 @@
       <text class="lottery-notice-text">{{lotteryNotice.text}}</text>
     </view>
 
+    <!-- 销售评分提醒 -->
+    <view wx:if="{{recognitionRole === 'sales' && showRatingReminder}}" class="recognition-card rating-reminder-card" bindtap="goToSalesRating">
+      <view class="recognition-card-icon rating-icon">📋</view>
+      <view class="recognition-card-info">
+        <text class="recognition-card-title">本月专员满意度评分</text>
+        <text class="recognition-card-desc">请为对接专员评分，您的反馈很重要</text>
+      </view>
+      <text class="recognition-arrow">></text>
+    </view>
+
+    <!-- 专员认可计划卡片 -->
+    <view wx:if="{{recognitionRole === 'specialist'}}" class="recognition-section">
+      <view class="recognition-card specialist-card">
+        <view class="recognition-card-header">
+          <view class="recognition-level-badge">
+            <text class="recognition-level-icon">{{recognitionLevel.level_icon}}</text>
+            <text class="recognition-level-name">{{recognitionLevel.level}}</text>
+          </view>
+          <text class="recognition-score">{{recognitionScore}} 积分</text>
+        </view>
+        <view class="recognition-progress-bar">
+          <view class="recognition-progress-fill" style="width: {{recognitionScore < 600 ? (recognitionScore < 100 ? recognitionScore / 100 * 100 : (recognitionScore < 300 ? (recognitionScore - 100) / 200 * 100 : (recognitionScore - 300) / 300 * 100)) : 100}}%"></view>
+        </view>
+        <view class="recognition-entry-grid">
+          <view class="recognition-entry-item" bindtap="goToRecognitionSubmit">
+            <view class="recognition-entry-icon-wrap">
+              <text class="recognition-entry-icon">📝</text>
+            </view>
+            <text class="recognition-entry-text">成就申报</text>
+          </view>
+          <view class="recognition-entry-item" bindtap="goToRecognitionMyAwards">
+            <view class="recognition-entry-icon-wrap">
+              <text class="recognition-entry-icon">🏆</text>
+            </view>
+            <text class="recognition-entry-text">我的奖项</text>
+          </view>
+          <view class="recognition-entry-item" bindtap="goToRecognitionRanking">
+            <view class="recognition-entry-icon-wrap">
+              <text class="recognition-entry-icon">📊</text>
+            </view>
+            <text class="recognition-entry-text">认可排行</text>
+          </view>
+          <view class="recognition-entry-item" bindtap="goToSurveyResults">
+            <view class="recognition-entry-icon-wrap">
+              <text class="recognition-entry-icon">⭐</text>
+            </view>
+            <text class="recognition-entry-text">评分结果</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 经理管理看板 -->
+    <view wx:if="{{recognitionRole === 'manager'}}" class="recognition-section">
+      <view class="recognition-card manager-card">
+        <view class="recognition-card-header manager-header">
+          <text class="manager-title">管理看板</text>
+        </view>
+        <view class="manager-stats">
+          <view class="manager-stat-item">
+            <text class="manager-stat-num">{{pendingReviewCount}}</text>
+            <text class="manager-stat-label">待审核申报</text>
+          </view>
+          <view class="manager-stat-item">
+            <text class="manager-stat-num">{{surveyProgress ? surveyProgress.submitted_count : 0}}/{{surveyProgress ? surveyProgress.total_sales : 0}}</text>
+            <text class="manager-stat-label">评分进度</text>
+          </view>
+        </view>
+        <view class="recognition-entry-grid">
+          <view class="recognition-entry-item" bindtap="goToManagerReview">
+            <view class="recognition-entry-icon-wrap">
+              <text class="recognition-entry-icon">✅</text>
+            </view>
+            <text class="recognition-entry-text">审核申报</text>
+          </view>
+          <view class="recognition-entry-item" bindtap="goToRecognitionRanking">
+            <view class="recognition-entry-icon-wrap">
+              <text class="recognition-entry-icon">📊</text>
+            </view>
+            <text class="recognition-entry-text">认可排行</text>
+          </view>
+          <view class="recognition-entry-item" bindtap="goToSurveyResults">
+            <view class="recognition-entry-icon-wrap">
+              <text class="recognition-entry-icon">⭐</text>
+            </view>
+            <text class="recognition-entry-text">评分明细</text>
+          </view>
+          <view class="recognition-entry-item" bindtap="goToRecognitionMyAwards">
+            <view class="recognition-entry-icon-wrap">
+              <text class="recognition-entry-icon">🏆</text>
+            </view>
+            <text class="recognition-entry-text">奖项管理</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
     <view class="flex-row equal-division">
       <view class="flex-col items-center section_6 equal-division-item feature-card" bindtap="goToDaily">
         <view class="weekly-quiz-badge" wx:if="{{showWeeklyQuizBadge}}">

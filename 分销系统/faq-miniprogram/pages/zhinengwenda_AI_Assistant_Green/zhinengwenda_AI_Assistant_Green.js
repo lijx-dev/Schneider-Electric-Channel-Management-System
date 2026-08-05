@@ -2415,8 +2415,8 @@ Page({
     }
 
     try {
-      const systemInfo = wx.getSystemInfoSync();
-      const windowHeight = Number(systemInfo && systemInfo.windowHeight);
+      const windowInfo = wx.getWindowInfo();
+      const windowHeight = Number(windowInfo && windowInfo.windowHeight);
       return Number.isFinite(windowHeight) && windowHeight > 0 ? windowHeight : 0;
     } catch (err) {
       return 0;

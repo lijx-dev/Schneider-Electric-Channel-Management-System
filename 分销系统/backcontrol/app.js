@@ -1074,3 +1074,298 @@ if (state.token) {
 } else {
   showAuthed(false);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 认可计划管理
+// ═══════════════════════════════════════════════════════════════════════════
+
+const AWARD_TYPE_LABELS = {
+  order_guardian: "报备秩序卫士",
+  distributor_pioneer: "分销商支持先锋",
+  distributor_mentor: "分销商成长伯乐",
+  efficiency_innovator: "效率提升创新",
+};
+
+// ── 子 Tab 切换 ──────────────────────────────────────────────────────────
+
+document.querySelectorAll(".sub-tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".sub-tab-btn").forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll(".recognition-subview").forEach((v) => v.classList.remove("active"));
+    btn.classList.add("active");
+    const panelId = btn.dataset.subtab === "recognition-users" ? "recognitionUsersPanel"
+      : btn.dataset.subtab === "recognition-mappings" ? "recognitionMappingsPanel"
+      : btn.dataset.subtab === "recognition-criteria" ? "recognitionCriteriaPanel"
+      : btn.dataset.subtab === "recognition-rules" ? "recognitionRulesPanel"
+      : "recognitionCalcPanel";
+    $(panelId).classList.add("active");
+    if (btn.dataset.subtab === "recognition-users") loadRecognitionUsers();
+    if (btn.dataset.subtab === "recognition-mappings") loadMappings();
+    if (btn.dataset.subtab === "recognition-criteria") loadCriteria();
+    if (btn.dataset.subtab === "recognition-rules") loadRules();
+    if (btn.dataset.subtab === "recognition-calc") loadCalcPanel();
+  });
+});
+
+// ── 用户角色管理 ─────────────────────────────────────────────────────────
+
+$("recognitionRoleFilter").addEventListener("change", () => loadRecognitionUsers());
+$("refreshRecognitionUsersBtn").addEventListener("click", () => loadRecognitionUsers());
+
+async function loadRecognitionUsers() {
+  const role = $("recognitionRoleFilter").value;
+  const params = role ? `?role=${role}` : "";
+  const users = await request(`/api/recognition/users${params}`);
+  $("recognitionUsersBody").innerHTML = (users || []).map((u) => `
+    <tr>
+      <td>${escapeHtml(u.real_name)}</td>
+      <td>${escapeHtml(u.company)}</td>
+      <td>
+        <select class="role-select" data-user-id="${escapeHtml(u.id)}">
+          <option value="distributor"${u.recognition_role === "distributor" ? " selected" : ""}>分销商</option>
+          <option value="sales"${u.recognition_role === "sales" ? " selected" : ""}>销售</option>
+          <option value="specialist"${u.recognition_role === "specialist" ? " selected" : ""}>专员</option>
+          <option value="manager"${u.recognition_role === "manager" ? " selected" : ""}>经理</option>
+        </select>
+      </td>
+      <td>${escapeHtml(u.recognition_score)}</td>
+      <td><span class="muted">已保存</span></td>
+    </tr>
+  `).join("");
+
+  // 绑定角色切换事件
+  $("recognitionUsersBody").querySelectorAll(".role-select").forEach((sel) => {
+    sel.addEventListener("change", async () => {
+      try {
+        await request(`/api/recognition/users/${encodeURIComponent(sel.dataset.userId)}/role`, {
+          method: "PUT",
+          body: { recognition_role: sel.value },
+        });
+        sel.parentElement.nextElementSibling.nextElementSibling.querySelector("span").textContent = "已保存";
+      } catch (err) {
+        alert("更新角色失败：" + err.message);
+        loadRecognitionUsers();
+      }
+    });
+  });
+}
+
+// ── 对接关系管理 ─────────────────────────────────────────────────────────
+
+$("addMappingBtn").addEventListener("click", async () => {
+  const salesId = $("mappingSalesId").value.trim();
+  const specialistId = $("mappingSpecialistId").value.trim();
+  if (!salesId || !specialistId) {
+    setFeedback($("mappingFeedback"), "请填写销售和专员用户ID", true);
+    return;
+  }
+  try {
+    await request("/api/recognition/mappings", {
+      method: "POST",
+      body: { sales_id: salesId, specialist_id: specialistId },
+    });
+    setFeedback($("mappingFeedback"), "添加成功");
+    $("mappingSalesId").value = "";
+    $("mappingSpecialistId").value = "";
+    loadMappings();
+  } catch (err) {
+    setFeedback($("mappingFeedback"), err.message, true);
+  }
+});
+
+async function loadMappings() {
+  const data = await request("/api/recognition/mappings");
+  $("mappingsBody").innerHTML = (data || []).map((m) => `
+    <tr>
+      <td>${escapeHtml(m.sales_name)}</td>
+      <td>${escapeHtml(m.specialist_name)}</td>
+      <td>${escapeHtml(formatDateTime(m.created_at))}</td>
+      <td><button class="danger-btn delete-mapping-btn" data-id="${m.id}">删除</button></td>
+    </tr>
+  `).join("");
+  $("mappingsBody").querySelectorAll(".delete-mapping-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("确定删除该对接关系？")) return;
+      try {
+        await request(`/api/recognition/mappings/${btn.dataset.id}`, { method: "DELETE" });
+        loadMappings();
+      } catch (err) { alert(err.message); }
+    });
+  });
+}
+
+// ── 评分标准管理 ─────────────────────────────────────────────────────────
+
+$("criteriaAwardType").addEventListener("change", () => loadCriteria());
+$("refreshCriteriaBtn").addEventListener("click", () => loadCriteria());
+
+$("addCriteriaBtn").addEventListener("click", async () => {
+  const body = {
+    award_type: $("newCriteriaAwardType").value,
+    item_name: $("newCriteriaName").value.trim(),
+    item_key: $("newCriteriaKey").value.trim(),
+    item_type: $("newCriteriaType").value,
+    points_per_unit: parseInt($("newCriteriaPoints").value) || 0,
+    unit_description: $("newCriteriaUnit").value.trim() || null,
+    max_points: $("newCriteriaMax").value ? parseInt($("newCriteriaMax").value) : null,
+    sort_order: parseInt($("newCriteriaSort").value) || 0,
+    is_active: $("newCriteriaActive").checked,
+  };
+  if (!body.item_name || !body.item_key) {
+    setFeedback($("criteriaFeedback"), "请填写名称和键名", true);
+    return;
+  }
+  try {
+    await request("/api/recognition/scoring-criteria", { method: "POST", body });
+    setFeedback($("criteriaFeedback"), "添加成功");
+    $("newCriteriaName").value = "";
+    $("newCriteriaKey").value = "";
+    loadCriteria();
+  } catch (err) {
+    setFeedback($("criteriaFeedback"), err.message, true);
+  }
+});
+
+async function loadCriteria() {
+  const awardType = $("criteriaAwardType").value;
+  const params = awardType ? `?award_type=${awardType}` : "";
+  const data = await request(`/api/recognition/scoring-criteria${params}`);
+  $("criteriaBody").innerHTML = (data || []).map((c) => `
+    <tr>
+      <td>${escapeHtml(AWARD_TYPE_LABELS[c.award_type] || c.award_type)}</td>
+      <td>${escapeHtml(c.item_name)}</td>
+      <td><code>${escapeHtml(c.item_key)}</code></td>
+      <td>${escapeHtml(c.item_type)}</td>
+      <td>${escapeHtml(c.points_per_unit)}</td>
+      <td>${c.max_points ? escapeHtml(c.max_points) : "无"}</td>
+      <td>${c.is_active ? "是" : "否"}</td>
+      <td><button class="danger-btn delete-criteria-btn" data-id="${c.id}">删除</button></td>
+    </tr>
+  `).join("");
+  $("criteriaBody").querySelectorAll(".delete-criteria-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("确定删除该评分标准？")) return;
+      try {
+        await request(`/api/recognition/scoring-criteria/${btn.dataset.id}`, { method: "DELETE" });
+        loadCriteria();
+      } catch (err) { alert(err.message); }
+    });
+  });
+}
+
+// ── 规则配置 ─────────────────────────────────────────────────────────────
+
+async function loadRules() {
+  const data = await request("/api/recognition/rules");
+  $("rulesBody").innerHTML = (data || []).map((r) => `
+    <tr>
+      <td><code>${escapeHtml(r.rule_key)}</code></td>
+      <td><strong>${escapeHtml(r.rule_value)}</strong></td>
+      <td>${escapeHtml(r.description)}</td>
+      <td><input class="rule-new-value" data-key="${escapeHtml(r.rule_key)}" value="${escapeHtml(r.rule_value)}" style="width:80px"></td>
+      <td><button class="ghost-btn save-rule-btn" data-key="${escapeHtml(r.rule_key)}">保存</button></td>
+    </tr>
+  `).join("");
+  $("rulesBody").querySelectorAll(".save-rule-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const key = btn.dataset.key;
+      const input = document.querySelector(`.rule-new-value[data-key="${key}"]`);
+      try {
+        await request(`/api/recognition/rules/${encodeURIComponent(key)}`, {
+          method: "PUT",
+          body: { rule_value: input.value },
+        });
+        alert("规则已更新");
+        loadRules();
+      } catch (err) { alert(err.message); }
+    });
+  });
+}
+
+// ── 评选计算 ─────────────────────────────────────────────────────────────
+
+function defaultCalcMonth() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+async function loadCalcPanel() {
+  $("calcMonth").value = defaultCalcMonth();
+  loadUnpublishedAwards();
+}
+
+$("calcMonthlyBtn").addEventListener("click", async () => {
+  const month = $("calcMonth").value;
+  if (!month) { setFeedback($("calcMonthlyFeedback"), "请选择月份", true); return; }
+  try {
+    const data = await request("/api/recognition/awards/calculate-monthly", {
+      method: "POST", body: { month },
+    });
+    $("calcMonthlyResult").textContent = JSON.stringify(data.results, null, 2);
+    setFeedback($("calcMonthlyFeedback"), "计算完成");
+    loadUnpublishedAwards();
+  } catch (err) { setFeedback($("calcMonthlyFeedback"), err.message, true); }
+});
+
+$("calcQuarterlyBtn").addEventListener("click", async () => {
+  const year = parseInt($("calcQuarterYear").value);
+  const quarter = parseInt($("calcQuarter").value);
+  if (!year || !quarter) { setFeedback($("calcQuarterlyFeedback"), "请填写年份和季度", true); return; }
+  try {
+    const data = await request("/api/recognition/awards/calculate-quarterly", {
+      method: "POST", body: { year, quarter },
+    });
+    $("calcQuarterlyResult").textContent = JSON.stringify(data.results, null, 2);
+    setFeedback($("calcQuarterlyFeedback"), "计算完成");
+    loadUnpublishedAwards();
+  } catch (err) { setFeedback($("calcQuarterlyFeedback"), err.message, true); }
+});
+
+$("calcAnnualBtn").addEventListener("click", async () => {
+  const year = parseInt($("calcAnnualYear").value);
+  if (!year) { setFeedback($("calcAnnualFeedback"), "请填写年份", true); return; }
+  try {
+    const data = await request("/api/recognition/awards/calculate-annual", {
+      method: "POST", body: { year },
+    });
+    $("calcAnnualResult").textContent = JSON.stringify(data.results, null, 2);
+    setFeedback($("calcAnnualFeedback"), "计算完成");
+    loadUnpublishedAwards();
+  } catch (err) { setFeedback($("calcAnnualFeedback"), err.message, true); }
+});
+
+$("refreshUnpublishedBtn").addEventListener("click", () => loadUnpublishedAwards());
+
+async function loadUnpublishedAwards() {
+  const data = await request("/api/recognition/awards/results?published=false");
+  $("unpublishedAwardsBody").innerHTML = (data || []).map((a) => `
+    <tr>
+      <td><input type="checkbox" class="award-checkbox" data-id="${a.id}"></td>
+      <td>${escapeHtml(a.user_name)}</td>
+      <td>${escapeHtml(a.award_name)}</td>
+      <td>${a.rank || "-"}</td>
+      <td>${escapeHtml(a.points_awarded)}</td>
+      <td>${escapeHtml(a.award_month || a.award_quarter || a.award_year)}</td>
+    </tr>
+  `).join("");
+}
+
+$("selectAllAwards").addEventListener("change", function () {
+  document.querySelectorAll(".award-checkbox").forEach((cb) => { cb.checked = this.checked; });
+});
+
+$("publishAwardsBtn").addEventListener("click", async () => {
+  const ids = [...document.querySelectorAll(".award-checkbox:checked")].map((cb) => parseInt(cb.dataset.id));
+  if (!ids.length) { setFeedback($("publishFeedback"), "请选择要发布的奖项", true); return; }
+  try {
+    const data = await request("/api/recognition/awards/publish", {
+      method: "POST", body: { award_ids: ids },
+    });
+    setFeedback($("publishFeedback"), data.message);
+    loadUnpublishedAwards();
+  } catch (err) { setFeedback($("publishFeedback"), err.message, true); }
+});
+
+// 首次加载
+async function loadRecognitionData() {
+  await loadRecognitionUsers();
+}

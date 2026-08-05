@@ -1,7 +1,7 @@
 import time
 from collections import deque
 from threading import Lock
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -87,3 +87,53 @@ def enforce_rate_limit(scope: str, key: str, limit: int, window_seconds: int) ->
             raise HTTPException(status_code=429, detail="请求过于频繁，请稍后重试")
 
         bucket.append(now)
+
+
+# ── 认可计划角色校验依赖 ─────────────────────────────────────────────────────
+
+
+async def require_recognition_access(
+    allowed_roles: List[str],
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> str:
+    """校验用户角色是否在允许范围内."""
+    result = await db.execute(select(User.recognition_role).where(User.id == user_id))
+    role = result.scalar_one_or_none()
+    if role is None:
+        raise HTTPException(status_code=401, detail="User not found")
+    if role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="无权访问此功能")
+    return user_id
+
+
+async def require_manager_role(
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> str:
+    """校验经理角色."""
+    return await require_recognition_access(["manager"], user_id, db)
+
+
+async def require_sales_role(
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> str:
+    """校验销售角色."""
+    return await require_recognition_access(["sales"], user_id, db)
+
+
+async def require_specialist_role(
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> str:
+    """校验专员角色."""
+    return await require_recognition_access(["specialist"], user_id, db)
+
+
+async def require_specialist_or_manager(
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> str:
+    """校验专员或经理角色."""
+    return await require_recognition_access(["specialist", "manager"], user_id, db)

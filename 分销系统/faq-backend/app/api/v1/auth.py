@@ -63,6 +63,8 @@ def build_login_user_payload(request: Request, user: User) -> dict:
         "company": user.company,
         "profile_verified": bool(user.profile_verified),
         "bidding_whitelisted": bool(user.bidding_whitelisted),
+        "recognition_role": user.recognition_role,
+        "recognition_score": user.recognition_score or 0,
     }
 
 
@@ -115,6 +117,8 @@ async def wechat_login(
                     "company": user.company,
                     "profile_verified": bool(user.profile_verified),
                     "bidding_whitelisted": bool(user.bidding_whitelisted),
+                    "recognition_role": user.recognition_role,
+                    "recognition_score": user.recognition_score or 0,
                 },
             },
         }
@@ -194,6 +198,8 @@ async def wechat_login_phone(
                     "company": user.company,
                     "profile_verified": bool(user.profile_verified),
                     "bidding_whitelisted": bool(user.bidding_whitelisted),
+                    "recognition_role": user.recognition_role,
+                    "recognition_score": user.recognition_score or 0,
                 },
             },
         }

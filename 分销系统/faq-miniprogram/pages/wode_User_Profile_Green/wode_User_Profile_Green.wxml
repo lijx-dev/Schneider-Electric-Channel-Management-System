@@ -84,6 +84,55 @@
     </view>
   </view>
 
+  <!-- 认可计划（仅非distributor可见） -->
+  <view wx:if="{{recognitionRole !== 'distributor'}}" class="flex-col group_6">
+    <text class="self-start font_6 text_3 text_13">认可计划</text>
+    <view class="flex-col self-stretch section_5 mt-15">
+      <view class="flex-col">
+        <view class="flex-row justify-between items-center group_7" bindtap="goToRecognitionMyAwards">
+          <view class="flex-row items-center">
+            <image
+              class="shrink-0 image_4"
+              src="../../图标/排行榜速览小图标.png"
+            />
+            <text class="font_7 text_15 ml-17">我的奖项</text>
+          </view>
+          <text class="arrow-icon">></text>
+        </view>
+        <view class="flex-row justify-between items-center group_7" bindtap="goToRecognitionRanking">
+          <view class="flex-row items-center">
+            <image
+              class="shrink-0 image_4"
+              src="../../图标/学习记录小图标.png"
+            />
+            <text class="font_7 ml-17">认可排行</text>
+          </view>
+          <text class="arrow-icon">></text>
+        </view>
+        <view wx:if="{{recognitionRole === 'specialist'}}" class="flex-row justify-between items-center group_7" bindtap="goToRecognitionSubmit">
+          <view class="flex-row items-center">
+            <image
+              class="shrink-0 image_4"
+              src="../../图标/兑换记录小图标.png"
+            />
+            <text class="font_7 ml-17">成就申报</text>
+          </view>
+          <text class="arrow-icon">></text>
+        </view>
+        <view wx:if="{{recognitionRole === 'sales'}}" class="flex-row justify-between items-center group_7" bindtap="goToSalesRating">
+          <view class="flex-row items-center">
+            <image
+              class="shrink-0 image_4"
+              src="../../图标/兑换记录小图标.png"
+            />
+            <text class="font_7 ml-17">销售评分</text>
+          </view>
+          <text class="arrow-icon">></text>
+        </view>
+      </view>
+    </view>
+  </view>
+
   <view class="flex-col group_9">
     <text class="self-start font_6 text_3 text_17">系统支持</text>
     <view class="mt-16 flex-col self-stretch">

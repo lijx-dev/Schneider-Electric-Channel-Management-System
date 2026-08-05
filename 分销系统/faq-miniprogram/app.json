@@ -21,7 +21,12 @@
     "pages/legal/privacy/index",
     "pages/register/register",
     "pages/login/login",
-    "pages/bidding-result/bidding-result"
+    "pages/bidding-result/bidding-result",
+    "pages/recognition/submit/submit",
+    "pages/recognition/submit-form/submit-form",
+    "pages/recognition/sales-rate/sales-rate",
+    "pages/recognition/my-awards/my-awards",
+    "pages/recognition/ranking/ranking"
   ],
   "window": {
     "navigationBarBackgroundColor": "#00B050",

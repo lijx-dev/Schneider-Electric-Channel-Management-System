@@ -1,0 +1,81 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view wx:else>
+    <!-- 年度积分排行 -->
+    <view class="section">
+      <text class="section-title">积分排行 {{year}}</text>
+      <view class="ranking-list">
+        <view wx:for="{{pointsRanking}}" wx:key="user_id" class="ranking-item">
+          <view class="rank-num-wrap">
+            <view wx:if="{{item.rank <= 3}}" class="rank-badge {{item.rank === 1 ? 'rank-gold' : (item.rank === 2 ? 'rank-silver' : 'rank-bronze')}}">
+              <text>{{item.rank === 1 ? '金' : (item.rank === 2 ? '银' : '铜')}}</text>
+            </view>
+            <text wx:else class="rank-num">{{item.rank}}</text>
+          </view>
+          <view class="ranking-info">
+            <text class="ranking-name">{{item.user_name}}</text>
+            <view class="ranking-level">
+              <text class="ranking-level-icon">{{item.level_icon}}</text>
+              <text class="ranking-level-name">{{item.level}}</text>
+            </view>
+          </view>
+          <text class="ranking-score">{{item.total_score}} 积分</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 本月微光之星 -->
+    <view wx:if="{{monthlyStars}}" class="section">
+      <text class="section-title">本月微光之星</text>
+      <view class="award-mini-list">
+        <view wx:for="{{monthlyStars}}" wx:key="id" class="award-mini-item">
+          <text class="award-mini-rank">第{{item.rank}}名</text>
+          <text class="award-mini-name">{{item.user_name}}</text>
+          <text class="award-mini-points">+{{item.points_awarded}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 本月销圈人气王 -->
+    <view wx:if="{{monthlyMvp}}" class="section">
+      <text class="section-title">本月销圈人气王</text>
+      <view class="award-mini-list">
+        <view wx:for="{{monthlyMvp}}" wx:key="id" class="award-mini-item">
+          <text class="award-mini-rank">第{{item.rank}}名</text>
+          <text class="award-mini-name">{{item.user_name}}</text>
+          <text class="award-mini-score" wx:if="{{item.score}}">{{item.score}} 分</text>
+          <text class="award-mini-points">+{{item.points_awarded}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 季度奖项 -->
+    <view wx:if="{{quarterlyAwards}}" class="section">
+      <text class="section-title">季度奖项</text>
+      <view class="award-mini-list">
+        <view wx:for="{{quarterlyAwards}}" wx:key="id" class="award-mini-item">
+          <text class="award-mini-type">{{item.award_name}}</text>
+          <text class="award-mini-name">{{item.user_name}}</text>
+          <text class="award-mini-rank">第{{item.rank}}名</text>
+          <text class="award-mini-points">+{{item.points_awarded}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 年度奖项 -->
+    <view wx:if="{{annualAwards}}" class="section">
+      <text class="section-title">年度奖项</text>
+      <view class="award-mini-list">
+        <view wx:for="{{annualAwards}}" wx:key="id" class="award-mini-item">
+          <text class="award-mini-type">{{item.award_name}}</text>
+          <text class="award-mini-name">{{item.user_name}}</text>
+          <text class="award-mini-rank">第{{item.rank}}名</text>
+          <text class="award-mini-points">+{{item.points_awarded}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

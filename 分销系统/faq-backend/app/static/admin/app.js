@@ -919,14 +919,28 @@ $("loginForm").addEventListener("submit", async (event) => {
   }
 });
 
+let recLoaded = false;
+
 document.querySelectorAll(".tab-btn").forEach((button) => {
-  button.addEventListener("click", () => {
+  button.addEventListener("click", async () => {
     document.querySelectorAll(".tab-btn").forEach((item) => item.classList.remove("active"));
     document.querySelectorAll(".view").forEach((item) => item.classList.remove("active"));
     button.classList.add("active");
     $(`${button.dataset.tab}View`).classList.add("active");
     if (button.dataset.tab === "orders") {
       refreshOrderBadge().catch(() => {});
+    }
+    if (button.dataset.tab === "recognition") {
+      if (!recLoaded) {
+        try {
+          const resp = await fetch("/static/admin/recognition.html");
+          const html = await resp.text();
+          $("recognitionContent").innerHTML = html;
+          recLoaded = true;
+        } catch (e) {
+          $("recognitionContent").innerHTML = `<p style="color:var(--danger);">加载认可计划管理失败：${escapeHtml(e.message)}</p>`;
+        }
+      }
     }
   });
 });

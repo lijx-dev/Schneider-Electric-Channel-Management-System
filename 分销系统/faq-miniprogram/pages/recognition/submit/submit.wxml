@@ -1,0 +1,31 @@
+<view class="page">
+  <view class="header">
+    <text class="header-title">成就申报</text>
+    <text class="header-desc">选择申报类型，提交您的成就</text>
+  </view>
+
+  <view class="type-list">
+    <view
+      wx:for="{{submissionTypes}}"
+      wx:key="type"
+      class="type-card"
+      style="background: linear-gradient(135deg, {{item.color}} 0%, #ffffff 100%);"
+      data-type="{{item.type}}"
+      bindtap="goToSubmitForm"
+    >
+      <view class="type-card-top">
+        <view class="type-icon-wrap">
+          <text class="type-icon">{{item.icon}}</text>
+        </view>
+        <view class="type-card-info">
+          <text class="type-name">{{item.name}}</text>
+          <text class="type-desc">{{item.desc}}</text>
+        </view>
+        <text class="type-arrow">></text>
+      </view>
+      <view class="type-award-tag">
+        <text class="type-award-text">{{item.award}}</text>
+      </view>
+    </view>
+  </view>
+</view>

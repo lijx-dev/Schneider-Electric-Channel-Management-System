@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api.v1 import admin, auth, bidding, certificates, chat, daily, distributor_data, energy, guides, knowledge, leaderboard, lottery, monthly_leaderboard, questions, rewards, upload, users
+from app.api.v1 import admin, auth, bidding, certificates, chat, daily, distributor_data, energy, guides, knowledge, leaderboard, lottery, monthly_leaderboard, questions, recognition, rewards, upload, users
 
 router = APIRouter()
 
@@ -23,3 +23,4 @@ router.include_router(certificates.router)
 router.include_router(distributor_data.router)
 router.include_router(upload.router)
 router.include_router(bidding.router)
+router.include_router(recognition.router)

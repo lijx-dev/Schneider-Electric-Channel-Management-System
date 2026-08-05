@@ -1,0 +1,225 @@
+.page {
+  background: #f5f7fa;
+  min-height: 100vh;
+  padding-bottom: 40rpx;
+}
+
+.loading-wrap {
+  padding: 120rpx;
+  text-align: center;
+}
+
+.loading-text {
+  font-size: 28rpx;
+  color: #94a3b8;
+}
+
+/* 等级卡片 */
+.level-card {
+  margin: 24rpx;
+  padding: 32rpx;
+  background: linear-gradient(135deg, #00B050 0%, #10b981 100%);
+  border-radius: 24rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 176, 80, 0.2);
+}
+
+.level-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.level-badge {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 8rpx 24rpx;
+  border-radius: 999rpx;
+}
+
+.level-icon {
+  font-size: 32rpx;
+  color: #fef3c7;
+  margin-right: 8rpx;
+}
+
+.level-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.level-score {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.level-progress-bar {
+  height: 12rpx;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 6rpx;
+  overflow: hidden;
+}
+
+.level-progress-fill {
+  height: 100%;
+  background: #ffffff;
+  border-radius: 6rpx;
+  transition: width 0.4s ease;
+}
+
+.level-next {
+  margin-top: 16rpx;
+}
+
+.level-next-text {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Tab */
+.tab-bar {
+  display: flex;
+  flex-direction: row;
+  margin: 0 24rpx 16rpx;
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 6rpx;
+}
+
+.tab-item {
+  flex: 1;
+  height: 72rpx;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  color: #64748b;
+}
+
+.tab-active {
+  background: #f0fdf4;
+  color: #00B050;
+  font-weight: 600;
+}
+
+/* 获奖记录 */
+.award-list {
+  padding: 0 24rpx;
+}
+
+.award-card {
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 12rpx;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.award-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.award-type {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #0f172a;
+  display: block;
+}
+
+.award-period {
+  font-size: 22rpx;
+  color: #94a3b8;
+  margin-top: 6rpx;
+  display: block;
+}
+
+.award-right {
+  text-align: right;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.award-rank {
+  font-size: 24rpx;
+  color: #64748b;
+  display: block;
+}
+
+.award-points {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #00B050;
+  margin-top: 4rpx;
+  display: block;
+}
+
+/* 积分明细 */
+.transaction-list {
+  padding: 0 24rpx;
+}
+
+.transaction-card {
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 12rpx;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.transaction-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.transaction-reason {
+  font-size: 28rpx;
+  color: #0f172a;
+  display: block;
+}
+
+.transaction-time {
+  font-size: 22rpx;
+  color: #94a3b8;
+  margin-top: 6rpx;
+  display: block;
+}
+
+.transaction-points {
+  font-size: 32rpx;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.points-positive {
+  color: #00B050;
+}
+
+.points-negative {
+  color: #ef4444;
+}
+
+.empty-wrap {
+  padding: 80rpx;
+  text-align: center;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #94a3b8;
+}

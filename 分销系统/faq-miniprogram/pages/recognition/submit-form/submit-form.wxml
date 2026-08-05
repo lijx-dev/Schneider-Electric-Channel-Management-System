@@ -1,0 +1,108 @@
+<view class="page">
+  <view class="header">
+    <text class="header-title">{{typeName}}</text>
+    <text class="header-desc">请填写申报内容</text>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view wx:else class="form-body">
+    <!-- 微光提名特殊表单 -->
+    <block wx:if="{{isNomination}}">
+      <view class="form-section">
+        <text class="section-title">被提名人</text>
+        <input class="form-input" placeholder="请输入被提名人ID" value="{{nomineeId}}" bindinput="onNomineeInput" />
+      </view>
+      <view class="form-section">
+        <text class="section-title">事件描述</text>
+        <textarea class="form-textarea" placeholder="请描述提名事件..." value="{{eventDescription}}" bindinput="onEventInput" maxlength="500" />
+        <text class="char-count">{{eventDescription.length}}/500</text>
+      </view>
+      <view class="form-section">
+        <text class="section-title">正面影响</text>
+        <textarea class="form-textarea" placeholder="请描述该事件带来的正面影响..." value="{{positiveImpact}}" bindinput="onImpactInput" maxlength="500" />
+        <text class="char-count">{{positiveImpact.length}}/500</text>
+      </view>
+    </block>
+
+    <!-- 预定义选项表单 -->
+    <block wx:else>
+      <view wx:for="{{predefinedItems}}" wx:key="item_key" class="form-section">
+        <text class="section-title">{{item.item_name}}</text>
+        <text wx:if="{{item.item_help_text}}" class="section-help">{{item.item_help_text}}</text>
+
+        <!-- checkbox 类型 -->
+        <block wx:if="{{item.item_type === 'checkbox'}}">
+          <label class="checkbox-item">
+            <checkbox value="1" checked="{{predefinedValues[item.item_key]}}" data-key="{{item.item_key}}" bindchange="onCheckboxChange" color="#00B050" />
+            <text class="checkbox-label">{{item.item_placeholder || '已达成'}}</text>
+          </label>
+        </block>
+
+        <!-- text_list 类型 -->
+        <block wx:elif="{{item.item_type === 'text_list'}}">
+          <view wx:for="{{predefinedValues[item.item_key]}}" wx:key="index" wx:for-index="idx" class="text-list-item">
+            <input class="form-input" placeholder="{{item.item_placeholder || '请输入内容'}}" value="{{item}}" data-key="{{item.item_key}}" data-index="{{idx}}" bindinput="onTextListInput" />
+            <view class="text-list-remove" data-key="{{item.item_key}}" data-index="{{idx}}" bindtap="removeTextListItem">
+              <text class="remove-icon">×</text>
+            </view>
+          </view>
+          <view wx:if="{{item.allow_multiple}}" class="add-item-btn" data-key="{{item.item_key}}" bindtap="addTextListItem">
+            <text class="add-icon">+</text>
+            <text class="add-text">再添加一个</text>
+          </view>
+        </block>
+
+        <!-- text_number 类型 -->
+        <block wx:elif="{{item.item_type === 'text_number'}}">
+          <input class="form-input" placeholder="{{item.item_placeholder || '请输入描述'}}" value="{{predefinedValues[item.item_key].text || ''}}" data-key="{{item.item_key}}" data-field="text" bindinput="onTextNumberInput" />
+          <view class="number-row">
+            <text class="number-label">数量</text>
+            <input class="form-input number-input" type="number" placeholder="0" value="{{predefinedValues[item.item_key].number || ''}}" data-key="{{item.item_key}}" data-field="number" bindinput="onTextNumberInput" />
+          </view>
+        </block>
+
+        <!-- 默认文本输入 -->
+        <block wx:else>
+          <input class="form-input" placeholder="{{item.item_placeholder || '请输入'}}" value="{{predefinedValues[item.item_key]}}" data-key="{{item.item_key}}" bindinput="onTextListInput" />
+        </block>
+      </view>
+    </block>
+
+    <!-- 自定义补充区域 -->
+    <view wx:if="{{!isNomination}}" class="form-section custom-section">
+      <text class="section-title">自定义补充</text>
+      <text class="section-help">可添加自定义成就项，由经理人工审核时加分</text>
+
+      <view wx:for="{{customItems}}" wx:key="index" class="custom-item">
+        <view class="custom-item-header">
+          <text class="custom-item-index">自定义项 {{index + 1}}</text>
+          <view class="custom-item-remove" data-index="{{index}}" bindtap="removeCustomItem">
+            <text class="remove-icon">×</text>
+          </view>
+        </view>
+        <input class="form-input" placeholder="项目名称" value="{{item.name}}" data-index="{{index}}" data-field="name" bindinput="onCustomItemChange" />
+        <textarea class="form-textarea" placeholder="项目描述" value="{{item.description}}" data-index="{{index}}" data-field="description" bindinput="onCustomItemChange" maxlength="300" />
+      </view>
+
+      <view class="add-item-btn" bindtap="addCustomItem">
+        <text class="add-icon">+</text>
+        <text class="add-text">添加自定义成就项</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部按钮 -->
+  <view wx:if="{{!loading}}" class="bottom-bar">
+    <view class="btn-draft" data-action="draft" bindtap="submitForm">
+      <text wx:if="{{!submitting}}">保存草稿</text>
+      <text wx:else>保存中...</text>
+    </view>
+    <view class="btn-submit" data-action="submit" bindtap="submitForm">
+      <text wx:if="{{!submitting}}">提交</text>
+      <text wx:else>提交中...</text>
+    </view>
+  </view>
+</view>

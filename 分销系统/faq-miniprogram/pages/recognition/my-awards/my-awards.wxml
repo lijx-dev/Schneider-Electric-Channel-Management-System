@@ -1,0 +1,69 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view wx:else>
+    <!-- 积分等级卡片 -->
+    <view class="level-card">
+      <view class="level-header">
+        <view class="level-badge">
+          <text class="level-icon">{{level.level_icon}}</text>
+          <text class="level-name">{{level.level}}</text>
+        </view>
+        <text class="level-score">{{totalScore}} 积分</text>
+      </view>
+      <view class="level-progress-bar">
+        <view class="level-progress-fill" style="width: {{progressPercent}}%"></view>
+      </view>
+      <view wx:if="{{nextLevel}}" class="level-next">
+        <text class="level-next-text">距离 {{nextLevel}} 还需 {{pointsToNext}} 积分</text>
+      </view>
+    </view>
+
+    <!-- Tab 切换 -->
+    <view class="tab-bar">
+      <view class="tab-item {{activeTab === 'awards' ? 'tab-active' : ''}}" data-tab="awards" bindtap="switchTab">
+        <text>获奖记录</text>
+      </view>
+      <view class="tab-item {{activeTab === 'transactions' ? 'tab-active' : ''}}" data-tab="transactions" bindtap="switchTab">
+        <text>积分明细</text>
+      </view>
+    </view>
+
+    <!-- 获奖记录 -->
+    <view wx:if="{{activeTab === 'awards'}}" class="award-list">
+      <view wx:if="{{awards.length === 0}}" class="empty-wrap">
+        <text class="empty-text">暂无获奖记录</text>
+      </view>
+      <view wx:for="{{awards}}" wx:key="id" class="award-card">
+        <view class="award-left">
+          <text class="award-type">{{item.award_name}}</text>
+          <text class="award-period">
+            {{item.award_month || item.award_quarter || (item.award_year + '年')}}
+          </text>
+        </view>
+        <view class="award-right">
+          <text class="award-rank" wx:if="{{item.rank}}">第{{item.rank}}名</text>
+          <text class="award-points">+{{item.points_awarded}} 积分</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 积分明细 -->
+    <view wx:if="{{activeTab === 'transactions'}}" class="transaction-list">
+      <view wx:if="{{transactions.length === 0}}" class="empty-wrap">
+        <text class="empty-text">暂无积分记录</text>
+      </view>
+      <view wx:for="{{transactions}}" wx:key="id" class="transaction-card">
+        <view class="transaction-left">
+          <text class="transaction-reason">{{item.reason}}</text>
+          <text class="transaction-time">{{item.created_at}}</text>
+        </view>
+        <text class="transaction-points {{item.point_change > 0 ? 'points-positive' : 'points-negative'}}">
+          {{item.point_change > 0 ? '+' : ''}}{{item.point_change}}
+        </text>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,181 @@
+.page {
+  background: #f5f7fa;
+  min-height: 100vh;
+  padding-bottom: 40rpx;
+}
+
+.loading-wrap {
+  padding: 120rpx;
+  text-align: center;
+}
+
+.loading-text {
+  font-size: 28rpx;
+  color: #94a3b8;
+}
+
+.section {
+  margin: 24rpx;
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 16rpx;
+  display: block;
+}
+
+/* 积分排行 */
+.ranking-list {
+  background: #ffffff;
+  border-radius: 24rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.ranking-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 24rpx 28rpx;
+  border-bottom: 2rpx solid #f8fafc;
+}
+
+.ranking-item:last-child {
+  border-bottom: none;
+}
+
+.rank-num-wrap {
+  width: 64rpx;
+  flex-shrink: 0;
+}
+
+.rank-badge {
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 26rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.rank-gold {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+}
+
+.rank-silver {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  color: #475569;
+}
+
+.rank-bronze {
+  background: linear-gradient(135deg, #fefce8 0%, #fde68a 100%);
+  color: #a16207;
+}
+
+.rank-num {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #94a3b8;
+  text-align: center;
+  display: block;
+}
+
+.ranking-info {
+  flex: 1;
+  margin-left: 16rpx;
+  min-width: 0;
+}
+
+.ranking-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #0f172a;
+  display: block;
+}
+
+.ranking-level {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-top: 6rpx;
+}
+
+.ranking-level-icon {
+  font-size: 20rpx;
+  color: #d97706;
+  margin-right: 6rpx;
+}
+
+.ranking-level-name {
+  font-size: 20rpx;
+  color: #94a3b8;
+}
+
+.ranking-score {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #00B050;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+/* 奖项迷你列表 */
+.award-mini-list {
+  background: #ffffff;
+  border-radius: 24rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.award-mini-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 20rpx 28rpx;
+  border-bottom: 2rpx solid #f8fafc;
+}
+
+.award-mini-item:last-child {
+  border-bottom: none;
+}
+
+.award-mini-type {
+  font-size: 24rpx;
+  color: #64748b;
+  flex-shrink: 0;
+  width: 180rpx;
+}
+
+.award-mini-rank {
+  font-size: 24rpx;
+  color: #64748b;
+  flex-shrink: 0;
+  width: 100rpx;
+}
+
+.award-mini-name {
+  flex: 1;
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #0f172a;
+  min-width: 0;
+}
+
+.award-mini-score {
+  font-size: 24rpx;
+  color: #64748b;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.award-mini-points {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #00B050;
+  flex-shrink: 0;
+}

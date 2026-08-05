@@ -545,3 +545,188 @@
   width: 48rpx;
   height: 48rpx;
 }
+
+/* ── 认可计划 ─────────────────────────────────────────────────────────── */
+
+.recognition-section {
+  margin-top: 30rpx;
+}
+
+.recognition-card {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 28rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+}
+
+.rating-reminder-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-top: 30rpx;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 2rpx solid #bfdbfe;
+}
+
+.recognition-card-icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 36rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  flex-shrink: 0;
+}
+
+.rating-icon {
+  background: #dbeafe;
+}
+
+.recognition-card-info {
+  flex: 1;
+  margin-left: 20rpx;
+}
+
+.recognition-card-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1e40af;
+  display: block;
+}
+
+.recognition-card-desc {
+  font-size: 22rpx;
+  color: #64748b;
+  margin-top: 6rpx;
+  display: block;
+}
+
+.recognition-arrow {
+  color: #94a3b8;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.recognition-card-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.recognition-level-badge {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+}
+
+.recognition-level-icon {
+  font-size: 28rpx;
+  color: #d97706;
+  margin-right: 8rpx;
+}
+
+.recognition-level-name {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.recognition-score {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #00B050;
+}
+
+.recognition-progress-bar {
+  height: 12rpx;
+  background: #f1f5f9;
+  border-radius: 6rpx;
+  margin-bottom: 24rpx;
+  overflow: hidden;
+}
+
+.recognition-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00B050 0%, #10b981 100%);
+  border-radius: 6rpx;
+  transition: width 0.4s ease;
+}
+
+.recognition-entry-grid {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.recognition-entry-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.recognition-entry-icon-wrap {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 40rpx;
+  background: #f0fdf4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recognition-entry-icon {
+  font-size: 36rpx;
+}
+
+.recognition-entry-text {
+  font-size: 22rpx;
+  color: #334155;
+  margin-top: 10rpx;
+}
+
+/* 经理看板 */
+.manager-header {
+  margin-bottom: 16rpx;
+}
+
+.manager-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.manager-stats {
+  display: flex;
+  flex-direction: row;
+  gap: 24rpx;
+  margin-bottom: 24rpx;
+}
+
+.manager-stat-item {
+  flex: 1;
+  background: #f8fafc;
+  border-radius: 16rpx;
+  padding: 20rpx;
+  text-align: center;
+}
+
+.manager-stat-num {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #00B050;
+  display: block;
+}
+
+.manager-stat-label {
+  font-size: 22rpx;
+  color: #64748b;
+  margin-top: 8rpx;
+  display: block;
+}

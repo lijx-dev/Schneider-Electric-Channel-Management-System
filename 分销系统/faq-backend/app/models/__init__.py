@@ -10,6 +10,16 @@ from app.models.knowledge import KnowledgeItem
 from app.models.user import User
 from app.models.question import Question
 from app.models.record import AnswerRecord, DailyQuizRound
+from app.models.recognition import (
+    RecognitionAnnualSnapshot,
+    RecognitionAward,
+    RecognitionPoints,
+    RecognitionRulesConfig,
+    RecognitionScoringCriteria,
+    RecognitionSubmission,
+    RecognitionSurvey,
+    SalesSpecialistMapping,
+)
 
 __all__ = [
     "CertificateRecord",
@@ -23,6 +33,14 @@ __all__ = [
     "KnowledgeItem",
     "ProductGuideAsset",
     "ProductGuideNode",
+    "RecognitionAnnualSnapshot",
+    "RecognitionAward",
+    "RecognitionPoints",
+    "RecognitionRulesConfig",
+    "RecognitionScoringCriteria",
+    "RecognitionSubmission",
+    "RecognitionSurvey",
+    "SalesSpecialistMapping",
     "User",
     "Question",
     "AnswerRecord",
