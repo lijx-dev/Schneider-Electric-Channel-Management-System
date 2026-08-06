@@ -936,6 +936,17 @@ document.querySelectorAll(".tab-btn").forEach((button) => {
           const resp = await fetch("/static/admin/recognition.html");
           const html = await resp.text();
           $("recognitionContent").innerHTML = html;
+          // 执行 recognition.html 中的 <script> 标签（innerHTML 不会自动执行脚本）
+          const scripts = $("recognitionContent").querySelectorAll("script");
+          scripts.forEach((script) => {
+            const newScript = document.createElement("script");
+            Array.from(script.attributes).forEach((attr) => {
+              newScript.setAttribute(attr.name, attr.value);
+            });
+            newScript.textContent = script.textContent;
+            document.body.appendChild(newScript);
+            document.body.removeChild(newScript);
+          });
           recLoaded = true;
         } catch (e) {
           $("recognitionContent").innerHTML = `<p style="color:var(--danger);">加载认可计划管理失败：${escapeHtml(e.message)}</p>`;
