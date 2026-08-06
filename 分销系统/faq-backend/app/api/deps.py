@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import verify_token
 from app.db.session import get_db
 from app.models.user import User
+from app.services.admin_auth import verify_admin_token
 
 bearer_scheme = HTTPBearer(auto_error=False)
 _rate_limit_lock = Lock()
@@ -21,20 +22,33 @@ async def get_current_user_id(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> str:
-    """Resolve the current user from the Bearer token."""
+    """Resolve the current user from the Bearer token.
+
+    支持两种 token：
+    1. 小程序用户 token（sub = user UUID，SECRET_KEY 签发）
+    2. 后台管理员 token（sub = login_username，ADMIN_SECRET_KEY 签发）
+    """
     if not credentials or credentials.scheme.lower() != "bearer":
         raise HTTPException(status_code=401, detail="Not authenticated")
 
+    # 先尝试小程序用户 token
     user_id = verify_token(credentials.credentials)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Could not validate credentials")
+    if user_id:
+        stmt = select(User.id).where(User.id == user_id)
+        result = await db.execute(stmt)
+        if result.scalar_one_or_none():
+            return user_id
 
-    stmt = select(User.id).where(User.id == user_id)
-    result = await db.execute(stmt)
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=401, detail="User not found")
+    # 再尝试后台管理员 token
+    admin_username = verify_admin_token(credentials.credentials)
+    if admin_username:
+        stmt = select(User.id).where(User.login_username == admin_username)
+        result = await db.execute(stmt)
+        row = result.scalar_one_or_none()
+        if row:
+            return row
 
-    return user_id
+    raise HTTPException(status_code=401, detail="Could not validate credentials")
 
 
 async def require_bidding_whitelist(
