@@ -40,20 +40,19 @@ async def get_current_user_id(
         stmt = select(User.id).where(User.id == user_id)
         result = await db.execute(stmt)
         if result.scalar_one_or_none():
-            logger.info("auth_user_token_success", user_id=user_id[:16])
             return user_id
 
     # 再尝试后台管理员 token
     admin_username = verify_admin_token(credentials.credentials)
     if admin_username:
-        logger.info("auth_admin_token_decoded", username=admin_username)
+        logger.info("auth_admin_token_decoded username=%s", admin_username)
         stmt = select(User.id).where(User.login_username == admin_username)
         result = await db.execute(stmt)
         row = result.scalar_one_or_none()
         if row:
-            logger.info("auth_admin_token_success", user_id=row[:16])
+            logger.info("auth_admin_token_success user_id=%s", row[:16])
             return row
-        logger.warning("auth_admin_user_not_found", username=admin_username)
+        logger.warning("auth_admin_user_not_found username=%s", admin_username)
     else:
         logger.warning("auth_admin_token_verify_failed")
 
