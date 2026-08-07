@@ -72,10 +72,10 @@ PARAM_PATTERNS: dict[str, list[str]] = {
     ],
     # --- 导体厚度 ---
     "导体厚度": [
-        r'(?:铜排|导体|导电排).*?厚度.*?[≥≥]?\s*(\d+\.?\d*)\s*(mm|毫米)',
-        r'厚度.*?不低于\s*(\d+\.?\d*)\s*(mm|毫米)',
-        r'(?:铜排|导体).*?≥\s*(\d+\.?\d*)\s*(mm|毫米)',
-        r'铜排厚度.*?[≥≥]?\s*(\d+\.?\d*)\s*(mm|毫米)',
+        r'(?:铜排|导体|导电排).*?厚度.*?[≥≥]?\s*(\d+\.?\d*)\s*(mm|毫米|㎜)',
+        r'厚度.*?不低于\s*(\d+\.?\d*)\s*(mm|毫米|㎜)',
+        r'(?:铜排|导体).*?≥\s*(\d+\.?\d*)\s*(mm|毫米|㎜)',
+        r'铜排厚度.*?[≥≥]?\s*(\d+\.?\d*)\s*(mm|毫米|㎜)',
     ],
     # --- IK碰撞等级 ---
     "IK碰撞等级": [
@@ -182,16 +182,17 @@ PARAM_PATTERNS: dict[str, list[str]] = {
 # 短时耐受电流和峰值耐受电流按安培分档提取
 # 用于从参数表中提取各电流档位的耐受值
 # 支持：表头顺序（容量 | 短时耐受kA | 峰值耐受kA）以及散文字句
+# 【性能优化】严禁 re.DOTALL + 无限制 .*?，会触发灾难性回溯；统一限定在单行内最多80字符
 # ============================================================
 _AMPERE_PATTERN = re.compile(
-    r'(?:序号.*?)?(\d{3,4})\s*[Aa].*?'
-    r'(?:额定短时耐受|短时耐受|Icw)?.*?[≥≥]?\s*(\d{2,3})\s*(?:KA|kA|千安)',
-    re.IGNORECASE | re.DOTALL,
+    r'(?:序号[^\n\r]{0,20})?(\d{3,4})\s*[Aa][^\n\r]{0,80}?'
+    r'(?:额定短时耐受|短时耐受|Icw)?[^\n\r]{0,20}?[≥≥]?\s*(\d{2,3})\s*(?:KA|kA|千安)',
+    re.IGNORECASE,
 )
 _PEAK_PATTERN = re.compile(
-    r'(?:序号.*?)?(\d{3,4})\s*[Aa].*?'
-    r'(?:额定峰值耐受|峰值耐受|峰值|Ipk)?.*?[≥≥]?\s*(\d{2,3})\s*(?:KA|kA|千安)',
-    re.IGNORECASE | re.DOTALL,
+    r'(?:序号[^\n\r]{0,20})?(\d{3,4})\s*[Aa][^\n\r]{0,80}?'
+    r'(?:额定峰值耐受|峰值耐受|峰值|Ipk)?[^\n\r]{0,20}?[≥≥]?\s*(\d{2,3})\s*(?:KA|kA|千安)',
+    re.IGNORECASE,
 )
 # 额外：表格行格式（容量 短时值 峰值值），从行尾回溯匹配
 _TABLE_ROW_AMPERE_PATTERN = re.compile(
@@ -213,7 +214,7 @@ def _normalize_unit(unit: str) -> str:
         "h": "小时", "H": "小时", "小时": "小时",
         "min": "分钟", "分钟": "分钟",
         "年": "年",
-        "mm": "mm", "毫米": "mm",
+        "mm": "mm", "毫米": "mm", "㎜": "mm",  # 兼容全角毫米符号
         "米": "m", "m": "m",
         "KA": "KA", "kA": "KA", "ka": "KA", "千安": "KA",
         "V": "V", "v": "V",
@@ -225,30 +226,59 @@ def _normalize_unit(unit: str) -> str:
 def _detect_operator(raw: str, match_start: int, match_end: int) -> str:
     """检测运算符（≥, ≤, >, <, =, 范围）。
     搜索范围覆盖：匹配位置前50字符 + 匹配文本本身 + 匹配后20字符。
-    确保"至少/不低于/不应小于"等出现在匹配文本开头（如"至少 X 年"）时也能被捕捉。"""
-    # 把匹配文本本身也包含进搜索范围（正则可能以"至少/不低于"开头，match_start就是这些词）
+    兼容 PDF 换行导致的词组拆分（如"不\n低于"、"不 低于"等）。"""
     search_start = max(0, match_start - 50)
     search_end = min(len(raw), match_end + 20)
     window = raw[search_start:search_end]
-    match_text = raw[match_start:match_end]
     after = raw[match_end:search_end]
 
-    if ("≥" in window or ">=" in window or "不低于" in window or "不小于" in window
-            or "不应小于" in window or "至少" in window):
+    # 规范化窗口（去空白/换行/全角空格，便于"不 低于""不\n低于"这类拆分词组匹配）
+    def _norm(s: str) -> str:
+        return ''.join(ch for ch in s if ch and not ch.isspace())
+
+    norm = _norm(window)
+    norm_after = _norm(after)
+
+    if ("≥" in window or ">=" in window
+            or "不低于" in norm or "不小于" in norm or "不应小于" in norm or "至少" in norm):
         return "≥"
-    if ("≤" in window or "<=" in window or "不超过" in window or "不大于" in window
-            or "不应大于" in window or "至多" in window or "最多" in window):
+    if ("≤" in window or "<=" in window
+            or "不超过" in norm or "不大于" in norm or "不应大于" in norm
+            or "至多" in norm or "最多" in norm):
         return "≤"
     if ">" in window:
         return ">"
     if "<" in window:
         return "<"
-    # 检查后缀：如"5年以上"、"100小时以上"
-    if ("以上" in after or "不低于" in after):
+    if "以上" in norm_after or "不低于" in norm_after:
         return "≥"
-    if ("以下" in after or "不超过" in after or "以内" in after):
+    if "以下" in norm_after or "不超过" in norm_after or "以内" in norm_after:
         return "≤"
     return "="
+
+
+def _normalize_pdf_text_for_regex(text: str) -> str:
+    """
+    预处理 PDF 提取的原文：移除中文字词之间被 PDF 分页/断行插入的单个换行符。
+    典型场景："不\n低于"、"厚\n度"、"生产供应\n的经验" 等，这些换行在语义上不应该存在，
+    会导致正则 `.*?` 在非 DOTALL 模式下断链，从而提取失败。
+    保留双换行（段落分隔）、行末数字后换行、英文间换行、==页码标记== 前后换行。
+    """
+    # 先把 \r\n 统一成 \n
+    text = text.replace('\r\n', '\n').replace('\r', '\n')
+    # 规则：左侧字符是中文/中文标点，右侧字符也是中文/中文标点，中间只有一个 \n → 合并
+    # 这样不会影响"4\n㎜"、"IP54\n2.2" 这种数字-符号-中文的正常断行
+    text = re.sub(
+        r'(?<=[\u4e00-\u9fff，。；：、（）【】《》""''!?·—…-])\n(?=[\u4e00-\u9fff，。；：、（）【】《》""''!?·—…-])',
+        '',
+        text,
+    )
+    return text
+
+
+def _operator_strictness(op: str) -> int:
+    """严格性优先级（严格=提供更多判定信息）。数字越大越优先作为相同参数的 canonical。"""
+    return {"≥": 3, "≤": 3, ">": 2, "<": 2, "=": 1}.get(op, 0)
 
 
 def extract_all_params(text: str) -> dict[str, list[ExtractedParam]]:
@@ -260,12 +290,15 @@ def extract_all_params(text: str) -> dict[str, list[ExtractedParam]]:
     """
     results: dict[str, list[ExtractedParam]] = {}
 
+    # 对 PDF 断行的中文字词做正则友好化（保留原文用于后续 context 展示，副本用于 re 匹配）
+    regex_text = _normalize_pdf_text_for_regex(text)
+
     for param_name, patterns in PARAM_PATTERNS.items():
-        extracted: list[ExtractedParam] = []
-        seen_values: set[tuple[float, str]] = set()
+        # 改为 dict 存：key=(value,unit) -> ExtractedParam，支持"相同参数取更严格 operator"覆盖
+        extracted_map: dict[tuple[float, str], ExtractedParam] = {}
 
         for pattern in patterns:
-            for m in re.finditer(pattern, text, re.IGNORECASE):
+            for m in re.finditer(pattern, regex_text, re.IGNORECASE):
                 groups = m.groups()
                 if not groups or groups[0] is None:
                     continue
@@ -278,30 +311,26 @@ def extract_all_params(text: str) -> dict[str, list[ExtractedParam]]:
                     continue
 
                 # ---- 参数特定的合理性过滤 & 默认单位补齐 ----
-                # 导体截面积：合理范围 ≥100 mm2，小于的通常是误匹配表格序号（1,2,3...）
                 if param_name == "导体截面积" and value < 100:
                     continue
-                # 制造经验年限：默认单位为"年"（多数正则未将年放入捕获组）
                 if param_name == "制造经验年限" and not unit:
                     unit = "年"
-                # 抗震等级：烈度/级作为单位值，空单位的话保持空（不影响阈值比较）
-                # 盐雾/力矩/电压/电流 等已在正则中带捕获组，正常处理
 
-                # 去重
+                page = _find_page(regex_text, m.start())
+                operator = _detect_operator(regex_text, m.start(), m.end())
+
                 key = (value, unit)
-                if key in seen_values:
-                    continue
-                seen_values.add(key)
-
-                # 获取上下文
+                existing = extracted_map.get(key)
+                if existing is not None:
+                    # 同值同单位时，保留更严格的 operator（含 operator 的项比纯 = 更具信息量）
+                    if _operator_strictness(operator) <= _operator_strictness(existing.operator):
+                        continue
+                    # 用更严格的 operator 覆盖旧条目（同时更新 context/page 信息为更匹配这一项的值）
                 ctx_start = max(0, m.start() - 40)
-                ctx_end = min(len(text), m.end() + 40)
-                context = text[ctx_start:ctx_end].replace("\n", " ").strip()
+                ctx_end = min(len(regex_text), m.end() + 40)
+                context = regex_text[ctx_start:ctx_end].replace("\n", " ").strip()
 
-                page = _find_page(text, m.start())
-                operator = _detect_operator(text, m.start(), m.end())
-
-                extracted.append(ExtractedParam(
+                extracted_map[key] = ExtractedParam(
                     name=param_name,
                     raw_value=m.group(0).strip()[:50],
                     value=value,
@@ -309,15 +338,15 @@ def extract_all_params(text: str) -> dict[str, list[ExtractedParam]]:
                     operator=operator,
                     context=context,
                     page=page,
-                ))
+                )
 
-        if extracted:
-            results[param_name] = extracted
+        if extracted_map:
+            results[param_name] = list(extracted_map.values())
 
-    # --- 额外提取：按安培分档的短时耐受和峰值耐受 ---
+    # --- 额外提取：按安培分档的短时耐受和峰值耐受（统一用正则友好文本） ---
     seen_amperes_short: set[int] = set()
     ampere_results: list[dict] = []
-    for m in _AMPERE_PATTERN.finditer(text):
+    for m in _AMPERE_PATTERN.finditer(regex_text):
         amp = int(m.group(1))
         if amp in seen_amperes_short:
             continue
@@ -326,12 +355,12 @@ def extract_all_params(text: str) -> dict[str, list[ExtractedParam]]:
             "ampere": amp,
             "short_time_current": int(m.group(2)),
             "unit": "KA",
-            "page": _find_page(text, m.start()),
+            "page": _find_page(regex_text, m.start()),
         })
 
     seen_amperes_peak: set[int] = set()
     peak_results: list[dict] = []
-    for m in _PEAK_PATTERN.finditer(text):
+    for m in _PEAK_PATTERN.finditer(regex_text):
         amp = int(m.group(1))
         if amp in seen_amperes_peak:
             continue
@@ -340,18 +369,18 @@ def extract_all_params(text: str) -> dict[str, list[ExtractedParam]]:
             "ampere": amp,
             "peak_current": int(m.group(2)),
             "unit": "KA",
-            "page": _find_page(text, m.start()),
+            "page": _find_page(regex_text, m.start()),
         })
 
     # 表格行格式补充："序号 容量A 短时kA 峰值kA" 四列
-    for m in _TABLE_ROW_AMPERE_PATTERN.finditer(text):
+    for m in _TABLE_ROW_AMPERE_PATTERN.finditer(regex_text):
         amp = int(m.group(1))
         if amp not in seen_amperes_short:
             ampere_results.append({
                 "ampere": amp,
                 "short_time_current": int(m.group(2)),
                 "unit": "KA",
-                "page": _find_page(text, m.start()),
+                "page": _find_page(regex_text, m.start()),
             })
             seen_amperes_short.add(amp)
         if amp not in seen_amperes_peak:
@@ -359,7 +388,7 @@ def extract_all_params(text: str) -> dict[str, list[ExtractedParam]]:
                 "ampere": amp,
                 "peak_current": int(m.group(3)),
                 "unit": "KA",
-                "page": _find_page(text, m.start()),
+                "page": _find_page(regex_text, m.start()),
             })
             seen_amperes_peak.add(amp)
 

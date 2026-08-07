@@ -491,46 +491,65 @@ class BiddingAnalyzer:
         return docs
 
     @staticmethod
-    def _clause_keywords_match(text: str, keywords: list[str]) -> bool:
+    def _clause_keywords_match(text: str, keywords: list[str],
+                              two_word_pairs: list[tuple[str, str]] | None = None) -> bool:
         """
-        宽松版关键词匹配：
-        1. 先做精确子串匹配；
-        2. 若失败，对"分词组合"关键词做顺序不敏感匹配（所有核心字在同一窗口内出现即可）。
-        用于识别"生产供应的经验"（核心"生产"+"经验"）这类中间穿插其他文字的表达。
-        """
-        # 1) 精确子串匹配（原逻辑）
-        if any(kw and kw in text for kw in keywords):
-            return True
+        宽松版关键词匹配（O(N) 复杂度，避免 5+ 分钟超时）。
+        1. 精确子串匹配；
+        2. 空格分词关键词：找到任一分词首次出现位置后，仅在其前后 WINDOW 范围内检查其余分词；
+        3. two_word_pairs：两词位置差 ≤ WINDOW 即算命中（不用滑动窗口扫全文）。
 
-        # 2) 针对包含空格的组合关键词：窗口内按字符级匹配核心分词
+        参数:
+            text: 标书全文文本
+            keywords: FAVORABLE_CLAUSE 中的 keywords 列表
+            two_word_pairs: 可选的双词组合对（如 [("生产","经验"), ...]），命中任意一对即返回 True
+        """
         WINDOW = 80  # 单条分句最大长度
+
+        # 1) 精确子串匹配（最快，优先返回）
+        for kw in keywords:
+            if kw and kw in text:
+                return True
+
+        # 2) 空格分词组合关键词：用 find 的位置差替代滑动窗口
         for kw in keywords:
             if not kw or " " not in kw:
                 continue
-            parts = [p.strip() for p in kw.split() if p.strip()]
+            parts = [p for p in (p.strip() for p in kw.split()) if p]
             if len(parts) < 2:
                 continue
-            # 扫描全文 WINDOW 字符窗口
-            for i in range(0, len(text), WINDOW // 2):
-                chunk = text[i:i + WINDOW]
-                if all(p in chunk for p in parts):
+            # 找第一个分词的所有出现位置，对每个位置检查其余分词是否在 WINDOW 距离内
+            anchor = parts[0]
+            start = 0
+            while True:
+                idx = text.find(anchor, start)
+                if idx < 0:
+                    break
+                win_start = max(0, idx - WINDOW // 2)
+                win_end = idx + WINDOW
+                chunk = text[win_start:win_end]
+                if all(p in chunk for p in parts[1:]):
                     return True
+                start = idx + 1
 
-        # 3) 针对"两词组合"（如"制造经验"）：两词都在同一 120 字符窗口出现即可
-        two_word_pairs = {
-            "manufacturer_years": [("生产", "经验"), ("制造", "经验"), ("经营", "年限"), ("成立", "年限")],
-            "seismic_ag5": [("抗震", "烈度"), ("抗震", "报告"), ("抗震", "设防")],
-        }
-        text_lower = text
-        for clause_id, pairs in two_word_pairs.items():
-            # 本函数不知道 clause_id，这里统一做 pair 级匹配
-            for (w1, w2) in pairs:
-                idx1 = text_lower.find(w1)
-                if idx1 < 0:
+        # 3) two_word_pairs：两词位置差 ≤ 120（不用全文 O(N) 窗口扫描）
+        if two_word_pairs:
+            for w1, w2 in two_word_pairs:
+                i1 = text.find(w1)
+                if i1 < 0:
                     continue
-                for i in range(0, len(text), 60):
-                    chunk = text_lower[i:i + 120]
-                    if w1 in chunk and w2 in chunk:
+                i2 = text.find(w2)
+                if i2 < 0:
+                    continue
+                # 两词各取第一次出现，如果距离大，再找 w2 后续出现位置
+                if abs(i1 - i2) <= 120:
+                    return True
+                # w1 位置固定，搜索 w2 在 w1 附近的出现
+                if i1 >= 0:
+                    near_start = max(0, i1 - 120)
+                    near_end = i1 + len(w1) + 120
+                    region = text[near_start:near_end]
+                    if w2 in region:
                         return True
         return False
 
@@ -588,14 +607,30 @@ class BiddingAnalyzer:
             if pname in extracted_params and extracted_params[pname]:
                 triggered_by_param.add(clause_id)
 
+        # clause_id -> two_word_pairs 映射（只对特定条款做两词宽松匹配）
+        CLAUSE_TWO_WORD_PAIRS: dict[str, list[tuple[str, str]]] = {
+            "manufacturer_years": [("生产", "经验"), ("制造", "经验"), ("经营", "年限"), ("成立", "年限"),
+                                   ("年生产", "经验"), ("供应", "经验")],
+            "seismic_ag5": [("抗震", "烈度"), ("抗震", "报告"), ("抗震", "设防"), ("抗震性能", "烈度"),
+                            ("设防等级", "烈度")],
+        }
+
+        # 【关键性能优化】每个条款只做一次 _clause_keywords_match，结果缓存用于 both 第一部分和第三部分
+        clause_match_cache: dict[str, bool] = {}
+        for clause in FAVORABLE_CLAUSES:
+            cid = clause.get("id", "")
+            pairs = CLAUSE_TWO_WORD_PAIRS.get(cid)
+            matched = BiddingAnalyzer._clause_keywords_match(text, clause["keywords"], two_word_pairs=pairs)
+            if not matched and cid in triggered_by_param:
+                matched = True
+            clause_match_cache[cid] = matched
+
         favorable_found: list[dict] = []
         favorable_missing: list[dict] = []
 
         for clause in FAVORABLE_CLAUSES:
-            matched = BiddingAnalyzer._clause_keywords_match(text, clause["keywords"])
-            # 与参数提取结果联动
-            if not matched and clause.get("id") in triggered_by_param:
-                matched = True
+            cid = clause.get("id", "")
+            matched = clause_match_cache.get(cid, False)
             if matched:
                 favorable_found.append({
                     "name": clause["name"],
@@ -630,14 +665,8 @@ class BiddingAnalyzer:
         result["competitor_traces"] = competitor_traces
 
         # ---- 三、产品匹配分析 ----
-        # 构建已植入条款 id 集合，用于产品评分（与第一部分保持一致）
-        found_clause_ids: set[str] = set()
-        for clause in FAVORABLE_CLAUSES:
-            m = BiddingAnalyzer._clause_keywords_match(text, clause["keywords"])
-            if not m and clause.get("id") in triggered_by_param:
-                m = True
-            if m:
-                found_clause_ids.add(clause["id"])
+        # 构建已植入条款 id 集合，用于产品评分（复用缓存，避免重复计算）
+        found_clause_ids: set[str] = {cid for cid, ok in clause_match_cache.items() if ok}
 
         product_scores: dict[str, int] = {}
         for product_name, product_params in PRODUCT_SERIES.items():
