@@ -491,6 +491,50 @@ class BiddingAnalyzer:
         return docs
 
     @staticmethod
+    def _clause_keywords_match(text: str, keywords: list[str]) -> bool:
+        """
+        宽松版关键词匹配：
+        1. 先做精确子串匹配；
+        2. 若失败，对"分词组合"关键词做顺序不敏感匹配（所有核心字在同一窗口内出现即可）。
+        用于识别"生产供应的经验"（核心"生产"+"经验"）这类中间穿插其他文字的表达。
+        """
+        # 1) 精确子串匹配（原逻辑）
+        if any(kw and kw in text for kw in keywords):
+            return True
+
+        # 2) 针对包含空格的组合关键词：窗口内按字符级匹配核心分词
+        WINDOW = 80  # 单条分句最大长度
+        for kw in keywords:
+            if not kw or " " not in kw:
+                continue
+            parts = [p.strip() for p in kw.split() if p.strip()]
+            if len(parts) < 2:
+                continue
+            # 扫描全文 WINDOW 字符窗口
+            for i in range(0, len(text), WINDOW // 2):
+                chunk = text[i:i + WINDOW]
+                if all(p in chunk for p in parts):
+                    return True
+
+        # 3) 针对"两词组合"（如"制造经验"）：两词都在同一 120 字符窗口出现即可
+        two_word_pairs = {
+            "manufacturer_years": [("生产", "经验"), ("制造", "经验"), ("经营", "年限"), ("成立", "年限")],
+            "seismic_ag5": [("抗震", "烈度"), ("抗震", "报告"), ("抗震", "设防")],
+        }
+        text_lower = text
+        for clause_id, pairs in two_word_pairs.items():
+            # 本函数不知道 clause_id，这里统一做 pair 级匹配
+            for (w1, w2) in pairs:
+                idx1 = text_lower.find(w1)
+                if idx1 < 0:
+                    continue
+                for i in range(0, len(text), 60):
+                    chunk = text_lower[i:i + 120]
+                    if w1 in chunk and w2 in chunk:
+                        return True
+        return False
+
+    @staticmethod
     def deep_analyze(text: str, filename: str = "") -> dict[str, Any]:
         """
         智能深度分析招标文件（v2.0 升级版）。
@@ -523,12 +567,35 @@ class BiddingAnalyzer:
         if page_markers:
             result["total_pages"] = max(int(p) for p in page_markers)
 
+        # 提前执行参数提取，用于与有利条款判定联动
+        extracted_params = extract_all_params(text)
+
         # ---- 一、检测施耐德有利条款（已植入 vs 缺失） ----
+        # clause_id <-> 已提取参数名 映射：参数提取到 → 自动视为该条款已植入
+        PARAM_TO_CLAUSE: dict[str, str] = {
+            "制造经验年限": "manufacturer_years",
+            "盐雾试验时间": "salt_spray_1800",
+            "连接器力矩": "connector_torque",
+            "IK碰撞等级": "ik_rating",
+            "IP防护等级": "ip_rating",
+            "导体厚度": "conductor_thickness",
+            "抗震等级": "seismic_ag5",
+            "消防喷淋时间": "fire_spray",
+            "绝缘老化时间": "insulation_aging",
+        }
+        triggered_by_param: set[str] = set()
+        for pname, clause_id in PARAM_TO_CLAUSE.items():
+            if pname in extracted_params and extracted_params[pname]:
+                triggered_by_param.add(clause_id)
+
         favorable_found: list[dict] = []
         favorable_missing: list[dict] = []
 
         for clause in FAVORABLE_CLAUSES:
-            matched = any(kw in text for kw in clause["keywords"])
+            matched = BiddingAnalyzer._clause_keywords_match(text, clause["keywords"])
+            # 与参数提取结果联动
+            if not matched and clause.get("id") in triggered_by_param:
+                matched = True
             if matched:
                 favorable_found.append({
                     "name": clause["name"],
@@ -563,17 +630,26 @@ class BiddingAnalyzer:
         result["competitor_traces"] = competitor_traces
 
         # ---- 三、产品匹配分析 ----
+        # 构建已植入条款 id 集合，用于产品评分（与第一部分保持一致）
+        found_clause_ids: set[str] = set()
+        for clause in FAVORABLE_CLAUSES:
+            m = BiddingAnalyzer._clause_keywords_match(text, clause["keywords"])
+            if not m and clause.get("id") in triggered_by_param:
+                m = True
+            if m:
+                found_clause_ids.add(clause["id"])
+
         product_scores: dict[str, int] = {}
         for product_name, product_params in PRODUCT_SERIES.items():
             score = 0
-            for clause in FAVORABLE_CLAUSES:
-                if product_name in clause["products"]:
-                    if any(kw in text for kw in clause["keywords"]):
-                        score += 1
+            applicable_clauses = [c for c in FAVORABLE_CLAUSES if product_name in c["products"]]
+            for clause in applicable_clauses:
+                if clause["id"] in found_clause_ids:
+                    score += 1
 
             product_scores[product_name] = {
                 "score": score,
-                "max_score": len([c for c in FAVORABLE_CLAUSES if product_name in c["products"]]),
+                "max_score": len(applicable_clauses),
                 "full_name": product_params["full_name"],
                 "positioning": product_params["positioning"],
             }
@@ -604,7 +680,7 @@ class BiddingAnalyzer:
         }
 
         # ---- 四、参数提取与对比（新增） ----
-        extracted_params = extract_all_params(text)
+        # 复用已提取的 extracted_params（已在 deep_analyze 开头执行，避免重复计算）
         param_comparison: dict[str, Any] = {}
         for param_name, param_list in extracted_params.items():
             if param_name.endswith("_按安培"):

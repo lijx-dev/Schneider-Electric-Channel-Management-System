@@ -236,8 +236,10 @@ DOCUMENT_SYNONYM_MAP: dict[str, dict] = {
             "制造商资格", "制造商资质", "从事母线", "制造历史",
             "制造经验证明", "生产经验证明", "制造商经验",
             "制造商证明", "制造经验材料",
+            "生产供应经验", "至少.*年", "专业生产.*年",
+            "生产的成熟性", "制造的成熟性",
         ],
-        "regex": r'(?:制造|生产).*?(?:经验|年限|历史|资格|资质)',
+        "regex": r'(?:制造|生产).*?(?:经验|年限|历史|资格|资质|供应|成熟性)|至少.*年.*?(?:经验|证明)|专业生产.*年',
         "required_key": "manufacturing_experience",
     },
     "抗震测试报告": {
@@ -271,8 +273,10 @@ DOCUMENT_SYNONYM_MAP: dict[str, dict] = {
         "keywords": [
             "OHSAS18001", "OHSAS", "ISO45001", "职业健康安全",
             "职业健康", "OHSAS 18001", "ISO 45001",
+            "ISO045001", "职业健康安全管理体系", "职业安全卫生",
         ],
-        "regex": r'(?:OHSAS\s*(?:18001)?|ISO\s*45001|职业健康安全)',
+        # 兼容空格/换行/连字符格式，以及可能的OCR识别错误"ISO0 45001"
+        "regex": r'(?:OHSAS\s*(?:18001)?|ISO\s*0?45001|职业健康安全|职业安全卫生)',
         "required_key": "ohsas_cert",
     },
     "带电插拔检测报告": {
@@ -329,26 +333,41 @@ DOCUMENT_SYNONYM_MAP: dict[str, dict] = {
             "ISO9001", "ISO 9001", "ISO9001-2000", "ISO 9001-2000",
             "ISO9001-14000", "ISO 9001-14000", "ISO14001", "ISO 14001",
             "质量管理体系", "质量体系认证", "质量体系",
+            "ISO9000", "ISO 9000", "环境管理体系", "ISO14000", "ISO 14000",
         ],
-        "regex": r'ISO\s*(?:9001|14001)|质量.*?(?:管理)?体系',
+        # 兼容空格、换行符（PDF换行可能导致ISO和编号之间插入\n）
+        "regex": r'ISO[\s\n]*(?:900[01]|1400[01]|9000)|质量.*?(?:管理)?体系|环境管理体系',
         "required_key": "iso_cert",
     },
     "CE认证": {
-        "keywords": ["CE认证", "CE证书", "CE mark", "CE marking"],
-        "regex": r'CE\s*(?:认证|证书|mark)',
+        "keywords": [
+            "CE认证", "CE证书", "CE mark", "CE marking",
+            "CE 认证", "CE 证书", "CE标志", "符合性声明CE",
+        ],
+        "regex": r'CE\s*(?:认证|证书|mark|标志|符合性)?|CE标志',
         "required_key": "ce_cert",
     },
     "KEMA认证": {
         "keywords": [
-            "KEMA", "KEMA-KEUR", "ASTA", "ASTA-DIAMOND",
-            "国际认证", "KEMA认证", "ASTA认证",
+            "KEMA", "KEMA-KEUR", "国际认证", "KEMA认证",
         ],
-        "regex": r'(?:KEMA|ASTA).*?(?:认证|KEUR|DIAMOND)?',
+        "regex": r'KEMA.*?(?:认证|KEUR|报告)?',
+        "required_key": "kema_cert",
+    },
+    "ASTA认证": {
+        "keywords": [
+            "ASTA", "ASTA-DIAMOND", "ASTA认证", "ASTA 认证",
+        ],
+        "regex": r'ASTA.*?(?:认证|DIAMOND|报告)?',
         "required_key": "kema_cert",
     },
     "营业执照": {
-        "keywords": ["营业执照", "工商注册", "营业执照副本"],
-        "regex": r'营业执照',
+        "keywords": [
+            "营业执照", "工商注册", "营业执照副本",
+            "工商营业执照", "企业法人营业执照", "统一社会信用代码",
+            "营业执照正本", "三证合一", "五证合一",
+        ],
+        "regex": r'营业执照|企业法人|统一社会信用代码|三证合一|五证合一|工商注册',
         "required_key": "business_license",
     },
 }

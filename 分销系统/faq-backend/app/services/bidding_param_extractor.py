@@ -32,8 +32,11 @@ PARAM_PATTERNS: dict[str, list[str]] = {
         r'耐腐蚀.*?[≥≥]?\s*(\d{3,4})\s*(小时|h|H)',
         r'盐雾.*?不低于\s*(\d{3,4})\s*(小时|h)',
         r'盐雾.*?≥\s*(\d{3,4})\s*(小时|h)',
-        r'盐雾.*?(\d{3,4})\s*小时.*?盐雾',
-        r'(\d{3,4})\s*小时.*?盐雾',
+        r'盐雾.*?(\d{3,4})\s*(小时|h|H).*?盐雾',
+        r'(\d{3,4})\s*(小时|h|H).*?盐雾',
+        # 新增：数字紧跟"小时"无空格（表格/紧凑格式）
+        r'盐雾.*?[≥≥]?\s*(\d{3,4})(小时|h|H)',
+        r'不低于\s*(\d{3,4})(小时|h|H).*?盐雾',
     ],
     # --- 制造经验 ---
     "制造经验年限": [
@@ -49,6 +52,11 @@ PARAM_PATTERNS: dict[str, list[str]] = {
         r'具备.*?(\d+)\s*年.*?以上.*?制造',
         r'应.*?(\d+)\s*年.*?以上.*?制造',
         r'(\d+)\s*年.*?以上.*?制造.*?经验',
+        # 新增："至少 X 年...经验"、"X 年生产供应经验" 等E-11文件格式
+        r'至少\s*(\d+)\s*年.*?(?:经验|证明)',
+        r'专业生产.*?(\d+)\s*年.*?(?:经验|供应|生产)',
+        r'提供.*?(\d+)\s*年.*?(?:生产|供应|制造).*?经验',
+        r'(\d+)\s*年.*?(?:生产供应|制造|生产).*?经验',
     ],
     # --- 短时耐受电流 ---
     "短时耐受电流": [
@@ -111,18 +119,29 @@ PARAM_PATTERNS: dict[str, list[str]] = {
         r'烈度\s*(\d+)\s*度',
         r'抗震.*?设防.*?(\d+)\s*度',
         r'抗震.*?等级.*?(\d+)\s*级',
+        # 新增："9烈度"紧凑格式（框招文件）
+        r'不低于\s*(\d+)\s*烈度',
+        r'(\d+)\s*烈度',
+        r'抗震.*?设防.*?(\d+)\s*烈度',
     ],
     # --- 导率截面积 ---
     "导体截面积": [
-        r'[Ss].*?[≥≥]?\s*(\d+)\s*mm2',
-        r'截面积.*?[≥≥]?\s*(\d+)\s*mm2',
-        r'导体截面.*?[≥≥]?\s*(\d+)\s*mm2',
-        r'铜排截面.*?[≥≥]?\s*(\d+)\s*mm2',
+        r'[Ss].*?[≥≥]?\s*(\d{3,4})\s*(mm2|mm²|平方毫米)',
+        r'截面积.*?[≥≥]?\s*(\d{3,4})\s*(mm2|mm²|平方毫米)',
+        r'导体截面.*?[≥≥]?\s*(\d{3,4})\s*(mm2|mm²|平方毫米)',
+        r'铜排截面.*?[≥≥]?\s*(\d{3,4})\s*(mm2|mm²|平方毫米)',
+        # 新增：表格行格式（如 "1 800 ≥200 mm2"）及紧凑格式（≥Xmm2），要求3-4位数
+        r'[≥≥]\s*(\d{3,4})\s*(mm2|mm²|平方毫米)?',
+        r'截面积要求.*?[≥≥]?\s*(\d{3,4})\s*(mm2|mm²|平方毫米)?',
+        r'(?:单相母线容量|电流).*?(?:A|安).*?[≥≥]\s*(\d{3,4})',
     ],
     # --- 连接器力矩 ---
     "连接器力矩": [
-        r'(?:力矩|扭矩).*?[≥≥]?\s*(\d+\.?\d*)\s*(?:N\.m|N·m|Nm)',
-        r'(?:力矩螺栓|定扭矩).*?[≥≥]?\s*(\d+\.?\d*)\s*(?:N\.m|N·m|Nm)',
+        r'(?:力矩|扭矩).*?[≥≥]?\s*(\d+\.?\d*)\s*(N\.m|N·m|Nm|N\.M)',
+        r'(?:力矩螺栓|定扭矩).*?[≥≥]?\s*(\d+\.?\d*)\s*(N\.m|N·m|Nm|N\.M)',
+        # 新增："不应小于 72N.m" 等宽松格式
+        r'(?:不应小于|不低于|≥)\s*(\d+\.?\d*)\s*(N\.m|N·m|Nm|N\.M)',
+        r'额定压接力矩.*?(\d+\.?\d*)\s*(N\.m|N·m|Nm|N\.M)',
     ],
     # --- 额定工作电压 ---
     "额定工作电压": [
@@ -162,16 +181,22 @@ PARAM_PATTERNS: dict[str, list[str]] = {
 # ============================================================
 # 短时耐受电流和峰值耐受电流按安培分档提取
 # 用于从参数表中提取各电流档位的耐受值
+# 支持：表头顺序（容量 | 短时耐受kA | 峰值耐受kA）以及散文字句
 # ============================================================
 _AMPERE_PATTERN = re.compile(
-    r'(\d{3,4})\s*A.*?'
-    r'(?:短时耐受|Icw).*?[≥≥]?\s*(\d+)\s*(?:KA|kA)',
-    re.IGNORECASE,
+    r'(?:序号.*?)?(\d{3,4})\s*[Aa].*?'
+    r'(?:额定短时耐受|短时耐受|Icw)?.*?[≥≥]?\s*(\d{2,3})\s*(?:KA|kA|千安)',
+    re.IGNORECASE | re.DOTALL,
 )
 _PEAK_PATTERN = re.compile(
-    r'(\d{3,4})\s*A.*?'
-    r'(?:峰值耐受|峰值|Ipk).*?[≥≥]?\s*(\d+)\s*(?:KA|kA)',
-    re.IGNORECASE,
+    r'(?:序号.*?)?(\d{3,4})\s*[Aa].*?'
+    r'(?:额定峰值耐受|峰值耐受|峰值|Ipk)?.*?[≥≥]?\s*(\d{2,3})\s*(?:KA|kA|千安)',
+    re.IGNORECASE | re.DOTALL,
+)
+# 额外：表格行格式（容量 短时值 峰值值），从行尾回溯匹配
+_TABLE_ROW_AMPERE_PATTERN = re.compile(
+    r'^\s*\d+\s+(\d{3,4})\s+(\d{2,3})\s+(\d{2,3})\s*$',
+    re.MULTILINE,
 )
 
 
@@ -185,28 +210,44 @@ def _find_page(text: str, position: int) -> int:
 def _normalize_unit(unit: str) -> str:
     """标准化单位名称。"""
     unit_map = {
-        "h": "小时", "H": "小时",
+        "h": "小时", "H": "小时", "小时": "小时",
         "min": "分钟", "分钟": "分钟",
-        "小时": "小时", "年": "年",
+        "年": "年",
         "mm": "mm", "毫米": "mm",
         "米": "m", "m": "m",
-        "KA": "KA", "kA": "KA",
-        "V": "V",
+        "KA": "KA", "kA": "KA", "ka": "KA", "千安": "KA",
+        "V": "V", "v": "V",
+        "N.m": "N.m", "N·m": "N.m", "Nm": "N.m", "N.M": "N.m",
     }
     return unit_map.get(unit, unit)
 
 
 def _detect_operator(raw: str, match_start: int, match_end: int) -> str:
-    """检测运算符（≥, ≤, >, <, =, 范围）。"""
-    before = raw[max(0, match_start - 10):match_start]
-    if "≥" in before or ">=" in before or "不低于" in before or "不小于" in before:
+    """检测运算符（≥, ≤, >, <, =, 范围）。
+    搜索范围覆盖：匹配位置前50字符 + 匹配文本本身 + 匹配后20字符。
+    确保"至少/不低于/不应小于"等出现在匹配文本开头（如"至少 X 年"）时也能被捕捉。"""
+    # 把匹配文本本身也包含进搜索范围（正则可能以"至少/不低于"开头，match_start就是这些词）
+    search_start = max(0, match_start - 50)
+    search_end = min(len(raw), match_end + 20)
+    window = raw[search_start:search_end]
+    match_text = raw[match_start:match_end]
+    after = raw[match_end:search_end]
+
+    if ("≥" in window or ">=" in window or "不低于" in window or "不小于" in window
+            or "不应小于" in window or "至少" in window):
         return "≥"
-    if "≤" in before or "<=" in before or "不超过" in before or "不大于" in before:
+    if ("≤" in window or "<=" in window or "不超过" in window or "不大于" in window
+            or "不应大于" in window or "至多" in window or "最多" in window):
         return "≤"
-    if ">" in before:
+    if ">" in window:
         return ">"
-    if "<" in before:
+    if "<" in window:
         return "<"
+    # 检查后缀：如"5年以上"、"100小时以上"
+    if ("以上" in after or "不低于" in after):
+        return "≥"
+    if ("以下" in after or "不超过" in after or "以内" in after):
+        return "≤"
     return "="
 
 
@@ -236,6 +277,16 @@ def extract_all_params(text: str) -> dict[str, list[ExtractedParam]]:
                 except ValueError:
                     continue
 
+                # ---- 参数特定的合理性过滤 & 默认单位补齐 ----
+                # 导体截面积：合理范围 ≥100 mm2，小于的通常是误匹配表格序号（1,2,3...）
+                if param_name == "导体截面积" and value < 100:
+                    continue
+                # 制造经验年限：默认单位为"年"（多数正则未将年放入捕获组）
+                if param_name == "制造经验年限" and not unit:
+                    unit = "年"
+                # 抗震等级：烈度/级作为单位值，空单位的话保持空（不影响阈值比较）
+                # 盐雾/力矩/电压/电流 等已在正则中带捕获组，正常处理
+
                 # 去重
                 key = (value, unit)
                 if key in seen_values:
@@ -264,25 +315,56 @@ def extract_all_params(text: str) -> dict[str, list[ExtractedParam]]:
             results[param_name] = extracted
 
     # --- 额外提取：按安培分档的短时耐受和峰值耐受 ---
+    seen_amperes_short: set[int] = set()
     ampere_results: list[dict] = []
     for m in _AMPERE_PATTERN.finditer(text):
+        amp = int(m.group(1))
+        if amp in seen_amperes_short:
+            continue
+        seen_amperes_short.add(amp)
         ampere_results.append({
-            "ampere": int(m.group(1)),
+            "ampere": amp,
             "short_time_current": int(m.group(2)),
             "unit": "KA",
             "page": _find_page(text, m.start()),
         })
-    if ampere_results:
-        results["短时耐受电流_按安培"] = ampere_results  # type: ignore[assignment]
 
+    seen_amperes_peak: set[int] = set()
     peak_results: list[dict] = []
     for m in _PEAK_PATTERN.finditer(text):
+        amp = int(m.group(1))
+        if amp in seen_amperes_peak:
+            continue
+        seen_amperes_peak.add(amp)
         peak_results.append({
-            "ampere": int(m.group(1)),
+            "ampere": amp,
             "peak_current": int(m.group(2)),
             "unit": "KA",
             "page": _find_page(text, m.start()),
         })
+
+    # 表格行格式补充："序号 容量A 短时kA 峰值kA" 四列
+    for m in _TABLE_ROW_AMPERE_PATTERN.finditer(text):
+        amp = int(m.group(1))
+        if amp not in seen_amperes_short:
+            ampere_results.append({
+                "ampere": amp,
+                "short_time_current": int(m.group(2)),
+                "unit": "KA",
+                "page": _find_page(text, m.start()),
+            })
+            seen_amperes_short.add(amp)
+        if amp not in seen_amperes_peak:
+            peak_results.append({
+                "ampere": amp,
+                "peak_current": int(m.group(3)),
+                "unit": "KA",
+                "page": _find_page(text, m.start()),
+            })
+            seen_amperes_peak.add(amp)
+
+    if ampere_results:
+        results["短时耐受电流_按安培"] = ampere_results  # type: ignore[assignment]
     if peak_results:
         results["峰值耐受电流_按安培"] = peak_results  # type: ignore[assignment]
 
