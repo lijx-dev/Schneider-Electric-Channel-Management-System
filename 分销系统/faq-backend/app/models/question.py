@@ -46,6 +46,9 @@ class Question(Base, TimestampMixin):
     # 题目内容
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
+    # 题目配图URL列表（JSON数组），如 ["https://example.com/img1.jpg", ...]
+    image_urls: Mapped[Optional[List[Any]]] = mapped_column(JSON, nullable=True)
+
     # 选项：JSON 数组 ["选项A", "选项B", "选项C", "选项D"]
     # 单选/多选/判断有选项，填空/解答为 null
     options: Mapped[Optional[List[Any]]] = mapped_column(JSON, nullable=True)
@@ -87,6 +90,7 @@ class Question(Base, TimestampMixin):
             "id": self.id,
             "question_type": self.question_type,
             "content": self.content,
+            "image_urls": self.image_urls or [],
             "options": self.options,
             "difficulty": self.difficulty,
             "difficulty_label": self.difficulty_label,

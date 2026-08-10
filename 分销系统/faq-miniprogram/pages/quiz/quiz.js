@@ -295,6 +295,14 @@ Page({
     this.refreshDisplayOptions({ selectedAnswer: index });
   },
 
+  previewImage(e) {
+    const { urls, current } = e.currentTarget.dataset;
+    wx.previewImage({
+      urls,
+      current
+    });
+  },
+
   submitMultipleChoice() {
     if (this.data.showResult) return;
 
