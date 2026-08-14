@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     RAGFLOW_ENABLED: bool = True
     RAGFLOW_RETRIEVAL_TOP_K: int = 5
     RAGFLOW_SIMILARITY_THRESHOLD: float = 0.2
+    RAGFLOW_GRAYSCALE_RATIO: float = 0.0  # 0.0=全关，0.1=10%灰度，1.0=全量
 
     STORAGE_BACKEND: str = "local"
     COS_SECRET_ID: Optional[str] = None

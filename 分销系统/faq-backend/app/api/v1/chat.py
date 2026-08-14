@@ -76,6 +76,8 @@ async def chat_stream(
                 if isinstance(chunk, dict):
                     if chunk.get("type") == "meta":
                         yield f"data: {json.dumps({'message_id': chunk.get('message_id', '')}, ensure_ascii=False)}\n\n"
+                    elif chunk.get("type") == "sources":
+                        yield f"data: {json.dumps({'type': 'sources', 'data': chunk.get('data', [])}, ensure_ascii=False)}\n\n"
                     continue
 
                 yield f"data: {json.dumps({'chunk': chunk}, ensure_ascii=False)}\n\n"
@@ -176,6 +178,16 @@ async def chat_websocket(websocket: WebSocket):
                                 {
                                     "type": "meta",
                                     "message_id": chunk.get("message_id", ""),
+                                },
+                                ensure_ascii=False,
+                            )
+                        )
+                    elif chunk.get("type") == "sources":
+                        await websocket.send_text(
+                            json.dumps(
+                                {
+                                    "type": "sources",
+                                    "data": chunk.get("data", []),
                                 },
                                 ensure_ascii=False,
                             )

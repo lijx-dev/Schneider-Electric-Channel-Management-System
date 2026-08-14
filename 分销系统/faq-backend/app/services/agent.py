@@ -22,6 +22,7 @@ RAG 增强:
   RAGFLOW_ENABLED=true
 """
 import json
+import hashlib
 from typing import Any, AsyncGenerator
 
 import httpx
@@ -285,19 +286,44 @@ class HiAgentService:
 
         return full_answer, full_answer
 
-    # ── RAG 增强 ──────────────────────────────────────────────────
+    # ── RAG 增强 + 灰度 ──────────────────────────────────────────────
     @staticmethod
-    async def _build_rag_enhanced_query(user_message: str) -> str:
+    def _build_sources(chunks: list[dict]) -> list[dict]:
+        """将检索片段转为前端可展示的来源列表"""
+        sources = []
+        seen = set()
+        for c in chunks:
+            source = c.get("source", "未知来源")
+            if source in seen:
+                continue
+            seen.add(source)
+            sources.append({
+                "source": source,
+                "score": round(c.get("score", 0), 3),
+                "layer": c.get("layer", ""),
+            })
+        return sources
+
+    @staticmethod
+    async def _build_rag_enhanced_query(
+        user_message: str, user_id: str = "default_user"
+    ) -> tuple[str, list[dict]]:
         """
         从 RAGFlow 检索相关文档上下文，构建增强后的查询消息。
 
+        灰度逻辑：
+        - RAGFLOW_GRAYSCALE_RATIO=0.0 → 全关，所有用户走纯 HiAgent
+        - RAGFLOW_GRAYSCALE_RATIO=1.0 → 全量，所有用户走 RAG 增强
+        - 0.0 < ratio < 1.0 → 根据 user_id 哈希值判断是否启用
+
         降级策略：
         - RAGFLOW_ENABLED=False → 跳过检索
+        - 灰度未命中 → 跳过检索
         - RAGFlow API Key 未配置 → 跳过检索
         - 检索超时/网络错误 → 记录日志，返回原始消息
 
         Returns:
-            增强后的消息（含上下文）或原始消息（降级时）
+            (增强后的消息, 检索到的文档片段列表) 或 (原始消息, [])
         """
         try:
             from app.services.ragflow_retriever import get_retriever
@@ -305,7 +331,24 @@ class HiAgentService:
             retriever = get_retriever()
             if not retriever.enabled:
                 logger.info("ragflow_skip_disabled")
-                return user_message
+                return user_message, []
+
+            # 灰度判断
+            ratio = settings.RAGFLOW_GRAYSCALE_RATIO
+            if ratio <= 0.0:
+                logger.info("ragflow_skip_grayscale_off", ratio=ratio)
+                return user_message, []
+            if ratio < 1.0:
+                hash_val = int(hashlib.md5(user_id.encode()).hexdigest(), 16) % 100
+                threshold = int(ratio * 100)
+                if hash_val >= threshold:
+                    logger.info(
+                        "ragflow_skip_grayscale_miss",
+                        user_id=user_id,
+                        hash_val=hash_val,
+                        threshold=threshold,
+                    )
+                    return user_message, []
 
             chunks = await retriever.retrieve(
                 query=user_message,
@@ -325,18 +368,20 @@ class HiAgentService:
             else:
                 logger.info("ragflow_no_context_found")
 
-            return enhanced
+            return enhanced, chunks
 
         except Exception as e:
             logger.warning("ragflow_build_enhanced_failed", error=str(e))
-            return user_message
+            return user_message, []
 
     # ── 阻塞模式（保留兼容） ─────────────────────────────────────────
     @staticmethod
     async def _chat_internal(user_message: str, user_id: str, app_conv_id: str) -> tuple[int, dict]:
         """内部方法：执行一次阻塞式 HiAgent 请求，返回 (status, data)。"""
         # RAG 增强：检索相关文档上下文，注入到用户消息中
-        enhanced_message = await HiAgentService._build_rag_enhanced_query(user_message)
+        enhanced_message, rag_chunks = await HiAgentService._build_rag_enhanced_query(
+            user_message, user_id
+        )
 
         url = f"{HiAgentService._base_url()}/chat_query_v2"
         body = {
@@ -356,7 +401,7 @@ class HiAgentService:
             if resp.status_code != 200:
                 return resp.status_code, {
                     "reply": HiAgentService.USER_FACING_NETWORK_ERROR,
-                    "sources": [],
+                    "sources": HiAgentService._build_sources(rag_chunks),
                     "error_text": resp.text or "",
                 }
 
@@ -373,7 +418,7 @@ class HiAgentService:
             logger.info("hiagent_chat_success", reply_length=len(reply_text), message_id=message_id)
             return 200, {
                 "reply": reply_text or "（AI 未返回内容）",
-                "sources": [],
+                "sources": HiAgentService._build_sources(rag_chunks),
                 "message_id": message_id,
             }
 
@@ -454,7 +499,9 @@ class HiAgentService:
                 app_conv_id = await HiAgentService._ensure_conversation(user_id)
 
                 # RAG 增强：检索相关文档上下文，注入到用户消息中
-                enhanced_message = await HiAgentService._build_rag_enhanced_query(user_message)
+                enhanced_message, rag_chunks = await HiAgentService._build_rag_enhanced_query(
+                    user_message, user_id
+                )
 
                 url = f"{HiAgentService._base_url()}/chat_query_v2"
                 body = {
@@ -587,6 +634,10 @@ class HiAgentService:
                             total_length=len(prev_answer),
                             chunks=chunks_yielded,
                         )
+                        # 追加检索来源
+                        if rag_chunks:
+                            sources = HiAgentService._build_sources(rag_chunks)
+                            yield {"type": "sources", "data": sources}
                         return  # 成功完成，退出重试循环
 
             except httpx.TimeoutException:
