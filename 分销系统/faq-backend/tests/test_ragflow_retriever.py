@@ -7,12 +7,16 @@ RAGFlow 检索服务单元测试
 3. 增强消息构建（build_enhanced_message）
 4. 降级逻辑（禁用时跳过检索）
 5. 检索失败时不影响主流程
+6. 多知识库意图路由（route_intent）
+7. 多知识库检索合并与去重（_deduplicate_chunks）
+8. 知识库配置缺失时的降级处理
 """
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
 from app.services.ragflow_retriever import (
     RAGFlowRetriever,
+    KnowledgeBaseLayer,
     get_retriever,
     retrieve_context,
 )
@@ -294,3 +298,316 @@ class TestGetRetriever:
                 retriever = get_retriever()
                 from app.services.ragflow_retriever import RAGFlowRetriever
                 assert isinstance(retriever, RAGFlowRetriever)
+
+
+class TestRouteIntent:
+    """意图路由测试"""
+
+    def setup_method(self):
+        self.retriever = RAGFlowRetriever(
+            base_url="http://test:9380/api/v1",
+            api_key="test-key",
+            knowledge_base_id="test-kb-id",
+        )
+
+    def test_route_competitor_comparison(self):
+        """含"对比"关键词 → 友商层"""
+        assert self.retriever.route_intent("I-Line H 和 XAP-S 对比") == KnowledgeBaseLayer.COMPETITOR
+        assert self.retriever.route_intent("I-Line H vs XAP-C 区别") == KnowledgeBaseLayer.COMPETITOR
+        assert self.retriever.route_intent("哪个好") == KnowledgeBaseLayer.COMPETITOR
+
+    def test_route_competitor_brand(self):
+        """含友商品牌名 → 友商层"""
+        assert self.retriever.route_intent("威腾 Pro VS 参数") == KnowledgeBaseLayer.COMPETITOR
+        assert self.retriever.route_intent("ABB Lmax 怎么样") == KnowledgeBaseLayer.COMPETITOR
+        assert self.retriever.route_intent("伊顿产品") == KnowledgeBaseLayer.COMPETITOR
+
+    def test_route_talk(self):
+        """含话术关键词 → 话术层"""
+        assert self.retriever.route_intent("客户说价格贵怎么推荐") == KnowledgeBaseLayer.TALK
+        assert self.retriever.route_intent("如何介绍I-Line C") == KnowledgeBaseLayer.TALK
+        assert self.retriever.route_intent("销售话术") == KnowledgeBaseLayer.TALK
+
+    def test_route_general(self):
+        """含通用知识关键词 → 通用知识层"""
+        assert self.retriever.route_intent("安装步骤") == KnowledgeBaseLayer.GENERAL
+        assert self.retriever.route_intent("CCC认证") == KnowledgeBaseLayer.GENERAL
+        assert self.retriever.route_intent("温升计算") == KnowledgeBaseLayer.GENERAL
+        assert self.retriever.route_intent("现场测量指南") == KnowledgeBaseLayer.GENERAL
+
+    def test_route_default(self):
+        """无匹配关键词 → 返回 None（使用默认组合）"""
+        assert self.retriever.route_intent("I-Line H 630A") is None
+        assert self.retriever.route_intent("母线槽") is None
+        assert self.retriever.route_intent("什么") is None
+
+    def test_route_priority_competitor_first(self):
+        """友商规则优先级最高（先匹配）"""
+        # 同时含"对比"和"安装"时，应该优先匹配友商层
+        assert self.retriever.route_intent(
+            "对比安装方式"
+        ) == KnowledgeBaseLayer.COMPETITOR
+
+    def test_route_case_insensitive(self):
+        """关键词匹配不区分大小写"""
+        assert self.retriever.route_intent("VS 对比") == KnowledgeBaseLayer.COMPETITOR
+        assert self.retriever.route_intent("EATON") == KnowledgeBaseLayer.COMPETITOR
+
+
+class TestDeduplicateChunks:
+    """去重测试"""
+
+    def setup_method(self):
+        self.retriever = RAGFlowRetriever(
+            base_url="http://test:9380/api/v1",
+            api_key="test-key",
+            knowledge_base_id="test-kb-id",
+        )
+
+    def test_deduplicate_identical_content(self):
+        """相同内容去重，保留高分"""
+        chunks = [
+            {"content": "Icw=30 kA", "source": "a.pdf", "score": 0.95},
+            {"content": "Icw=30 kA", "source": "b.pdf", "score": 0.82},
+        ]
+        result = self.retriever._deduplicate_chunks(chunks)
+        assert len(result) == 1
+        assert result[0]["score"] == 0.95
+
+    def test_deduplicate_different_content(self):
+        """不同内容不去重"""
+        chunks = [
+            {"content": "Icw=30 kA", "source": "a.pdf", "score": 0.95},
+            {"content": "Ipk=63 kA", "source": "b.pdf", "score": 0.82},
+        ]
+        result = self.retriever._deduplicate_chunks(chunks)
+        assert len(result) == 2
+
+    def test_deduplicate_long_content(self):
+        """长内容用前200字符作为去重key"""
+        long1 = "A" * 300 + " differ"
+        long2 = "A" * 300 + " other"
+        chunks = [
+            {"content": long1, "source": "a.pdf", "score": 0.95},
+            {"content": long2, "source": "b.pdf", "score": 0.82},
+        ]
+        result = self.retriever._deduplicate_chunks(chunks)
+        # 前200字符相同，应去重
+        assert len(result) == 1
+
+    def test_deduplicate_empty_content_skipped(self):
+        """空内容被跳过"""
+        chunks = [
+            {"content": "", "source": "a.pdf", "score": 0.95},
+            {"content": "valid", "source": "b.pdf", "score": 0.82},
+        ]
+        result = self.retriever._deduplicate_chunks(chunks)
+        assert len(result) == 1
+        assert result[0]["content"] == "valid"
+
+    def test_deduplicate_empty_list(self):
+        """空列表返回空"""
+        result = self.retriever._deduplicate_chunks([])
+        assert result == []
+
+
+class TestMultiKbRetrieve:
+    """多知识库检索测试"""
+
+    @pytest.mark.asyncio
+    async def test_retrieve_disabled(self):
+        """未启用时返回空"""
+        retriever = RAGFlowRetriever(
+            base_url="http://test:9380/api/v1",
+            api_key="",
+            knowledge_base_id="",
+        )
+        chunks = await retriever.retrieve("test")
+        assert chunks == []
+
+    @pytest.mark.asyncio
+    async def test_retrieve_no_kb_ids(self):
+        """所有知识库都未配置时返回空"""
+        with patch("app.services.ragflow_retriever.settings") as mock_settings:
+            mock_settings.RAGFLOW_ENABLED = True
+            mock_settings.RAGFLOW_API_KEY = "test-key"
+            mock_settings.RAGFLOW_KNOWLEDGE_BASE_ID = None
+            mock_settings.RAGFLOW_TALK_KB_ID = None
+            mock_settings.RAGFLOW_COMPETITOR_KB_ID = None
+            mock_settings.RAGFLOW_GENERAL_KB_ID = None
+
+            retriever = RAGFlowRetriever(
+                base_url="http://test:9380/api/v1",
+                api_key="test-key",
+                knowledge_base_id="",
+            )
+            chunks = await retriever.retrieve("test")
+            assert chunks == []
+
+    @pytest.mark.asyncio
+    async def test_retrieve_with_competitor_intent(self):
+        """竞品意图时优先检索友商层"""
+        with patch("app.services.ragflow_retriever.settings") as mock_settings:
+            mock_settings.RAGFLOW_ENABLED = True
+            mock_settings.RAGFLOW_API_KEY = "test-key"
+            mock_settings.RAGFLOW_KNOWLEDGE_BASE_ID = "fact-kb"
+            mock_settings.RAGFLOW_COMPETITOR_KB_ID = "competitor-kb"
+            mock_settings.RAGFLOW_GENERAL_KB_ID = "general-kb"
+
+            retriever = RAGFlowRetriever(
+                base_url="http://test:9380/api/v1",
+                api_key="test-key",
+                knowledge_base_id="fact-kb",
+            )
+
+            # Mock _retrieve_from_dataset
+            async def mock_retrieve(dataset_id, query, top_k, threshold, keyword):
+                if dataset_id == "competitor-kb":
+                    return [{
+                        "content": "I-Line H vs XAP-S: Icw 30 vs 25 kA",
+                        "source": "对比文档.md",
+                        "score": 0.95,
+                    }]
+                elif dataset_id == "fact-kb":
+                    return [{
+                        "content": "I-Line H 630A Icw=30 kA",
+                        "source": "H样本.pdf",
+                        "score": 0.85,
+                    }]
+                return []
+
+            with patch.object(retriever, "_retrieve_from_dataset", side_effect=mock_retrieve):
+                chunks = await retriever.retrieve("I-Line H vs XAP-S 对比")
+
+            assert len(chunks) >= 1
+            # 友商层结果优先（得分高）
+            assert chunks[0]["layer"] == "competitor"
+
+    @pytest.mark.asyncio
+    async def test_retrieve_with_talk_intent(self):
+        """话术意图时优先检索话术层"""
+        with patch("app.services.ragflow_retriever.settings") as mock_settings:
+            mock_settings.RAGFLOW_ENABLED = True
+            mock_settings.RAGFLOW_API_KEY = "test-key"
+            mock_settings.RAGFLOW_KNOWLEDGE_BASE_ID = "fact-kb"
+            mock_settings.RAGFLOW_TALK_KB_ID = "talk-kb"
+            mock_settings.RAGFLOW_GENERAL_KB_ID = "general-kb"
+
+            retriever = RAGFlowRetriever(
+                base_url="http://test:9380/api/v1",
+                api_key="test-key",
+                knowledge_base_id="fact-kb",
+            )
+
+            async def mock_retrieve(dataset_id, query, top_k, threshold, keyword):
+                if dataset_id == "talk-kb":
+                    return [{
+                        "content": "客户说价格贵：强调全生命周期成本优势",
+                        "source": "talk-I-Line-C-话术指南.md",
+                        "score": 0.92,
+                    }]
+                return []
+
+            with patch.object(retriever, "_retrieve_from_dataset", side_effect=mock_retrieve):
+                chunks = await retriever.retrieve("客户说价格贵怎么推荐")
+
+            assert len(chunks) >= 1
+            assert chunks[0]["layer"] == "talk"
+
+    @pytest.mark.asyncio
+    async def test_retrieve_fallback_to_default(self):
+        """无意图匹配时使用默认组合（事实层 + 通用知识层）"""
+        with patch("app.services.ragflow_retriever.settings") as mock_settings:
+            mock_settings.RAGFLOW_ENABLED = True
+            mock_settings.RAGFLOW_API_KEY = "test-key"
+            mock_settings.RAGFLOW_KNOWLEDGE_BASE_ID = "fact-kb"
+            mock_settings.RAGFLOW_GENERAL_KB_ID = "general-kb"
+
+            retriever = RAGFlowRetriever(
+                base_url="http://test:9380/api/v1",
+                api_key="test-key",
+                knowledge_base_id="fact-kb",
+            )
+
+            async def mock_retrieve(dataset_id, query, top_k, threshold, keyword):
+                if dataset_id == "fact-kb":
+                    return [{
+                        "content": "I-Line H 630A 参数",
+                        "source": "H样本.pdf",
+                        "score": 0.88,
+                    }]
+                return []
+
+            with patch.object(retriever, "_retrieve_from_dataset", side_effect=mock_retrieve):
+                chunks = await retriever.retrieve("I-Line H 630A")
+
+            assert len(chunks) >= 1
+            assert chunks[0]["layer"] == "fact"
+
+    @pytest.mark.asyncio
+    async def test_retrieve_dedup_across_kbs(self):
+        """跨知识库重复内容去重"""
+        with patch("app.services.ragflow_retriever.settings") as mock_settings:
+            mock_settings.RAGFLOW_ENABLED = True
+            mock_settings.RAGFLOW_API_KEY = "test-key"
+            mock_settings.RAGFLOW_KNOWLEDGE_BASE_ID = "fact-kb"
+            mock_settings.RAGFLOW_TALK_KB_ID = "talk-kb"
+
+            retriever = RAGFlowRetriever(
+                base_url="http://test:9380/api/v1",
+                api_key="test-key",
+                knowledge_base_id="fact-kb",
+            )
+
+            async def mock_retrieve(dataset_id, query, top_k, threshold, keyword):
+                if dataset_id == "talk-kb":
+                    return [{
+                        "content": "I-Line C 防护等级 IP54",
+                        "source": "talk-I-Line-C-话术指南.md",
+                        "score": 0.92,
+                    }]
+                elif dataset_id == "fact-kb":
+                    return [{
+                        "content": "I-Line C 防护等级 IP54",
+                        "source": "I-Line C样本.pdf",
+                        "score": 0.78,
+                    }]
+                return []
+
+            with patch.object(retriever, "_retrieve_from_dataset", side_effect=mock_retrieve):
+                chunks = await retriever.retrieve("客户说防护等级")
+
+            # 相同内容应去重，保留高分
+            assert len(chunks) == 1
+            assert chunks[0]["score"] == 0.92
+
+
+class TestFormatContextWithLayer:
+    """format_context 多层级标签测试"""
+
+    def setup_method(self):
+        self.retriever = RAGFlowRetriever(
+            base_url="http://test:9380/api/v1",
+            api_key="test-key",
+            knowledge_base_id="test-kb-id",
+        )
+
+    def test_format_context_with_layer_labels(self):
+        """不同层级的知识库标签正确显示"""
+        chunks = [
+            {"content": "Icw=30 kA", "source": "H样本.pdf", "score": 0.95, "layer": "fact"},
+            {"content": "话术内容", "source": "talk-I-Line-C.md", "score": 0.85, "layer": "talk"},
+            {"content": "对比数据", "source": "competitor-对比-XAP-S.md", "score": 0.80, "layer": "competitor"},
+        ]
+        context = self.retriever.format_context(chunks, max_chunks=5)
+        assert "事实层" in context
+        assert "话术层" in context
+        assert "友商层" in context
+
+    def test_format_context_unknown_layer(self):
+        """未知层级标签显示原始值"""
+        chunks = [
+            {"content": "test", "source": "test.md", "score": 0.5, "layer": "unknown"},
+        ]
+        context = self.retriever.format_context(chunks, max_chunks=5)
+        assert "unknown" in context

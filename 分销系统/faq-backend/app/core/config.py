@@ -41,7 +41,11 @@ class Settings(BaseSettings):
     # RAGFlow 文档检索引擎配置
     RAGFLOW_API_BASE: str = "http://localhost:9380/api/v1"
     RAGFLOW_API_KEY: Optional[str] = None
-    RAGFLOW_KNOWLEDGE_BASE_ID: Optional[str] = None
+    # 知识库 ID：事实层（PDF 电气参数）、话术层、友商层、通用知识层
+    RAGFLOW_KNOWLEDGE_BASE_ID: Optional[str] = None           # 事实层（默认）
+    RAGFLOW_TALK_KB_ID: Optional[str] = None                  # 话术层
+    RAGFLOW_COMPETITOR_KB_ID: Optional[str] = None            # 友商层
+    RAGFLOW_GENERAL_KB_ID: Optional[str] = None               # 通用知识层
     RAGFLOW_ENABLED: bool = True
     RAGFLOW_RETRIEVAL_TOP_K: int = 5
     RAGFLOW_SIMILARITY_THRESHOLD: float = 0.2
