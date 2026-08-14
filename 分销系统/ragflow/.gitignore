@@ -1,0 +1,9 @@
+# Docker data directories (large, auto-generated)
+mysql-data/
+elasticsearch-data/
+redis-data/
+minio-data/
+
+# Python cache
+__pycache__/
+*.pyc

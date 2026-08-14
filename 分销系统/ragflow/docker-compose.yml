@@ -1,0 +1,128 @@
+# RAGFlow 部署配置 — 施耐德分销商知识库
+# 版本：RAGFlow v0.17.0 (full 版)
+# Web UI: http://localhost:8080
+# API:     http://localhost:9380
+
+services:
+  ragflow:
+    image: infiniflow/ragflow:v0.17.0
+    container_name: ragflow-server
+    restart: unless-stopped
+    ports:
+      - "8080:80"       # Web UI
+      - "9380:9380"     # API
+    volumes:
+      - ./ragflow-data:/ragflow/rag_data
+      - ./ragflow-logs:/ragflow/logs
+    environment:
+      - TZ=Asia/Shanghai
+      - HF_ENDPOINT=https://hf-mirror.com
+      # 数据库连接
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=infini_rag_flow
+      - MYSQL_DB=rag_flow
+      # Elasticsearch
+      - ES_HOST=es
+      - ES_PORT=9200
+      - ES_USER=
+      - ES_PASSWORD=
+      # Redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=infini_rag_flow
+      # MinIO (对象存储)
+      - MINIO_HOST=minio
+      - MINIO_PORT=9000
+      - MINIO_USER=minioadmin
+      - MINIO_PASSWORD=minioadmin
+      # 服务端口
+      - SVR_HTTP_PORT=9380
+    depends_on:
+      mysql:
+        condition: service_healthy
+      es:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+    networks:
+      - ragflow-net
+
+  mysql:
+    image: mysql:8.0
+    container_name: ragflow-mysql
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=infini_rag_flow
+      - MYSQL_DATABASE=rag_flow
+      - TZ=Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max_allowed_packet=256M
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pinfini_rag_flow"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - ragflow-net
+
+  es:
+    image: elasticsearch:8.11.3
+    container_name: ragflow-es
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - TZ=Asia/Shanghai
+    ports:
+      - "9200:9200"
+    volumes:
+      - ./es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+    networks:
+      - ragflow-net
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: ragflow-redis
+    restart: unless-stopped
+    command: redis-server --requirepass infini_rag_flow
+    ports:
+      - "6379:6379"
+    networks:
+      - ragflow-net
+
+  minio:
+    image: minio/minio:RELEASE.2025-02-28T09-55-16Z
+    container_name: ragflow-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+      - TZ=Asia/Shanghai
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./minio-data:/data
+    networks:
+      - ragflow-net
+
+networks:
+  ragflow-net:
+    driver: bridge

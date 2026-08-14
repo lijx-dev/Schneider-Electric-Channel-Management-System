@@ -9,9 +9,17 @@ AI Agent 服务 - 对接 HiAgent API（火山引擎 Volcengine）
   - blocking: 等 AI 生成完一次性返回（chat 方法）
   - streaming: SSE 流式返回，逐字输出（chat_stream 方法）
 
+RAG 增强:
+  在调用 HiAgent 之前，先从 RAGFlow 检索相关文档片段，
+  将检索结果作为上下文注入到用户消息中，提升回答精度。
+
 .env 配置:
   HIAGENT_API_BASE=https://hiagent-stg.schneider-electric.cn/api/proxy/api/v1
   HIAGENT_API_KEY=your-hiagent-api-key
+  RAGFLOW_API_BASE=http://localhost:9380/api/v1
+  RAGFLOW_API_KEY=your-ragflow-api-key
+  RAGFLOW_KNOWLEDGE_BASE_ID=your-knowledge-base-id
+  RAGFLOW_ENABLED=true
 """
 import json
 from typing import Any, AsyncGenerator
@@ -277,13 +285,62 @@ class HiAgentService:
 
         return full_answer, full_answer
 
+    # ── RAG 增强 ──────────────────────────────────────────────────
+    @staticmethod
+    async def _build_rag_enhanced_query(user_message: str) -> str:
+        """
+        从 RAGFlow 检索相关文档上下文，构建增强后的查询消息。
+
+        降级策略：
+        - RAGFLOW_ENABLED=False → 跳过检索
+        - RAGFlow API Key 未配置 → 跳过检索
+        - 检索超时/网络错误 → 记录日志，返回原始消息
+
+        Returns:
+            增强后的消息（含上下文）或原始消息（降级时）
+        """
+        try:
+            from app.services.ragflow_retriever import get_retriever
+
+            retriever = get_retriever()
+            if not retriever.enabled:
+                logger.info("ragflow_skip_disabled")
+                return user_message
+
+            chunks = await retriever.retrieve(
+                query=user_message,
+                top_k=settings.RAGFLOW_RETRIEVAL_TOP_K,
+                similarity_threshold=settings.RAGFLOW_SIMILARITY_THRESHOLD,
+                use_keyword=True,
+            )
+
+            enhanced = retriever.build_enhanced_message(user_message, chunks)
+            if enhanced != user_message:
+                logger.info(
+                    "ragflow_context_injected",
+                    chunk_count=len(chunks),
+                    query_length=len(user_message),
+                    enhanced_length=len(enhanced),
+                )
+            else:
+                logger.info("ragflow_no_context_found")
+
+            return enhanced
+
+        except Exception as e:
+            logger.warning("ragflow_build_enhanced_failed", error=str(e))
+            return user_message
+
     # ── 阻塞模式（保留兼容） ─────────────────────────────────────────
     @staticmethod
     async def _chat_internal(user_message: str, user_id: str, app_conv_id: str) -> tuple[int, dict]:
         """内部方法：执行一次阻塞式 HiAgent 请求，返回 (status, data)。"""
+        # RAG 增强：检索相关文档上下文，注入到用户消息中
+        enhanced_message = await HiAgentService._build_rag_enhanced_query(user_message)
+
         url = f"{HiAgentService._base_url()}/chat_query_v2"
         body = {
-            "Query": user_message,
+            "Query": enhanced_message,
             "AppConversationID": app_conv_id,
             "ResponseMode": "blocking",
             "UserID": user_id,
@@ -396,9 +453,12 @@ class HiAgentService:
             try:
                 app_conv_id = await HiAgentService._ensure_conversation(user_id)
 
+                # RAG 增强：检索相关文档上下文，注入到用户消息中
+                enhanced_message = await HiAgentService._build_rag_enhanced_query(user_message)
+
                 url = f"{HiAgentService._base_url()}/chat_query_v2"
                 body = {
-                    "Query": user_message,
+                    "Query": enhanced_message,
                     "AppConversationID": app_conv_id,
                     "ResponseMode": "streaming",
                     "UserID": user_id,

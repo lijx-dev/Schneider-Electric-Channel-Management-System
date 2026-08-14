@@ -38,6 +38,14 @@ class Settings(BaseSettings):
     HIAGENT_LIKE_TYPE: int = 1
     HIAGENT_DISLIKE_TYPE: int = -1
 
+    # RAGFlow 文档检索引擎配置
+    RAGFLOW_API_BASE: str = "http://localhost:9380/api/v1"
+    RAGFLOW_API_KEY: Optional[str] = None
+    RAGFLOW_KNOWLEDGE_BASE_ID: Optional[str] = None
+    RAGFLOW_ENABLED: bool = True
+    RAGFLOW_RETRIEVAL_TOP_K: int = 5
+    RAGFLOW_SIMILARITY_THRESHOLD: float = 0.2
+
     STORAGE_BACKEND: str = "local"
     COS_SECRET_ID: Optional[str] = None
     COS_SECRET_KEY: Optional[str] = None
