@@ -12,7 +12,7 @@ Page({
     loading: true,
     submitted: false,
     specialistList: [],
-    surveyMonth: '',
+    surveyQuarter: '',
     // 评分数据 { specialist_id: { efficiency, response, training, communication } }
     scores: {},
     submitting: false
@@ -38,7 +38,7 @@ Page({
         submitted: result.submitted,
         specialistList,
         scores,
-        surveyMonth: result.survey_month
+        surveyQuarter: result.survey_quarter
       });
     } catch (err) {
       console.error('Load survey status error:', err);
@@ -104,7 +104,7 @@ Page({
           method: 'POST',
           data: {
             target_id: sp.specialist_id,
-            survey_month: this.data.surveyMonth,
+            survey_quarter: this.data.surveyQuarter,
             score_efficiency: spScores.efficiency || 0,
             score_response: spScores.response || 0,
             score_training: spScores.training || 0,

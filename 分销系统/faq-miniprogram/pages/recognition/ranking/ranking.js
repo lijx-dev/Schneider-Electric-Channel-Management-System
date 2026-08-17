@@ -46,13 +46,6 @@ Page({
     }
   },
 
-  getRankBadge(rank) {
-    if (rank === 1) return { text: '金', class: 'rank-gold' };
-    if (rank === 2) return { text: '银', class: 'rank-silver' };
-    if (rank === 3) return { text: '铜', class: 'rank-bronze' };
-    return null;
-  },
-
   getAwardTypeName(type) {
     const map = {
       monthly_star: '微光之星',

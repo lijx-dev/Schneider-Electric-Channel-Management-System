@@ -345,7 +345,10 @@ Page({
         retryCount: 0
       });
       const today = new Date();
-      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      // 季度末最后3个工作日显示评分提醒
+      const currentMonth = today.getMonth() + 1;
+      const quarterEndMonth = Math.ceil(currentMonth / 3) * 3;
+      const lastDay = new Date(today.getFullYear(), quarterEndMonth, 0);
       let workdaysLeft = 0;
       const checkDay = new Date(lastDay);
       while (workdaysLeft < 3) {

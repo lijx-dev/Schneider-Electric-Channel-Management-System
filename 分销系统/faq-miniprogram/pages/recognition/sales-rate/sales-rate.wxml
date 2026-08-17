@@ -1,7 +1,7 @@
 <view class="page">
   <view class="header">
     <text class="header-title">专员满意度评分</text>
-    <text class="header-desc" wx:if="{{surveyMonth}}">评分月份：{{surveyMonth}}</text>
+    <text class="header-desc" wx:if="{{surveyQuarter}}">评分季度：{{surveyQuarter}}</text>
   </view>
 
   <view wx:if="{{loading}}" class="loading-wrap">
@@ -12,7 +12,7 @@
     <view class="submitted-icon-wrap">
       <text class="submitted-icon">✅</text>
     </view>
-    <text class="submitted-title">本月已提交</text>
+    <text class="submitted-title">本季度已提交</text>
     <text class="submitted-desc">感谢您的反馈，评分已记录</text>
   </view>
 

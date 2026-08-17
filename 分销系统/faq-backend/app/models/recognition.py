@@ -55,7 +55,7 @@ class RecognitionSurvey(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     rater_id: Mapped[str] = mapped_column(String(36), nullable=False)
     target_id: Mapped[str] = mapped_column(String(36), nullable=False)
-    survey_month: Mapped[str] = mapped_column(String(7), nullable=False)
+    survey_quarter: Mapped[str] = mapped_column(String(7), nullable=False)
     score_efficiency: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     score_response: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     score_training: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -63,8 +63,8 @@ class RecognitionSurvey(Base):
     submitted_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     __table_args__ = (
-        UniqueConstraint("rater_id", "target_id", "survey_month", name="uq_survey_rater_target_month"),
-        Index("ix_surveys_month_target", "survey_month", "target_id"),
+        UniqueConstraint("rater_id", "target_id", "survey_quarter", name="uq_survey_rater_target_quarter"),
+        Index("ix_surveys_quarter_target", "survey_quarter", "target_id"),
     )
 
 

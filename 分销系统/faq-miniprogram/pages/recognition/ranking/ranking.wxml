@@ -10,10 +10,7 @@
       <view class="ranking-list">
         <view wx:for="{{pointsRanking}}" wx:key="user_id" class="ranking-item">
           <view class="rank-num-wrap">
-            <view wx:if="{{item.rank <= 3}}" class="rank-badge {{item.rank === 1 ? 'rank-gold' : (item.rank === 2 ? 'rank-silver' : 'rank-bronze')}}">
-              <text>{{item.rank === 1 ? '金' : (item.rank === 2 ? '银' : '铜')}}</text>
-            </view>
-            <text wx:else class="rank-num">{{item.rank}}</text>
+            <text class="rank-num">{{item.rank}}</text>
           </view>
           <view class="ranking-info">
             <text class="ranking-name">{{item.user_name}}</text>

@@ -56,7 +56,7 @@
   <!-- 月度评选 -->
   <div class="rec-section">
     <div class="rec-section-head">
-      <h3>月度评选</h3>
+      <h3>月度评选（微光之星 + 季度销圈人气王）</h3>
       <div style="display:flex;align-items:center;gap:10px;">
         <label style="display:flex;align-items:center;gap:6px;margin:0;">
           <span>月份</span>
@@ -302,7 +302,7 @@
       <h3>评分明细导出</h3>
       <p>导出销售评分明细数据。</p>
       <div class="filters">
-        <label><span>月份</span><input id="recExportSurveyMonth" type="month"></label>
+        <label><span>季度</span><input id="recExportSurveyQuarter" type="text" placeholder="yyyy-Qn" style="width:120px;"></label>
       </div>
       <button class="primary-btn" id="recExportSurveysBtn">导出评分明细 Excel</button>
     </div>
@@ -538,13 +538,14 @@
   // 设置默认月份
   var now = new Date();
   var defaultMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  var defaultQuarter = now.getFullYear() + '-Q' + Math.ceil((now.getMonth() + 1) / 3);
   if (recEl('recMonthlyMonth')) recEl('recMonthlyMonth').value = defaultMonth;
   if (recEl('recQuarterlyYear')) recEl('recQuarterlyYear').value = now.getFullYear();
   var q = Math.ceil((now.getMonth() + 1) / 3);
   if (recEl('recQuarterlyQuarter')) recEl('recQuarterlyQuarter').value = String(q);
   if (recEl('recAnnualYear')) recEl('recAnnualYear').value = now.getFullYear();
   if (recEl('recExportNomMonth')) recEl('recExportNomMonth').value = defaultMonth;
-  if (recEl('recExportSurveyMonth')) recEl('recExportSurveyMonth').value = defaultMonth;
+  if (recEl('recExportSurveyQuarter')) recEl('recExportSurveyQuarter').value = defaultQuarter;
   if (recEl('recExportAwardYear')) recEl('recExportAwardYear').value = now.getFullYear();
 
   // ==================== Tab 1: 审核申报 ====================
@@ -706,7 +707,7 @@
   }
 
   async function recCalcMonthly() {
-    if (!confirm('确定要计算' + recEl('recMonthlyMonth').value + '的月度评选吗？将自动计算微光之星和销圈人气王。')) return;
+    if (!confirm('确定要计算' + recEl('recMonthlyMonth').value + '的月度评选吗？将自动计算微光之星和当季销圈人气王。')) return;
     try {
       var data = await request(REC_API + '/awards/calculate-monthly', {
         method: 'POST',
@@ -1170,8 +1171,8 @@
 
   async function recExportSurveys() {
     try {
-      await downloadFile(REC_API + '/surveys/export?month=' + encodeURIComponent(recEl('recExportSurveyMonth').value),
-        '评分明细-' + recEl('recExportSurveyMonth').value + '.xlsx');
+      await downloadFile(REC_API + '/surveys/export?quarter=' + encodeURIComponent(recEl('recExportSurveyQuarter').value),
+        '评分明细-' + recEl('recExportSurveyQuarter').value + '.xlsx');
     } catch (e) { alert('导出失败：' + e.message); }
   }
 
