@@ -7,7 +7,7 @@
 
 ## 1. 项目概述
 
-"分销商学堂" 是面向施耐德电气分销商的移动端培训与学习系统，基于微信小程序构建，提供答题闯关、积分排行、能量商城、AI 智能问答（知识库 RAG 增强）、招标文件分析等核心功能。
+"分销商学堂" 是面向施耐德电气分销商的移动端培训与学习系统，基于微信小程序构建，提供答题闯关、积分排行、能量商城、AI 智能问答（知识库 RAG 增强）、招标文件分析、认可计划（内部积分评选）等核心功能。
 
 | 属性 | 值 |
 |------|-----|
@@ -74,6 +74,8 @@
 | `backcontrol/` | 原生 HTML + CSS + Vanilla JS | 独立管理后台，可本地打开 |
 | `app/static/admin/` | 同上 | 内嵌于后端，通过 `/admin` 路由访问 |
 
+内嵌后台 Tab：公司排行榜、全员排行榜、学员能量统计、账户管理、兑换订单、奖励记录、答题参与统计、舍得每周排行榜、认可计划管理（`recognition.html` 独立页）。
+
 ---
 
 ## 3. 目录结构详解
@@ -121,7 +123,7 @@
 │   │   ├── models/              # 数据库模型
 │   │   │   ├── user.py          # 用户表（含 bidding_whitelisted, recognition 字段）
 │   │   │   ├── question.py      # 题目表 (5种题型)
-│   │   │   ├── record.py        # 答题记录
+│   │   │   ├── record.py        # 答题记录 (source=daily/bank, quiz_date) + DailyQuizRound 每周题库
 │   │   │   ├── energy.py        # 能量交易 + 兑换记录
 │   │   │   ├── energy_product.py # 能量商城商品
 │   │   │   ├── certificate.py   # 证书记录
@@ -150,7 +152,7 @@
 │   │   │   ├── monthly_leaderboard.py # 月度排行服务
 │   │   │   └── monthly_reward_scheduler.py # 月度奖励定时调度
 │   │   ├── static/
-│   │   │   ├── admin/           # 内嵌管理后台
+│   │   │   ├── admin/           # 内嵌管理后台 (index.html + recognition.html)
 │   │   │   ├── avatars/         # 用户头像
 │   │   │   └── bidding-docs/    # 投标文件资源库 (21个PDF)
 │   │   └── utils/
@@ -172,7 +174,7 @@
 │   │   ├── env.js               # 环境配置
 │   │   └── runtime.js           # 运行时配置解析
 │   ├── pages/
-│   │   ├── shouye_Home_Dashboard_Green/  # Tab1: 首页仪表盘
+│   │   ├── shouye_Home_Dashboard_Green/  # Tab1: 首页仪表盘 (含 weeklyQuizBadge 周答题徽章)
 │   │   ├── zhinengwenda_AI_Assistant_Green/ # Tab2: AI 问答
 │   │   ├── energy-mall/         # Tab3: 能量商城
 │   │   ├── wode_User_Profile_Green/      # Tab4: 个人中心
@@ -186,12 +188,19 @@
 │   │   ├── knowledge/           # 知识库
 │   │   ├── login/               # 登录
 │   │   ├── register/            # 注册
+│   │   ├── legal/terms + legal/privacy   # 服务条款 / 隐私政策
 │   │   ├── profile-edit/        # 编辑资料
 │   │   ├── redeem-record/       # 兑换记录
 │   │   ├── reward-record/       # 奖励记录
 │   │   ├── studyRecord/         # 学习记录
 │   │   ├── help-center/         # 帮助中心
-│   │   └── about-academy/       # 关于学堂
+│   │   ├── about-academy/       # 关于学堂
+│   │   └── recognition/         # ★ 认可计划 (2026-08 新增，见 6.7)
+│   │       ├── submit/          # 申报类型入口
+│   │       ├── submit-form/     # 申报表单
+│   │       ├── sales-rate/      # 销售满意度评分
+│   │       ├── my-awards/       # 我的获奖/积分
+│   │       └── ranking/         # 认可排行
 │   └── images/                  # 图标资源
 │
 ├── ragflow/                     # ★ RAGFlow 知识库引擎 (2026-08 新增)
@@ -288,8 +297,17 @@
 | knowledge | `/api/knowledge` | 知识库 |
 | distributor_data | `/api/distributor` | 省份/公司数据 |
 | upload | `/api/upload` | 文件上传 |
-| recognition | `/api/recognition` | 表彰系统 |
-| bidding | `/api/bidding` | 招标文件分析（三种接口） |
+| recognition | `/api/recognition` | 认可计划（申报/评分/评选/积分） |
+| bidding | `/api/bidding` | 招标文件分析（extract/analyze/upload） |
+
+### 4.2.1 管理后台报告接口 (`/api/admin/`)
+
+| 接口 | 说明 |
+|------|------|
+| `/reports/quiz-participation/weekly` + `/export` | 答题参与周报（按周次聚合，可导出 Excel） |
+| `/reports/quiz-participation/monthly` + `/export` | 答题参与月报 |
+| `/reports/quiz-participation/all/export` | 全部参与记录导出 |
+| `/reports/suzhou-shede-weekly-quiz` + `/export` | 苏州舍得每周答题排行榜（见 6.8） |
 
 ### 4.3 小程序入口 `faq-miniprogram/app.js`
 
@@ -388,8 +406,12 @@ if (app.consumeDataDirty('energy')) {  // 消费标记
 
 ### 5.8 认证依赖注入
 
+`get_current_user_id` 支持**双 token 验证**（`app/api/deps.py`）：
+1. 小程序用户 token（`sub = user UUID`，SECRET_KEY 签发）
+2. 后台管理员 token（`sub = login_username`，ADMIN_SECRET_KEY 签发）
+
 ```python
-from app.api.deps import get_current_user_id, require_bidding_whitelist
+from app.api.deps import get_current_user_id, require_bidding_whitelist, require_manager_role
 
 @router.get("/profile")
 async def get_profile(
@@ -403,7 +425,16 @@ async def analyze(
     current_user_id: str = Depends(require_bidding_whitelist),
 ):
     ...
+
+# 认可计划角色校验 (2026-08 新增)
+@router.get("/recognition/rules")
+async def get_rules(
+    user_id: str = Depends(require_manager_role),
+):
+    ...
 ```
+
+可用角色依赖：`require_recognition_access`（基座）、`require_manager_role`、`require_sales_role`、`require_specialist_role`、`require_specialist_or_manager`。
 
 ### 5.9 数据库迁移
 
@@ -422,8 +453,10 @@ alembic upgrade head
 ### 6.1 答题系统
 
 - 题型：单选、多选、判断、填空、简答 (5种)
-- 每日答题：每周一 9:00 刷新，随机 5 题，即时反馈
-- 题库：分类管理，支持难度分级 (1-3 星)
+- **每日答题（每周一刷新）**：每周随机 **10 题**（`DailyQuizRound`，`question_count=10`），记录 `source='daily'` + `quiz_date`
+- **积分规则**：只有每周这 10 道题（`source='daily'` 且 `is_correct=1`）计入能量积分；题库刷题（`source='bank'`）**只计入答对数、不累计能量积分**
+- 周答题徽章：首页 `shouye_Home_Dashboard_Green/weeklyQuizBadge.js` 判断当周是否已答每日题
+- 题库：分类管理，支持难度分级 (1-3 星)，`20260810_01` 迁移新增题目图片 URL 字段
 - 注意：`app/services/quiz.py` 中的 `QUESTIONS` 数组是 MVP 硬编码数据，生产环境已废弃
 
 ### 6.2 AI 问答 (母线豆包) — RAG 增强版 ★
@@ -493,9 +526,9 @@ RAGFLOW_GRAYSCALE_RATIO=0.0
 | `app/core/config.py` | RAGFlow 全部配置项定义 |
 | `tests/test_ragflow_retriever.py` | 检索服务单元测试 |
 
-### 6.3 招标文件分析系统
+### 6.3 招标文件分析系统 (v2.0)
 
-完整的招标文件分析功能，支持两种模式，使用白名单权限控制。
+完整的招标文件分析功能，使用白名单权限控制，v2.0 引入语义分析 + 参数精确提取 + 智能推荐。
 
 #### 6.3.1 架构概览
 
@@ -505,22 +538,26 @@ RAGFLOW_GRAYSCALE_RATIO=0.0
   → 后端下载文件 → 提取文本 → 分析 → 返回结果 → 前端展示
 ```
 
-#### 6.3.2 两种模式
+#### 6.3.2 三种接口
 
-| 模式 | 接口 | 说明 |
-|------|------|------|
-| 资料提取 | `/api/bidding/extract` | 识别招标文件要求的证书/报告，匹配已有文件提供下载 |
-| 智能分析 | `/api/bidding/analyze` | 品牌植入检测、友商痕迹、产品匹配、投标策略 |
-
-#### 6.3.3 特征库 (`bidding_features.py`)
-
-| 模块 | 内容 |
+| 接口 | 说明 |
 |------|------|
-| `COMPETITOR_FEATURES` | 7家友商品牌关键词 |
-| `SCHNEIDER_FEATURES` | 施耐德品牌关键词 + 系列型号 |
-| `FAVORABLE_CLAUSES` | 24项施耐德有利条款 |
-| `COMPETITOR_RISK_INDICATORS` | 10项友商风险指标 |
-| `PRODUCT_SERIES` | I-Line B/H/W 三款产品26项技术参数对比 |
+| `/api/bidding/extract` | 资料提取：识别要求的证书/报告，匹配已有文件提供下载 |
+| `/api/bidding/analyze` | 智能深度分析（`BiddingAnalyzer.deep_analyze`） |
+| `/api/bidding/upload` | 向后兼容的旧上传接口（内部转 extract） |
+
+`deep_analyze` 产出：语义要求识别、参数提取与施耐德产品对比、有利/风险条款、产品匹配、投标策略与话术建议。
+
+#### 6.3.3 分析引擎组成
+
+| 模块 | 作用 |
+|------|------|
+| `bidding_analyzer.py` | 主分析器：文本提取（PDF/docx/doc 降级链）、关键词匹配、deep_analyze 编排 |
+| `bidding_semantic.py` | 语义分析：否定句式检测、同义词映射、章节解析、需求匹配 |
+| `bidding_param_extractor.py` | 参数提取与比较：`extract_all_params` + `compare_param_with_schneider` |
+| `bidding_features.py` | 特征库：友商标识、施耐德条款、风险指标、产品系列参数对比 |
+
+文本提取降级链：`.docx`→python-docx，`.doc`→ZIP 检测 + 原始字节扫描，PDF→pdfplumber（扫描件/图片型 PDF 无法提取文字，属已知限制）。
 
 #### 6.3.4 白名单管理
 
@@ -549,11 +586,92 @@ RAGFLOW_GRAYSCALE_RATIO=0.0
 - 防重复：通过 (user_id, related_month, type) 检查
 - 撤销机制：支持撤销指定月份的奖励/抽奖操作
 
-### 6.7 表彰系统 (2026-08 新增)
+### 6.7 认可计划系统 (2026-08 新增) ★
 
-- 数据库表：`recognition_records`（表彰记录）
-- 迁移版本：`20260805_01_create_recognition_tables.py`
-- 接口：`/api/recognition`
+面向内部员工的积分激励与评选体系，与答题/能量中的"徽章"无关，是独立的一条业务线。管理员通过后台「认可计划管理」页（`static/admin/recognition.html`）配置，员工/销售在小程序端 `pages/recognition/` 参与。
+
+#### 6.7.1 角色体系
+
+| 角色 | `users.recognition_role` | 说明 |
+|------|--------------------------|------|
+| 分销商 | `distributor` | 默认角色，不参与认可计划 |
+| 销售 | `sales` | 对对接专员进行满意度评分 |
+| 专员 | `specialist` | 提交成就申报、查看积分/排行 |
+| 经理 | `manager` | 审核申报、评分查看、评选计算与发布、配置规则 |
+
+角色依赖（`app/api/deps.py`）：`require_recognition_access` 统一封装 → `require_manager_role` / `require_sales_role` / `require_specialist_role` / `require_specialist_or_manager`。
+
+#### 6.7.2 数据库表（8 张，迁移 `20260805_01_create_recognition_tables.py`）
+
+| 表 | 作用 |
+|----|------|
+| `recognition_submissions` | 统一成就申报表（含 5 种类型） |
+| `recognition_surveys` | 销售满意度评分（效率/响应/培训/沟通 4 维度） |
+| `recognition_points` | 认可积分流水 |
+| `recognition_awards` | 获奖记录 |
+| `recognition_rules_config` | 积分/名额等规则配置（`rule_key`-`rule_value`，后台可改） |
+| `recognition_scoring_criteria` | 季度奖项评分标准（动态配置，表单选项数据源） |
+| `sales_specialist_mapping` | 销售-专员对接关系 |
+| `recognition_annual_snapshots` | 年度快照 |
+
+用户表新增字段：`recognition_role`（默认 `distributor`）、`recognition_score`（认可积分，独立于能量 `total_score`）。
+
+#### 6.7.3 成就申报（5 种类型）
+
+- 微光提名 `nomination`（月度评选，不可自提）
+- 报备秩序卫士 `order_guardian`（季度）
+- 分销商支持先锋 `distributor_pioneer`（季度）
+- 分销商成长伯乐 `distributor_mentor`（季度）
+- 效率提升创新 `efficiency_innovator`（季度）
+
+状态机：`draft → submitted → approved / rejected`。季度奖项得分由 `recognition_scoring_criteria` 动态计算（checkbox 勾选得分 / text_list 按条数计分，可设 `max_points`），经理审核可加 `review_score` 附加分。
+
+#### 6.7.4 销售评分（满意度）
+
+每名销售按月对其对接专员评分（`surveys`），唯一约束 `(rater_id, target_id, survey_month)` 保证每月一次。评分为 4 维度整数，可填 N/A。
+
+#### 6.7.5 评选与积分
+
+- **月度·微光之星**：按月提名次数取前 N 名
+- **月度·销圈人气王**：取对某专员评分总分的**中位数**，前 2 名
+- **季度奖项**：按动态评分标准得分取前 N 名（`QUARTERLY_AWARD_TYPES`）
+- **年度·渠道之星**：综合加权 `积分40% + 获奖20% + 人气王15% + 微光之星10% + 经理15%`
+- 积分发放：经理先 `calculate-monthly/quarterly/annual` 生成 `RecognitionAward`（`published=False`），再 `publish` 统一发放积分并置为已发布。
+
+积分等级（`users.recognition_score` 判定）：启明星☆(0-100) → 灿星★(101-300) → 耀星✦(301-600) → 极星✧(601+)。
+
+#### 6.7.6 核心接口前缀 `/api/recognition`
+
+`/submissions`（申报 CRUD+审核+提名统计）、`/surveys`（评分状态/提交/结果/明细/进度）、`/mappings`（对接关系管理）、`/points`（我的积分/积分排行/流水/手动调整）、`/awards`（月度/季度/年度计算、发布、结果）、`/ranking`（认可排行完整页）、`/rules`、`/scoring-criteria`（经理配置）、`/users`（角色管理）。
+
+#### 6.7.7 小程序页面 `pages/recognition/`
+
+| 页面 | 角色 | 功能 |
+|------|------|------|
+| `submit/` | 专员 | 选择申报类型入口 |
+| `submit-form/` | 专员 | 申报表单（选项从 scoring_criteria 动态加载） |
+| `sales-rate/` | 销售 | 满意度评分 |
+| `my-awards/` | 专员 | 我的获奖/积分 |
+| `ranking/` | 专员/经理 | 认可排行页 |
+
+#### 6.7.8 关键文件
+
+| 文件 | 作用 |
+|------|------|
+| `app/models/recognition.py` | 8 张表模型 |
+| `app/services/recognition.py` | 计算引擎：评选、积分、等级、表单配置 |
+| `app/api/v1/recognition.py` | 认可计划 API |
+| `app/schemas/recognition.py` | 认可计划请求/响应 Schema |
+| `app/static/admin/recognition.html` | 管理后台：评审、配置、发布 |
+
+### 6.8 苏州舍得每周答题排行榜 (2026-08 新增)
+
+针对「苏州舍得电力科技有限公司」定制化的周答题排行榜，供后台查看与导出。
+
+- 白名单：`admin.py` 内 `SUZHOU_SHEDE_WHITELIST` 硬编码该公司 79 人手机号→姓名/角色映射（销售/技术）
+- 按周聚合：`week_start`（周一）起 7 天内的答题记录，按答对数降序 + 用时升序排名；未答题者红色高亮
+- 接口：`/api/admin/reports/suzhou-shede-weekly-quiz`（列表）+ `/export`（Excel，文件名 `舍得每周答题排行榜-{weekStart}.xlsx`）
+- 后台入口：`index.html`「舍得每周排行榜」Tab
 
 ---
 
@@ -618,7 +736,7 @@ RAGFLOW_GRAYSCALE_RATIO=0.0
 | 话术层检索命中率为 0 | `ragflow_retriever.py` | 高 | 话术知识库可能未正确索引或 KB ID 配置错误 |
 | 认证标准检索不完整 | `ragflow_retriever.py` | 中 | 4 条认证查询仅 5 个 chunks，3 条返回 0 结果 |
 | HiAgent 403 限流 | `agent.py` | 高 | 对比测试时大量请求返回 403，需确认 API Key 配额和限流策略 |
-| 无 Git 客户端 | 全局 | 低 | 当前环境未安装 Git，无法直接操作版本控制 |
+| 施耐德 PDF 知识带 HTML 表格 | RAGFlow 上下文 | 中 | 检索上下文可能含 `<table>` 标签，影响 LLM 理解 |
 
 ### 8.3 环境变量关键配置
 
@@ -715,9 +833,28 @@ docker run -p 8000:8000 --env-file .env faq-backend
 | 20260514_01 | 2026-05-14 | 创建抽奖奖励表 |
 | 20260520_01 | 2026-05-20 | 用户表添加岗位角色字段 |
 | 20260531_01 | 2026-05-31 | 能量交易添加通知已读字段 |
-| 20260805_01 | 2026-08-05 | 创建表彰记录表 |
+| 20260805_01 | 2026-08-05 | 创建认可计划 8 张表 |
 | 20260810_01 | 2026-08-10 | 题目表添加图片 URL 字段 |
 
 ---
 
-> 文档版本: 3.0 | 最后更新: 2026-08-14 | 基于知识库 RAG 升级全面更新
+## 11. 近期功能更新记录 (2026-07-28 之后)
+
+> 本表用于新会话快速定位近期改动，对应仓库 git 提交记录。
+
+| 日期 | 提交 | 变更 | 涉及文件 |
+|------|------|------|---------|
+| 08-14 | fc7cdb4, ec3d07e, 7a2c8ec | RAGFlow 检索桥接层 + 话术/友商/通用知识库迁移 + 友商 PDF 导入 + 精度评测 | `services/ragflow_retriever.py`、`services/agent.py`、`ragflow/` |
+| 08-10 | 3b2f73c | 题目图片支持 | 迁移 `20260810_01`、questions 相关 |
+| 08-07 | a8d7b3a, acca1d0 | 标书分析修复：云托管超时 + PDF 识别鲁棒性 + E-11/框招识别优化 | `services/bidding_analyzer.py`、`api/v1/bidding.py` |
+| 08-06 | 57b742f, 63d7b2a | 修复认可计划管理后台认证失败 / Tab 切换与 API 路径 | `api/deps.py`、`static/admin/app.js`、`recognition.html` |
+| 08-05 | c2b18f3, e2a0430 | ★ 认可计划系统完整实现 | models/services/api/schemas/`recognition*`、`static/admin/recognition.html`、小程序 `pages/recognition/` |
+| 08-04 | c5c191c | 修复导出活动奖励时"名次/奖项"列误显排名 | `api/v1/admin.py` |
+| 08-03 | 5da9dea | 统一抽奖月份逻辑，操作月份=参与月份，月初抽奖→月度抽奖 | `services/lottery.py`、`services/monthly_reward_scheduler.py`、`api/v1/rewards.py`、`static/admin/` |
+| 08-03 | c8eb1ce, 348709a | ★ 苏州舍得每周答题排行榜 + 导出排序修复 | `api/v1/admin.py`、`static/admin/app.js` |
+| 07-31 | afc5535 | ★ 招标分析 v2.0：语义分析 + 参数提取 + 智能推荐 | `services/bidding_semantic.py`、`bidding_param_extractor.py`、`bidding_analyzer.py` |
+| 07-29 | 81de401, b09d3b9 | 兑换订单新增「已完成」状态（删除按钮已移除） | `api/v1/admin.py`、`services/energy.py`、`static/admin/` |
+
+---
+
+> 文档版本: 4.0 | 最后更新: 2026-08-04 | 补充认可计划、标书分析 v2.0、苏州舍得周榜、周答题积分规则
