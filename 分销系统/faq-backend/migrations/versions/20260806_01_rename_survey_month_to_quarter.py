@@ -16,6 +16,10 @@ depends_on = None
 
 
 def upgrade():
+    # 0. 先删除依赖索引的外键（MySQL 外键可能复用唯一索引，需先解除依赖）
+    op.drop_constraint("fk_surveys_rater", "recognition_surveys", type_="foreignkey")
+    op.drop_constraint("fk_surveys_target", "recognition_surveys", type_="foreignkey")
+
     # 1. 删除旧约束和索引
     op.drop_constraint("uq_survey_rater_target_month", "recognition_surveys", type_="unique")
     op.drop_index("ix_surveys_month_target", table_name="recognition_surveys")
@@ -30,8 +34,16 @@ def upgrade():
     op.create_index("ix_surveys_quarter_target", "recognition_surveys",
                     ["survey_quarter", "target_id"])
 
+    # 4. 重建外键
+    op.create_foreign_key("fk_surveys_rater", "recognition_surveys", "users", ["rater_id"], ["id"])
+    op.create_foreign_key("fk_surveys_target", "recognition_surveys", "users", ["target_id"], ["id"])
+
 
 def downgrade():
+    # 0. 先删除外键
+    op.drop_constraint("fk_surveys_rater", "recognition_surveys", type_="foreignkey")
+    op.drop_constraint("fk_surveys_target", "recognition_surveys", type_="foreignkey")
+
     # 1. 删除新约束和索引
     op.drop_constraint("uq_survey_rater_target_quarter", "recognition_surveys", type_="unique")
     op.drop_index("ix_surveys_quarter_target", table_name="recognition_surveys")
@@ -45,3 +57,7 @@ def downgrade():
                                 ["rater_id", "target_id", "survey_month"])
     op.create_index("ix_surveys_month_target", "recognition_surveys",
                     ["survey_month", "target_id"])
+
+    # 4. 重建外键
+    op.create_foreign_key("fk_surveys_rater", "recognition_surveys", "users", ["rater_id"], ["id"])
+    op.create_foreign_key("fk_surveys_target", "recognition_surveys", "users", ["target_id"], ["id"])
