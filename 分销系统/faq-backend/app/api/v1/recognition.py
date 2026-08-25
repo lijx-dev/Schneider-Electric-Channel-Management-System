@@ -353,15 +353,14 @@ async def review_submission(
 
 @router.get("/surveys/status")
 async def get_survey_status(
-    quarter: Optional[str] = Query(None, description="季度 yyyy-Qn，默认本季度"),
+    month: Optional[str] = Query(None, description="月份 yyyy-mm，默认本月"),
     user_id: str = Depends(require_sales),
     db: AsyncSession = Depends(get_db),
 ):
-    """获取本季度评分状态 + 对接专员列表."""
-    if not quarter:
+    """获取本月评分状态 + 对接专员列表."""
+    if not month:
         now = datetime.now()
-        q = (now.month - 1) // 3 + 1
-        quarter = f"{now.year}-Q{q}"
+        month = f"{now.year}-{now.month:02d}"
 
     # 获取该销售对接的专员
     mapping_result = await db.execute(
@@ -376,7 +375,7 @@ async def get_survey_status(
     survey_result = await db.execute(
         select(RecognitionSurvey).where(
             RecognitionSurvey.rater_id == user_id,
-            RecognitionSurvey.survey_quarter == quarter,
+            RecognitionSurvey.survey_month == month,
         )
     )
     submitted_surveys = survey_result.scalars().all()
@@ -402,7 +401,7 @@ async def get_survey_status(
     return {
         "code": 0,
         "data": {
-            "survey_quarter": quarter,
+            "survey_month": month,
             "submitted": submitted,
             "specialists": specialists,
         },
@@ -431,16 +430,16 @@ async def submit_survey(
         select(RecognitionSurvey).where(
             RecognitionSurvey.rater_id == user_id,
             RecognitionSurvey.target_id == body.target_id,
-            RecognitionSurvey.survey_quarter == body.survey_quarter,
+            RecognitionSurvey.survey_month == body.survey_month,
         )
     )
     if existing.scalar_one_or_none():
-        return {"code": 1, "message": "本季度已提交评分，不可修改"}
+        return {"code": 1, "message": "本月已提交评分，不可修改"}
 
     survey = RecognitionSurvey(
         rater_id=user_id,
         target_id=body.target_id,
-        survey_quarter=body.survey_quarter,
+        survey_month=body.survey_month,
         score_efficiency=body.score_efficiency,
         score_response=body.score_response,
         score_training=body.score_training,
@@ -454,18 +453,17 @@ async def submit_survey(
 
 @router.get("/surveys/results")
 async def get_survey_results(
-    quarter: Optional[str] = Query(None, description="季度"),
+    month: Optional[str] = Query(None, description="月份"),
     user_id: str = Depends(require_specialist),
     db: AsyncSession = Depends(get_db),
 ):
     """获取评分汇总（专员端匿名）."""
-    if not quarter:
+    if not month:
         now = datetime.now()
-        q = (now.month - 1) // 3 + 1
-        quarter = f"{now.year}-Q{q}"
+        month = f"{now.year}-{now.month:02d}"
 
     result = await db.execute(
-        select(RecognitionSurvey).where(RecognitionSurvey.survey_quarter == quarter)
+        select(RecognitionSurvey).where(RecognitionSurvey.survey_month == month)
     )
     surveys = result.scalars().all()
 
@@ -498,7 +496,7 @@ async def get_survey_results(
         median = statistics.median(totals) if totals else None
 
         results.append({
-            "survey_quarter": quarter,
+            "survey_month": month,
             "target_id": target_id,
             "target_name": names.get(target_id, target_id),
             "avg_scores": avg,
@@ -511,18 +509,17 @@ async def get_survey_results(
 
 @router.get("/surveys/details")
 async def get_survey_details(
-    quarter: Optional[str] = Query(None, description="季度"),
+    month: Optional[str] = Query(None, description="月份"),
     user_id: str = Depends(require_manager),
     db: AsyncSession = Depends(get_db),
 ):
     """获取评分明细（经理端含提交人）."""
-    if not quarter:
+    if not month:
         now = datetime.now()
-        q = (now.month - 1) // 3 + 1
-        quarter = f"{now.year}-Q{q}"
+        month = f"{now.year}-{now.month:02d}"
 
     result = await db.execute(
-        select(RecognitionSurvey).where(RecognitionSurvey.survey_quarter == quarter)
+        select(RecognitionSurvey).where(RecognitionSurvey.survey_month == month)
     )
     surveys = result.scalars().all()
 
@@ -534,7 +531,7 @@ async def get_survey_details(
     results = []
     for s in surveys:
         results.append({
-            "survey_quarter": s.survey_quarter,
+            "survey_month": s.survey_month,
             "rater_id": s.rater_id,
             "rater_name": names.get(s.rater_id, s.rater_id),
             "target_id": s.target_id,
@@ -553,15 +550,14 @@ async def get_survey_details(
 
 @router.get("/surveys/progress")
 async def get_survey_progress(
-    quarter: Optional[str] = Query(None, description="季度"),
+    month: Optional[str] = Query(None, description="月份"),
     user_id: str = Depends(require_manager),
     db: AsyncSession = Depends(get_db),
 ):
     """获取评分进度."""
-    if not quarter:
+    if not month:
         now = datetime.now()
-        q = (now.month - 1) // 3 + 1
-        quarter = f"{now.year}-Q{q}"
+        month = f"{now.year}-{now.month:02d}"
 
     # 所有销售
     sales_result = await db.execute(
@@ -572,7 +568,7 @@ async def get_survey_progress(
     # 已提交的销售
     submitted_result = await db.execute(
         select(RecognitionSurvey.rater_id).where(
-            RecognitionSurvey.survey_quarter == quarter
+            RecognitionSurvey.survey_month == month
         ).distinct()
     )
     submitted_ids = set(row[0] for row in submitted_result)
@@ -588,7 +584,7 @@ async def get_survey_progress(
     return {
         "code": 0,
         "data": {
-            "survey_quarter": quarter,
+            "survey_month": month,
             "total_sales": len(all_sales),
             "submitted_count": len(submitted_ids),
             "unsubmitted_sales": unsubmitted,
@@ -814,7 +810,7 @@ async def calculate_monthly(
     user_id: str = Depends(require_manager),
     db: AsyncSession = Depends(get_db),
 ):
-    """触发月度评选计算（微光之星） + 季度销圈人气王."""
+    """触发月度评选计算（微光之星 + 销圈人气王）."""
     if not body.month:
         return {"code": 1, "message": "请指定月份"}
 
@@ -823,7 +819,7 @@ async def calculate_monthly(
 
     results = []
 
-    # 微光之星（月度）
+    # 微光之星
     stars = await calculate_monthly_star(db, month)
     for s in stars:
         award = RecognitionAward(
@@ -840,13 +836,8 @@ async def calculate_monthly(
         db.add(award)
         results.append({"type": "monthly_star", "user_name": s["user_name"], "rank": s["rank"]})
 
-    # 销圈人气王（季度）
-    quarter = body.quarter
-    if not quarter:
-        month_num = int(month.split("-")[1])
-        quarter = (month_num - 1) // 3 + 1
-    quarter_str = f"{year}-Q{quarter}"
-    mvps = await calculate_sales_mvp(db, quarter_str)
+    # 销圈人气王
+    mvps = await calculate_sales_mvp(db, month)
     for mvp in mvps:
         award = RecognitionAward(
             user_id=mvp["user_id"],
@@ -864,7 +855,7 @@ async def calculate_monthly(
         results.append({"type": "monthly_mvp", "user_name": mvp["user_name"], "rank": mvp["rank"]})
 
     await db.flush()
-    return {"code": 0, "data": {"month": month, "quarter": quarter_str, "results": results}}
+    return {"code": 0, "data": {"month": month, "results": results}}
 
 
 @router.post("/awards/calculate-quarterly")

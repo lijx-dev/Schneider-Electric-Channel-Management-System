@@ -138,17 +138,17 @@ async def calculate_monthly_star(db: AsyncSession, month: str) -> list[dict]:
     return results
 
 
-# ── 季度销圈人气王评选 ───────────────────────────────────────────────────
+# ── 月度销圈人气王评选 ───────────────────────────────────────────────────
 
-async def calculate_sales_mvp(db: AsyncSession, quarter: str) -> list[dict]:
+async def calculate_sales_mvp(db: AsyncSession, month: str) -> list[dict]:
     """每个专员取所有销售总分的「中位数」."""
     max_winners = int(await get_rule_value(db, "monthly_mvp_max_winners", "2"))
     rank1_points = int(await get_rule_value(db, "monthly_mvp_rank1_points", "50"))
     rank2_points = int(await get_rule_value(db, "monthly_mvp_rank2_points", "20"))
 
-    # 获取当季所有评分
+    # 获取当月所有评分
     result = await db.execute(
-        select(RecognitionSurvey).where(RecognitionSurvey.survey_quarter == quarter)
+        select(RecognitionSurvey).where(RecognitionSurvey.survey_month == month)
     )
     surveys = result.scalars().all()
 

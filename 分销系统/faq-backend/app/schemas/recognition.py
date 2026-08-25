@@ -100,7 +100,7 @@ class FormConfigResponse(BaseModel):
 class SurveyCreate(BaseModel):
     """提交满意度评分"""
     target_id: str = Field(..., description="被评分专员ID")
-    survey_quarter: str = Field(..., description="评分季度 yyyy-Qn")
+    survey_month: str = Field(..., description="评分月份 yyyy-mm")
     score_efficiency: Optional[int] = Field(None, ge=1, le=5, description="报备处理效率 1-5")
     score_response: Optional[int] = Field(None, ge=1, le=5, description="分销商诉求响应 1-5")
     score_training: Optional[int] = Field(None, ge=1, le=5, description="赋能培训支持 1-5")
@@ -108,15 +108,15 @@ class SurveyCreate(BaseModel):
 
 
 class SurveyStatusResponse(BaseModel):
-    """本季度评分状态 + 对接专员列表"""
-    survey_quarter: str
+    """本月评分状态 + 对接专员列表"""
+    survey_month: str
     submitted: bool
     specialists: list[dict[str, Any]]  # [{specialist_id, specialist_name, scores(if submitted)}]
 
 
 class SurveyResultResponse(BaseModel):
     """评分汇总（专员端匿名）"""
-    survey_quarter: str
+    survey_month: str
     target_id: str
     target_name: str
     avg_scores: dict[str, Optional[float]]  # {efficiency, response, training, communication}
@@ -126,7 +126,7 @@ class SurveyResultResponse(BaseModel):
 
 class SurveyDetailResponse(BaseModel):
     """评分明细（经理端含提交人）"""
-    survey_quarter: str
+    survey_month: str
     rater_id: str
     rater_name: str
     target_id: str
@@ -137,7 +137,7 @@ class SurveyDetailResponse(BaseModel):
 
 class SurveyProgressResponse(BaseModel):
     """评分进度"""
-    survey_quarter: str
+    survey_month: str
     total_sales: int
     submitted_count: int
     unsubmitted_sales: list[dict[str, Any]]

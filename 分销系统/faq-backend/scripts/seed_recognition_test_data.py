@@ -211,7 +211,7 @@ TEST_SURVEYS = [
     {
         "rater_id": "test-sales-001",
         "target_id": "test-specialist-001",
-        "survey_quarter": "2026-Q3",
+        "survey_month": "2026-08",
         "score_efficiency": 5,
         "score_response": 4,
         "score_training": 5,
@@ -220,7 +220,7 @@ TEST_SURVEYS = [
     {
         "rater_id": "test-sales-001",
         "target_id": "test-specialist-002",
-        "survey_quarter": "2026-Q3",
+        "survey_month": "2026-08",
         "score_efficiency": 4,
         "score_response": 5,
         "score_training": 4,
@@ -229,7 +229,7 @@ TEST_SURVEYS = [
     {
         "rater_id": "test-sales-002",
         "target_id": "test-specialist-001",
-        "survey_quarter": "2026-Q3",
+        "survey_month": "2026-08",
         "score_efficiency": 3,
         "score_response": 4,
         "score_training": 3,
@@ -346,7 +346,7 @@ async def seed_test_data():
                     select(RecognitionSurvey).where(
                         RecognitionSurvey.rater_id == survey_data["rater_id"],
                         RecognitionSurvey.target_id == survey_data["target_id"],
-                        RecognitionSurvey.survey_quarter == survey_data["survey_quarter"],
+                        RecognitionSurvey.survey_month == survey_data["survey_month"],
                     )
                 )
                 if existing.scalar_one_or_none():
@@ -358,7 +358,7 @@ async def seed_test_data():
                 )
                 session.add(survey)
                 created_surveys += 1
-                print(f"   ✅ 创建评分: 销售 → 专员 ({survey_data['survey_quarter']})")
+                print(f"   ✅ 创建评分: 销售 → 专员 ({survey_data['survey_month']})")
 
             await session.flush()
             print(f"   共创建 {created_surveys} 条满意度评分\n")
