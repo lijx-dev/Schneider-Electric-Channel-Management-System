@@ -1,7 +1,7 @@
 """Add image_urls to questions.
 
 Revision ID: 20260810_01
-Revises: 20260806_01
+Revises: 20260806_02
 Create Date: 2026-08-10 00:00:00
 """
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 revision = "20260810_01"
-down_revision = "20260806_01"
+down_revision = "20260806_02"
 branch_labels = None
 depends_on = None
 
