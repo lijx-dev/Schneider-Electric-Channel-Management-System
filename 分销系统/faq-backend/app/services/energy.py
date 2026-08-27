@@ -206,12 +206,15 @@ def build_energy_product_catalog(products: Iterable[EnergyProduct]) -> dict[str,
 
     tier_groups: list[dict[str, object]] = []
     for tier in ENERGY_PRODUCT_TIERS:
-        items = [
-            _serialize_product(product)
-            for product in active_products
-            if product.cost >= tier["min_cost"]
-            and (tier["max_cost"] is None or product.cost <= tier["max_cost"])
-        ]
+        items = sorted(
+            (
+                _serialize_product(product)
+                for product in active_products
+                if product.cost >= tier["min_cost"]
+                and (tier["max_cost"] is None or product.cost <= tier["max_cost"])
+            ),
+            key=lambda p: (p["cost"], p["sortOrder"], p["id"]),
+        )
         if not items:
             continue
         tier_groups.append(
