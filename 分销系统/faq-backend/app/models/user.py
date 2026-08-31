@@ -61,6 +61,11 @@ class User(Base, TimestampMixin):
     recognition_role: Mapped[str] = mapped_column(String(20), default='distributor', nullable=False)
     # 认可计划累计积分
     recognition_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # 免责声明同意记录（授权合作伙伴接入声明，仅登录用户使用系统前需同意）
+    disclaimer_agreed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    disclaimer_version: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    disclaimer_agreed_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
     
     # ===== 智能推题预留字段 =====
     # 薄弱分类：{"产品知识": 0.6, "销售技巧": 0.8} 表示各分类正确率

@@ -1,0 +1,31 @@
+<view class="page">
+  <view class="card">
+    <view class="header">
+      <text class="header-title">使用声明</text>
+      <text class="header-subtitle">请在使用本系统前阅读并同意以下内容</text>
+    </view>
+
+    <view class="notice">
+      <text class="notice-title">授权合作伙伴接入声明</text>
+      <text class="notice-content">本系统内容仅供授权合作伙伴开展业务活动使用，不得对外传播、复制或向第三方披露。</text>
+    </view>
+
+    <view class="terms">
+      <text class="terms-item">· 本系统内的产品资料、参数据、话术及知识内容仅限授权合作伙伴内部业务场景使用。</text>
+      <text class="terms-item">· 未经授权，不得将系统内容对外传播、复制或向第三方披露。</text>
+      <text class="terms-item">· 您的同意记录将被系统留存，用于合规备查。</text>
+    </view>
+
+    <view class="agree-row" bindtap="toggleAgree">
+      <view class="checkbox {{agreed ? 'checkbox-checked' : ''}}">
+        <text wx:if="{{agreed}}" class="checkbox-mark">✓</text>
+      </view>
+      <text class="agree-label">我已阅读并同意以上使用声明</text>
+    </view>
+  </view>
+
+  <view class="actions">
+    <view class="btn btn-secondary" bindtap="onDecline">不同意</view>
+    <view class="btn btn-primary" bindtap="onAgree">同意并进入</view>
+  </view>
+</view>

@@ -162,6 +162,11 @@ Page({
       });
 
       setTimeout(() => {
+        if (!(user.disclaimer_agreed === true)) {
+          wx.reLaunch({ url: '/pages/disclaimer/disclaimer' });
+          return;
+        }
+
         if (!user.profile_verified) {
           wx.reLaunch({
             url: REGISTER_URL
@@ -236,6 +241,11 @@ Page({
       });
 
       setTimeout(() => {
+        if (!(user.disclaimer_agreed === true)) {
+          wx.reLaunch({ url: '/pages/disclaimer/disclaimer' });
+          return;
+        }
+
         if (!user.profile_verified) {
           wx.reLaunch({
             url: REGISTER_URL

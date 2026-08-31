@@ -21,6 +21,7 @@
     "pages/legal/privacy/index",
     "pages/register/register",
     "pages/login/login",
+    "pages/disclaimer/disclaimer",
     "pages/bidding-result/bidding-result",
     "pages/recognition/submit/submit",
     "pages/recognition/submit-form/submit-form",

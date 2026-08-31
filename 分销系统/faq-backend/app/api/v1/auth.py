@@ -2,12 +2,14 @@
 
 import secrets
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import enforce_rate_limit, get_client_ip
+from app.api.deps import enforce_rate_limit, get_client_ip, get_current_user_id
 from app.core.logging import get_logger
 from app.core.security import create_access_token
 from app.db.session import get_db
@@ -65,7 +67,12 @@ def build_login_user_payload(request: Request, user: User) -> dict:
         "bidding_whitelisted": bool(user.bidding_whitelisted),
         "recognition_role": user.recognition_role,
         "recognition_score": user.recognition_score or 0,
+        "disclaimer_agreed": bool(user.disclaimer_agreed),
     }
+
+
+class ConsentRequest(BaseModel):
+    version: str = "v1"
 
 
 def password_matches(expected_password: str, submitted_password: str) -> bool:
@@ -119,11 +126,11 @@ async def wechat_login(
                     "bidding_whitelisted": bool(user.bidding_whitelisted),
                     "recognition_role": user.recognition_role,
                     "recognition_score": user.recognition_score or 0,
+                    "disclaimer_agreed": bool(user.disclaimer_agreed),
                 },
             },
         }
-    except ValueError as e:
-        logger.error("login_failed", error=str(e))
+    except ValueError as e:  # wechat_login
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("login_error", error=str(e))
@@ -200,11 +207,11 @@ async def wechat_login_phone(
                     "bidding_whitelisted": bool(user.bidding_whitelisted),
                     "recognition_role": user.recognition_role,
                     "recognition_score": user.recognition_score or 0,
+                    "disclaimer_agreed": bool(user.disclaimer_agreed),
                 },
             },
         }
-    except ValueError as e:
-        logger.error("login_phone_failed", error=str(e))
+    except ValueError as e:  # wechat_login_phone
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("login_phone_error", error=str(e))
@@ -252,3 +259,50 @@ async def password_login(
     except Exception as e:
         logger.exception("password_login_error", error=str(e))
         raise HTTPException(status_code=500, detail="登录失败，请稍后重试")
+
+
+@router.post("/auth/consent")
+async def consent_disclaimer(
+    request: Request,
+    consent_data: ConsentRequest,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """记录用户对免责声明（授权合作伙伴接入声明）的同意。
+
+    仅登录用户可调用。同意后写入 disclaimer_agreed 及同意时间/版本，
+    供留存备查。同一用户重复同意会更新版本与时间。
+    """
+    try:
+        result = await db.execute(select(User).where(User.id == current_user_id))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            return {
+                "code": 1002,
+                "message": "用户不存在",
+                "detail": "用户不存在，请重新登录",
+            }
+
+        version = consent_data.version.strip() or "v1"
+        user.disclaimer_agreed = True
+        user.disclaimer_version = version
+        user.disclaimer_agreed_at = datetime.now()
+
+        await db.commit()
+        await db.refresh(user)
+
+        return {
+            "code": 0,
+            "data": {
+                "disclaimer_agreed": bool(user.disclaimer_agreed),
+                "disclaimer_version": user.disclaimer_version,
+                "disclaimer_agreed_at": (
+                    user.disclaimer_agreed_at.isoformat() if user.disclaimer_agreed_at else None
+                ),
+                "user": build_login_user_payload(request, user),
+            },
+        }
+    except Exception as e:
+        logger.exception("consent_error", error=str(e))
+        raise HTTPException(status_code=500, detail="同意操作失败，请稍后重试")

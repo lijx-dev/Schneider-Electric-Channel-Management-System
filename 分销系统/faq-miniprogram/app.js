@@ -728,6 +728,11 @@ App({
       return false;
     }
 
+    if (autoRedirect && this.shouldRequireDisclaimer()) {
+      this.redirectToDisclaimer();
+      return false;
+    }
+
     if (autoRedirect && this.shouldRequireProfileVerification()) {
       this.redirectToRegister();
       return false;
@@ -743,6 +748,43 @@ App({
 
     const userInfo = this.globalData.userInfo || this.normalizeUserInfo(wx.getStorageSync('userInfo'));
     return !(userInfo && userInfo.profile_verified);
+  },
+
+  shouldRequireDisclaimer() {
+    if (this.globalData.guestMode) {
+      return false;
+    }
+
+    if (!this.globalData.userId || !this.globalData.token) {
+      return false;
+    }
+
+    const userInfo = this.globalData.userInfo || this.normalizeUserInfo(wx.getStorageSync('userInfo'));
+    return !(userInfo && userInfo.disclaimer_agreed === true);
+  },
+
+  redirectToDisclaimer() {
+    const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
+    const currentRoute = pages.length ? `/${pages[pages.length - 1].route}` : '';
+
+    if (
+      currentRoute === '/pages/disclaimer/disclaimer' ||
+      currentRoute === '/pages/login/login' ||
+      currentRoute === '/pages/register/register'
+    ) {
+      return;
+    }
+
+    wx.reLaunch({ url: '/pages/disclaimer/disclaimer' });
+  },
+
+  ensureDisclaimer() {
+    if (!this.shouldRequireDisclaimer()) {
+      return true;
+    }
+
+    this.redirectToDisclaimer();
+    return false;
   },
 
   redirectToRegister() {

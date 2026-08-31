@@ -82,6 +82,10 @@ Page({
   },
 
   onShow() {
+    if (!app.ensureDisclaimer()) {
+      return;
+    }
+
     this.loadData();
     app.startPageAutoRefresh(this, {
       timerKey: '_liveRefreshTimer',
