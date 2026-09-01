@@ -150,6 +150,7 @@ async def run_monthly_lottery(db: AsyncSession, month_key: str) -> dict:
         "eligible_count": len(candidates),
         "winner_count": len(winners),
         "already_drawn": False,
+        "_raw_winners": [(user.id, prize.level, winner_order) for user, prize, winner_order in winners],
     }
 
 
