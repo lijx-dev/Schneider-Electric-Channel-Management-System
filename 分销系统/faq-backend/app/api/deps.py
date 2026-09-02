@@ -59,6 +59,30 @@ async def get_current_user_id(
     raise HTTPException(status_code=401, detail="Could not validate credentials")
 
 
+async def get_authenticated_user_id(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+) -> str:
+    """轻量鉴权（不访问数据库）：仅校验 token 签名。
+
+    与 get_current_user_id 安全强度等价 —— 小程序用户 token 用 SECRET_KEY
+    签名、管理员 token 用 ADMIN_SECRET_KEY 签名，无法伪造；但不依赖 DB
+    可用性，适合下载等纯读接口，避免被偶发数据库抖动拖垮。
+    """
+    if not credentials or credentials.scheme.lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    user_id = verify_token(credentials.credentials)
+    if user_id:
+        return user_id
+
+    admin_username = verify_admin_token(credentials.credentials)
+    if admin_username:
+        # 下载类接口无需真实 UUID，仅用于日志/标识
+        return f"admin:{admin_username}"
+
+    raise HTTPException(status_code=401, detail="Could not validate credentials")
+
+
 async def require_bidding_whitelist(
     user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),

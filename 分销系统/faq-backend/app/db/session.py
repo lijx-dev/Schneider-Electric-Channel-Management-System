@@ -57,8 +57,9 @@ def _build_engine():
     }
 
     if database_url.startswith("mysql"):
-        if database_url.startswith("mysql+aiomysql"):
-            engine_kwargs["pool_pre_ping"] = False
+        # SQLAlchemy 2.x 的 pool_pre_ping 对 mysql+aiomysql 同样生效：
+        # 取连接前先 ping，避免容器重启/网络波动后复用死连接导致偶发
+        # OperationalError（如 "Lost connection to MySQL server"）。不可置 False。
         engine_kwargs.update(
             {
                 "pool_size": pool_size,

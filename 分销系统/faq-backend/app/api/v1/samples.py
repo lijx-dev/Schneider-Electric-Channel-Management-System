@@ -21,7 +21,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 
-from app.api.deps import get_current_user_id
+from app.api.deps import get_authenticated_user_id
 from app.core.config import settings
 from app.core.logging import get_logger
 
@@ -146,7 +146,7 @@ async def proxy_download_sample(
     action: str = Query("download", pattern="^(meta|download)$"),
     part: int = Query(0, ge=0),
     part_size: int = Query(CHUNK_SIZE, ge=1024, le=CHUNK_SIZE),
-    current_user_id: str = Depends(get_current_user_id),
+    current_user_id: str = Depends(get_authenticated_user_id),
 ):
     """代理下载智能体返回的样本/资料链接（分片）。支持对已过期的 COS 临时签名自动重签。
 
