@@ -19,7 +19,7 @@ from urllib.parse import quote, unquote, urlsplit
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response
 
 from app.api.deps import get_current_user_id
 from app.core.config import settings
@@ -28,6 +28,9 @@ from app.core.logging import get_logger
 router = APIRouter(tags=["样本下载"])
 
 logger = get_logger(__name__)
+
+# 文件大小上限（字节）：保护内存，避免下载超大文件导致 OOM
+MAX_FILE_SIZE = 50 * 1024 * 1024
 
 # SSRF 防护：只允许腾讯云对象存储/云托管域名
 DEFAULT_ALLOWED_HOST_SUFFIXES = (
@@ -90,7 +93,7 @@ def _secure_filename(filename: str) -> str:
 
 
 async def _fetch_stream(url: str, client: httpx.AsyncClient):
-    """请求目标 URL 并返回 (status_code, async 字节流迭代器, headers)。"""
+    """请求目标 URL 并返回响应对象。"""
     try:
         request = client.build_request("GET", url, follow_redirects=True, timeout=60)
         response = await client.send(request, stream=True)
@@ -150,13 +153,24 @@ async def proxy_download_sample(
             await response.aclose()
             raise HTTPException(status_code=response.status_code, detail=detail)
 
-        content_type = response.headers.get("content-type") or "application/octet-stream"
-        safe_name = _secure_filename(filename) if filename else _extract_filename(url)
-        logger.info("sample_proxy_download_ok", filename=safe_name, user_id=current_user_id[:16])
+        # 关键：必须在 AsyncClient 关闭前把完整内容读入内存，
+        # 不能在返回 StreamingResponse 后再读取（客户端已关闭会抛错导致 500）。
+        content = await response.aread()
+        await response.aclose()
 
-        return StreamingResponse(
-            response.aiter_bytes(),
-            media_type=content_type,
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=413, detail="文件过大，无法下载")
+
+        safe_name = _secure_filename(filename) if filename else _extract_filename(url)
+        logger.info(
+            "sample_proxy_download_ok",
+            filename=safe_name,
+            size=len(content),
+            user_id=current_user_id[:16],
+        )
+        return Response(
+            content=content,
+            media_type=response.headers.get("content-type") or "application/octet-stream",
             headers={
                 "Content-Disposition": f"attachment; filename*=UTF-8''{quote(safe_name)}",
                 "Cache-Control": "no-cache",
