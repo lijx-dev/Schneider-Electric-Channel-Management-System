@@ -92,11 +92,33 @@ def _secure_filename(filename: str) -> str:
     return clean or "样本文件.pdf"
 
 
+def _infer_cos_bucket_from_host(hostname: str) -> str | None:
+    """从 COS/云托管 URL 的 host 推断 bucket 名。
+
+    - https://{bucket}.tcb.qcloud.la/{key}
+    - https://{bucket}.cos.{region}.myqcloud.com/{key}
+    """
+    host = (hostname or "").lower()
+    if host.endswith(".tcb.qcloud.la"):
+        return host[: -len(".tcb.qcloud.la")]
+    if host.endswith(".myqcloud.com"):
+        return host.split(".myqcloud.com")[0].split(".")[0]
+    return None
+
+
+def _infer_cos_region_from_host(hostname: str) -> str | None:
+    match = re.search(r"\.cos\.([^.]+)\.myqcloud\.com$", (hostname or "").lower())
+    if match:
+        return match.group(1)
+    return None
+
+
 async def _fetch_stream(url: str, client: httpx.AsyncClient):
     """请求目标 URL 并返回响应对象。"""
     try:
-        request = client.build_request("GET", url, follow_redirects=True, timeout=60)
-        response = await client.send(request, stream=True)
+        request = client.build_request("GET", url, timeout=60)
+        # 注意：follow_redirects 是 send() 的参数，不是 build_request() 的参数
+        response = await client.send(request, stream=True, follow_redirects=True)
         return response
     except httpx.HTTPError as exc:
         logger.error("sample_proxy_fetch_failed", url=url[:120], error=str(exc))
@@ -144,26 +166,69 @@ async def _proxy_download_sample_inner(
 
         # COS 临时签名过期（401/403）时，尝试用 COS SDK 基于对象 key 重新签发
         if response.status_code in (401, 403) and object_key:
+            await response.aclose()
             try:
                 from qcloud_cos import CosConfig, CosS3Client
 
-                if settings.COS_BUCKET and settings.COS_REGION:
-                    config = CosConfig(
-                        Region=settings.COS_REGION,
-                        SecretId=settings.COS_SECRET_ID,
-                        SecretKey=settings.COS_SECRET_KEY,
-                        Token=settings.COS_SESSION_TOKEN,
-                        Scheme="https",
+                secret_id = settings.COS_SECRET_ID
+                secret_key = settings.COS_SECRET_KEY
+                if not (secret_id and secret_key):
+                    host_bucket = _infer_cos_bucket_from_host(parsed.hostname or "")
+                    logger.warning(
+                        "sample_proxy_cos_resign_skipped_missing_credentials",
+                        key=object_key[:60],
+                        inferred_bucket=(host_bucket or "")[:60],
                     )
-                    client_sdk = CosS3Client(config)
-                    new_url = client_sdk.get_presigned_download_url(
-                        Bucket=settings.COS_BUCKET,
-                        Key=object_key,
-                        Expired=900,
-                    )
-                    logger.info("sample_proxy_cos_repair", key=object_key[:60], user_id=current_user_id[:16])
-                    await response.aclose()
-                    response = await _fetch_stream(new_url, client)
+                else:
+                    # 候选 bucket/region：优先从链接 host 推断，其次用配置兜底
+                    candidates = [
+                        (
+                            _infer_cos_bucket_from_host(parsed.hostname or "") or settings.COS_BUCKET,
+                            _infer_cos_region_from_host(parsed.hostname or "") or settings.COS_REGION,
+                        )
+                    ]
+                    if candidates[0] != (settings.COS_BUCKET, settings.COS_REGION):
+                        candidates.append((settings.COS_BUCKET, settings.COS_REGION))
+
+                    reps_res: httpx.Response | None = None
+                    for bucket, region in candidates:
+                        if not bucket or not region:
+                            continue
+                        try:
+                            config = CosConfig(
+                                Region=region,
+                                SecretId=secret_id,
+                                SecretKey=secret_key,
+                                Token=settings.COS_SESSION_TOKEN,
+                                Scheme="https",
+                            )
+                            client_sdk = CosS3Client(config)
+                            new_url = client_sdk.get_presigned_download_url(
+                                Bucket=bucket,
+                                Key=object_key,
+                                Expired=900,
+                            )
+                            logger.info(
+                                "sample_proxy_cos_repair",
+                                bucket=bucket,
+                                key=object_key[:60],
+                                user_id=current_user_id[:16],
+                            )
+                            reps_res = await _fetch_stream(new_url, client)
+                            if 200 <= reps_res.status_code < 300:
+                                break
+                            await reps_res.aclose()
+                            reps_res = None
+                        except Exception as slot_exc:
+                            logger.warning(
+                                "sample_proxy_cos_repair_slot_failed",
+                                bucket=bucket,
+                                key=(object_key or "")[:60],
+                                error=str(slot_exc),
+                            )
+
+                    if reps_res is not None:
+                        response = reps_res
             except Exception as exc:
                 logger.warning("sample_proxy_cos_repair_failed", key=(object_key or "")[:60], error=str(exc))
 
