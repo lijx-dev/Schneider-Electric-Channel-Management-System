@@ -5397,65 +5397,111 @@ Page({
       return;
     }
 
-    // 普通 https 链接：通过云托管 callContainer 代理下载，
-    // 避免 downloadFile 合法域名限制以及 COS 临时签名过期问题。
+    // 普通 https 链接：分片下载，避免 downloadFile 合法域名限制、
+    // COS 临时签名过期，以及 callContainer 返回包 1MB 上限问题。
     const token = app.globalData.token || wx.getStorageSync('token') || '';
-    wx.cloud.callContainer({
-      config: app.getCallContainerConfig(),
-      path: `/api/samples/download?url=${encodeURIComponent(url)}`,
-      method: 'GET',
-      timeout: 120000,
-      responseType: 'arraybuffer',
-      header: app.buildServiceHeaders({
-        'Authorization': `Bearer ${token}`,
-      }),
-      success: (res) => {
-        if (res.statusCode === 200 && res.data) {
-          const fileName = this.extractFileNameFromUrl(url) || '文件';
-          const tempFilePath = `${wx.env.USER_DATA_PATH}/${Date.now()}_${fileName}`;
-          wx.getFileSystemManager().writeFile({
-            filePath: tempFilePath,
-            data: res.data,
-            encoding: 'binary',
-            success: () => {
-              this.openDownloadedDocument(tempFilePath, fileType, title);
-            },
-            fail: (err) => {
-              wx.hideLoading();
-              console.warn('write file failed:', err);
-              wx.showToast({ title: '文件保存失败', icon: 'none' });
-            },
-          });
-        } else {
-          wx.hideLoading();
-          let errorMsg = '下载失败，请稍后重试';
-          // responseType=arraybuffer 时 res.data 是 ArrayBuffer，需解码为文本以读取后端 detail
-          if (res.data) {
-            try {
-              const bytes = new Uint8Array(res.data);
-              let text = '';
-              const chunk = 8192;
-              for (let i = 0; i < bytes.length; i += chunk) {
-                text += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
-              }
-              const json = JSON.parse(text);
-              if (json && json.detail && typeof json.detail === 'string') {
-                errorMsg = json.detail;
-              }
-            } catch (e) {
-              /* 解析失败则使用默认提示 */
-            }
-          }
-          console.warn('proxy download failed:', res.statusCode, errorMsg);
-          wx.showToast({ title: errorMsg, icon: 'none' });
-        }
-      },
-      fail: (err) => {
-        wx.hideLoading();
-        console.warn('proxy download failed:', err);
-        wx.showToast({ title: '下载失败，请稍后重试', icon: 'none' });
-      },
+    const CHUNK = 786 * 1024; // 与后端 CHUNK_SIZE 一致
+    const fileName = this.extractFileNameFromUrl(url) || '文件';
+    const basePath = `/api/samples/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(fileName)}`;
+
+    const cc = (extraPath) => new Promise((resolve, reject) => {
+      wx.cloud.callContainer({
+        config: app.getCallContainerConfig(),
+        path: basePath + extraPath,
+        method: 'GET',
+        timeout: 15000, // callContainer timeout 上限 15s，超出无效
+        responseType: 'arraybuffer',
+        header: app.buildServiceHeaders({
+          'Authorization': `Bearer ${token}`,
+        }),
+        success: resolve,
+        fail: reject,
+      });
     });
+
+    const decodeErrorMsg = (res) => {
+      if (res && res.data) {
+        try {
+          const bytes = new Uint8Array(res.data);
+          let text = '';
+          const c = 8192;
+          for (let i = 0; i < bytes.length; i += c) {
+            text += String.fromCharCode.apply(null, bytes.subarray(i, i + c));
+          }
+          const json = JSON.parse(text);
+          if (json && json.detail && typeof json.detail === 'string') {
+            return json.detail;
+          }
+        } catch (e) {
+          /* 解析失败则使用默认提示 */
+        }
+      }
+      return '';
+    };
+
+    const fetchPart = async (part, parts) => {
+      let lastErr = null;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          const partRes = await cc(`&action=download&part=${part}&part_size=${CHUNK}`);
+          if (partRes.statusCode === 200 && partRes.data) {
+            return new Uint8Array(partRes.data);
+          }
+          lastErr = decodeErrorMsg(partRes) || `下载片段 ${part + 1}/${parts} 失败`;
+        } catch (err) {
+          lastErr = '网络异常，请重试';
+          console.warn(`download part ${part} attempt ${attempt + 1} failed:`, err);
+        }
+      }
+      throw new Error(lastErr || '下载失败，请稍后重试');
+    };
+
+    (async () => {
+      try {
+        // 1) 先获取文件大小与分片数
+        const metaRes = await cc('&action=meta');
+        if (metaRes.statusCode !== 200 || !metaRes.data) {
+          throw new Error(decodeErrorMsg(metaRes) || '获取文件信息失败');
+        }
+        const meta = JSON.parse(decodeErrorMsg(metaRes) || '{}') || {};
+        const total = meta.size;
+        const parts = meta.parts;
+        if (!total || !parts) {
+          throw new Error('文件为空，无法下载');
+        }
+
+        // 2) 按分片顺序拉取并拼接
+        const buffer = new Uint8Array(total);
+        for (let i = 0; i < parts; i += 1) {
+          const chunkBytes = await fetchPart(i, parts);
+          buffer.set(chunkBytes, i * CHUNK);
+          if (i > 0 && i % 10 === 0) {
+            wx.showLoading({ title: `下载中 ${i}/${parts}` });
+          }
+        }
+
+        // 3) 写临时文件后打开
+        const tempFilePath = `${wx.env.USER_DATA_PATH}/${Date.now()}_${fileName}`;
+        wx.getFileSystemManager().writeFile({
+          filePath: tempFilePath,
+          data: buffer.buffer,
+          encoding: 'binary',
+          success: () => {
+            this.openDownloadedDocument(tempFilePath, fileType, title);
+          },
+          fail: (err) => {
+            wx.hideLoading();
+            console.warn('write file failed:', err);
+            wx.showToast({ title: '文件保存失败', icon: 'none' });
+          },
+        });
+      } catch (err) {
+        wx.hideLoading();
+        const msg = (err && err.message) ? err.message : '下载失败，请稍后重试';
+        console.warn('proxy download failed:', err);
+        wx.showToast({ title: msg.length > 20 ? msg.slice(0, 20) : msg, icon: 'none' });
+      }
+    })();
   },
 
   openDownloadedDocument(filePath, fileType, title) {
