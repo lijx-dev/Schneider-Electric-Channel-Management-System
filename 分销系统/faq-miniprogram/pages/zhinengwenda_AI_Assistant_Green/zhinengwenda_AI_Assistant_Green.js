@@ -5397,8 +5397,27 @@ Page({
       return;
     }
 
-    // 普通 https 链接：分片下载，避免 downloadFile 合法域名限制、
-    // COS 临时签名过期，以及 callContainer 返回包 1MB 上限问题。
+    // 普通 https 链接：优先直连（与 8 月旧版行为一致，链接签名仍有效时一步下载）；
+    // 直连失败（签名过期 403 / 域名受限 / 网络异常）时自动降级到下方代理（重签 + 分片）。
+    wx.downloadFile({
+      url,
+      timeout: 20000,
+      success: (res) => {
+        if (res && res.statusCode >= 200 && res.statusCode < 300 && res.tempFilePath) {
+          this.openDownloadedDocument(res.tempFilePath, fileType, title);
+          return;
+        }
+        console.warn('direct download non-2xx, fallback to proxy:', res.statusCode);
+        downloadViaProxy();
+      },
+      fail: (err) => {
+        console.warn('direct download failed, fallback to proxy:', err);
+        downloadViaProxy();
+      },
+    });
+
+    // 代理兜底：分片下载，解决 downloadFile 合法域名限制、COS 临时签名过期
+    // （后端自动重签）以及 callContainer 返回包 1MB 上限问题。
     const token = app.globalData.token || wx.getStorageSync('token') || '';
     const CHUNK = 786 * 1024; // 与后端 CHUNK_SIZE 一致
     const fileName = this.extractFileNameFromUrl(url) || '文件';
@@ -5456,7 +5475,7 @@ Page({
       throw new Error(lastErr || '下载失败，请稍后重试');
     };
 
-    (async () => {
+    const downloadViaProxy = async () => {
       try {
         // 1) 先获取文件大小与分片数
         const metaRes = await cc('&action=meta');
@@ -5508,7 +5527,7 @@ Page({
         console.warn('proxy download failed:', err);
         wx.showToast({ title: msg.length > 20 ? msg.slice(0, 20) : msg, icon: 'none' });
       }
-    })();
+    };
   },
 
   openDownloadedDocument(filePath, fileType, title) {
