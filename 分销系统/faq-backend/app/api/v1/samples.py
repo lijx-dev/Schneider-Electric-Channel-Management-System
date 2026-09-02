@@ -99,7 +99,7 @@ async def _fetch_stream(url: str, client: httpx.AsyncClient):
         response = await client.send(request, stream=True)
         return response
     except httpx.HTTPError as exc:
-        logger.error("sample_proxy_fetch_failed", url=url[:80], error=str(exc))
+        logger.error("sample_proxy_fetch_failed", url=url[:120], error=str(exc))
         raise HTTPException(status_code=502, detail="下载源文件失败，请稍后重试") from exc
 
 
@@ -110,6 +110,25 @@ async def proxy_download_sample(
     current_user_id: str = Depends(get_current_user_id),
 ):
     """代理下载智能体返回的样本/资料链接。支持对已过期的 COS 临时签名自动重签。"""
+    try:
+        return await _proxy_download_sample_inner(url, filename, current_user_id)
+    except HTTPException:
+        raise
+    except Exception as exc:  # 兜底：任何未预期异常都打印完整 traceback，便于线上定位
+        logger.exception(
+            "sample_proxy_unexpected_error",
+            url=url[:120],
+            filename=filename[:80],
+            user_id=current_user_id[:16],
+        )
+        raise HTTPException(status_code=500, detail=f"服务器内部错误：{type(exc).__name__}") from exc
+
+
+async def _proxy_download_sample_inner(
+    url: str,
+    filename: str,
+    current_user_id: str,
+):
     if not url.startswith("https://"):
         raise HTTPException(status_code=400, detail="仅支持 https 下载链接")
 

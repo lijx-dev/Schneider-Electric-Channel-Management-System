@@ -5429,8 +5429,22 @@ Page({
         } else {
           wx.hideLoading();
           let errorMsg = '下载失败，请稍后重试';
-          if (res.data && res.data.detail && typeof res.data.detail === 'string') {
-            errorMsg = res.data.detail;
+          // responseType=arraybuffer 时 res.data 是 ArrayBuffer，需解码为文本以读取后端 detail
+          if (res.data) {
+            try {
+              const bytes = new Uint8Array(res.data);
+              let text = '';
+              const chunk = 8192;
+              for (let i = 0; i < bytes.length; i += chunk) {
+                text += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+              }
+              const json = JSON.parse(text);
+              if (json && json.detail && typeof json.detail === 'string') {
+                errorMsg = json.detail;
+              }
+            } catch (e) {
+              /* 解析失败则使用默认提示 */
+            }
           }
           console.warn('proxy download failed:', res.statusCode, errorMsg);
           wx.showToast({ title: errorMsg, icon: 'none' });
