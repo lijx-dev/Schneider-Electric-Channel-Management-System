@@ -5463,12 +5463,19 @@ Page({
         if (metaRes.statusCode !== 200 || !metaRes.data) {
           throw new Error(decodeErrorMsg(metaRes) || '获取文件信息失败');
         }
-        const meta = JSON.parse(decodeErrorMsg(metaRes) || '{}') || {};
+        let meta = {};
+        try {
+          meta = JSON.parse(decodeErrorMsg(metaRes) || '{}') || {};
+        } catch (e) {
+          meta = {};
+        }
+        console.log('[sample-download] meta:', metaRes.statusCode, JSON.stringify(meta));
+        if (!meta.size || !meta.parts) {
+          // 后端未部署分片协议（旧版把整个文件作为响应返回，触发 -606002）
+          throw new Error('后端未更新分片下载协议，请联系管理员重新部署');
+        }
         const total = meta.size;
         const parts = meta.parts;
-        if (!total || !parts) {
-          throw new Error('文件为空，无法下载');
-        }
 
         // 2) 按分片顺序拉取并拼接
         const buffer = new Uint8Array(total);

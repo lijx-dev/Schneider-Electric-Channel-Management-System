@@ -308,7 +308,8 @@ async def _proxy_download_sample_inner(
             )
             from fastapi.responses import JSONResponse  # noqa: PLC0415
 
-            return JSONResponse({"size": size, "parts": parts})
+            # version 用于让前端/用户确认后端已部署分片协议（旧版会整包返回，触发 -606002）
+            return JSONResponse({"size": size, "parts": parts, "version": 2})
 
         # action == "download": 返回第 part 片
         start = part * part_size
