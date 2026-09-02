@@ -59,6 +59,8 @@ class Settings(BaseSettings):
     COS_BUCKET: Optional[str] = "7465-test-8gwkg5zb84a8b224-1407839340"
     COS_BASE_URL: Optional[str] = None
     COS_SIGN_EXPIRE_SECONDS: int = 3600
+    # 样本文件代理下载允许的额外域名后缀（逗号分隔，如 ".example.com"）
+    SAMPLE_DOWNLOAD_ALLOWED_SUFFIXES: Optional[str] = None
 
     CORS_ORIGINS: str = "https://servicewechat.com"
 

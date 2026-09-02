@@ -5380,34 +5380,83 @@ Page({
     }
 
     wx.showLoading({ title: '正在下载' });
-    wx.downloadFile({
-      url,
-      success: (res) => {
-        if (!res || res.statusCode < 200 || res.statusCode >= 300 || !res.tempFilePath) {
-          wx.hideLoading();
-          wx.showToast({ title: '下载失败', icon: 'none' });
-          return;
-        }
 
-        wx.openDocument({
-          filePath: res.tempFilePath,
-          fileType,
-          showMenu: true,
-          success: () => {
-            wx.hideLoading();
-          },
-          fail: (err) => {
-            wx.hideLoading();
-            console.warn('openDocument failed:', err);
-            wx.showToast({ title: `无法打开${title}`, icon: 'none' });
+    // 云存储 fileID：直接通过 wx.cloud 下载（不经后端）
+    if (url.startsWith('cloud://')) {
+      wx.cloud.downloadFile({
+        fileID: url,
+        success: (res) => {
+          this.openDownloadedDocument(res.tempFilePath, fileType, title);
+        },
+        fail: (err) => {
+          wx.hideLoading();
+          console.warn('cloud downloadFile failed:', err);
+          wx.showToast({ title: '下载失败，请稍后重试', icon: 'none' });
+        },
+      });
+      return;
+    }
+
+    // 普通 https 链接：通过云托管 callContainer 代理下载，
+    // 避免 downloadFile 合法域名限制以及 COS 临时签名过期问题。
+    const token = app.globalData.token || wx.getStorageSync('token') || '';
+    wx.cloud.callContainer({
+      config: app.getCallContainerConfig(),
+      path: `/api/samples/download?url=${encodeURIComponent(url)}`,
+      method: 'GET',
+      timeout: 120000,
+      responseType: 'arraybuffer',
+      header: app.buildServiceHeaders({
+        'Authorization': `Bearer ${token}`,
+      }),
+      success: (res) => {
+        if (res.statusCode === 200 && res.data) {
+          const fileName = this.extractFileNameFromUrl(url) || '文件';
+          const tempFilePath = `${wx.env.USER_DATA_PATH}/${Date.now()}_${fileName}`;
+          wx.getFileSystemManager().writeFile({
+            filePath: tempFilePath,
+            data: res.data,
+            encoding: 'binary',
+            success: () => {
+              this.openDownloadedDocument(tempFilePath, fileType, title);
+            },
+            fail: (err) => {
+              wx.hideLoading();
+              console.warn('write file failed:', err);
+              wx.showToast({ title: '文件保存失败', icon: 'none' });
+            },
+          });
+        } else {
+          wx.hideLoading();
+          let errorMsg = '下载失败，请稍后重试';
+          if (res.data && res.data.detail && typeof res.data.detail === 'string') {
+            errorMsg = res.data.detail;
           }
-        });
+          console.warn('proxy download failed:', res.statusCode, errorMsg);
+          wx.showToast({ title: errorMsg, icon: 'none' });
+        }
       },
       fail: (err) => {
         wx.hideLoading();
-        console.warn('downloadFile failed:', err);
+        console.warn('proxy download failed:', err);
         wx.showToast({ title: '下载失败，请稍后重试', icon: 'none' });
-      }
+      },
+    });
+  },
+
+  openDownloadedDocument(filePath, fileType, title) {
+    wx.openDocument({
+      filePath,
+      fileType,
+      showMenu: true,
+      success: () => {
+        wx.hideLoading();
+      },
+      fail: (err) => {
+        wx.hideLoading();
+        console.warn('openDocument failed:', err);
+        wx.showToast({ title: `无法打开${title}`, icon: 'none' });
+      },
     });
   },
 
