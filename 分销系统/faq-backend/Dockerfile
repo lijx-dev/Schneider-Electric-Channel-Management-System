@@ -18,6 +18,7 @@ RUN python -c "import alembic"
 COPY alembic.ini ./alembic.ini
 COPY migrations ./migrations
 COPY app ./app
+COPY scripts ./scripts
 
 EXPOSE 8000
 
