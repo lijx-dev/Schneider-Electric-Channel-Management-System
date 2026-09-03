@@ -5438,7 +5438,8 @@ Page({
       });
     });
 
-    const decodeErrorMsg = (res) => {
+    // arraybuffer 响应体转文本（公共）
+    const decodeBody = (res) => {
       if (res && res.data) {
         try {
           const bytes = new Uint8Array(res.data);
@@ -5447,6 +5448,18 @@ Page({
           for (let i = 0; i < bytes.length; i += c) {
             text += String.fromCharCode.apply(null, bytes.subarray(i, i + c));
           }
+          return text;
+        } catch (e) {
+          return '';
+        }
+      }
+      return '';
+    };
+
+    const decodeErrorMsg = (res) => {
+      const text = decodeBody(res);
+      if (text) {
+        try {
           const json = JSON.parse(text);
           if (json && json.detail && typeof json.detail === 'string') {
             return json.detail;
@@ -5484,8 +5497,15 @@ Page({
         }
         let meta = {};
         try {
-          meta = JSON.parse(decodeErrorMsg(metaRes) || '{}') || {};
+          // meta 成功响应是完整 JSON（{"size":..,"parts":..,"filename":..}），
+          // 不能用 decodeErrorMsg（它只取错误响应里的 detail 字段，会把成功体解析成 {}）。
+          meta = JSON.parse(decodeBody(metaRes)) || {};
         } catch (e) {
+          if (metaRes.statusCode !== 200) {
+            // 非 200 时尝试解析错误详情
+            const detail = decodeErrorMsg(metaRes);
+            throw new Error(detail || '获取文件信息失败');
+          }
           meta = {};
         }
         console.log('[sample-download] meta:', metaRes.statusCode, JSON.stringify(meta));
