@@ -2340,7 +2340,8 @@ Page({
   },
 
   async onLoad() {
-    if (!app.requireLogin()) return;
+    // 不再强制登录：游客可浏览智能体页面（了解功能），发送消息时才引导登录。
+    // 避免"取消/返回登录后仍被反复弹窗强制登录"的审核违规。
     this.activeSocketTask = null;
     this.windowHeight = this.resolveWindowHeight();
     this.recordRecognitionManager = null;
@@ -2381,7 +2382,6 @@ Page({
   },
 
   async onShow() {
-    if (!app.requireLogin()) return;
     await this.syncUserInfo();
     if (!this.data.guideBreadcrumbs.length) {
       await this.initGuide();
@@ -3027,7 +3027,8 @@ Page({
         url: '/api/product-guides/tree',
         timeout: 25000,
         retryCount: 1,
-        debugTag: 'guideTree'
+        debugTag: 'guideTree',
+        skipAuthRedirect: true
       });
 
       if (remoteTree && remoteTree.id === 'root' && Array.isArray(remoteTree.children)) {
@@ -3185,7 +3186,7 @@ Page({
   },
 
   async onSend() {
-    if (!app.requireLogin()) return;
+    if (!(await this.ensureLoginForAction())) return;
     if (this.data.isVoiceRecording) {
       wx.showToast({
         title: '请先结束语音识别',
@@ -3200,8 +3201,39 @@ Page({
     await this.submitPrompt(text);
   },
 
+  async ensureLoginForAction() {
+    // 游客可浏览页面，但发送/提问等需身份操作前引导登录；
+    // 提供"暂不登录"取消选项，避免审核判定强制登录。
+    if (app.globalData.userId && app.globalData.token) {
+      return true;
+    }
+
+    const proceed = await new Promise((resolve) => {
+      wx.showModal({
+        title: '请先登录',
+        content: '登录后可继续使用智能体提问、下载样本等功能',
+        confirmText: '去登录',
+        cancelText: '暂不登录',
+        success: (res) => {
+          if (res.confirm) {
+            app.clearAuthState();
+            wx.navigateTo({ url: '/pages/login/login' });
+          }
+          resolve(res.confirm === true);
+        },
+        fail: () => resolve(false)
+      });
+    });
+
+    return proceed;
+  },
+
   async submitPrompt(promptText, options = {}) {
-    if (!app.requireLogin()) return;
+    if (!app.globalData.userId || !app.globalData.token) {
+      if (!(await this.ensureLoginForAction())) {
+        return;
+      }
+    }
 
     const finalPrompt = String(promptText || '').trim();
     const userText = String(options.userText || finalPrompt).trim();

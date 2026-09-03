@@ -106,8 +106,9 @@ Page({
 
     if (e.detail.errMsg !== 'getPhoneNumber:ok') {
       wx.showToast({
-        title: '你已取消手机号授权',
-        icon: 'none'
+        title: '已取消授权，可选择暂不登录继续体验',
+        icon: 'none',
+        duration: 2500
       });
       return;
     }
@@ -276,7 +277,8 @@ Page({
     wx.switchTab({
       url: HOME_URL,
       fail: () => {
-        wx.navigateBack();
+        // 兜底：登录页可能不是从 tab 页进入的，直接重定向到首页保证能退出登录流程
+        wx.reLaunch({ url: HOME_URL });
       }
     });
   },

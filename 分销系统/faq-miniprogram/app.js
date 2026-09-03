@@ -814,6 +814,14 @@ App({
 
   handleUnauthorized() {
     this.clearAuthState();
+
+    // guest 模式下不强制跳登录页：审核要求用户取消登录后能正常浏览体验，
+    // 不得反复弹窗强制登录。游客仍可浏览内容，仅在主动操作（答题、提问等）时引导登录。
+    if (this.globalData.guestMode || wx.getStorageSync('guestMode')) {
+      this.globalData.guestMode = true;
+      return;
+    }
+
     wx.navigateTo({
       url: '/pages/login/login'
     });
@@ -903,7 +911,11 @@ App({
               statusCode: res.statusCode
             });
           }
-          this.handleUnauthorized();
+          // skipAuthRedirect=true 时（示例：游客可浏览的公共内容接口）不弹登录页，
+          // 仅按普通失败处理，页面自行降级（如使用本地兜底数据）。
+          if (!options.skipAuthRedirect) {
+            this.handleUnauthorized();
+          }
           reject(res.data || { message: 'Unauthorized' });
           return;
         }
