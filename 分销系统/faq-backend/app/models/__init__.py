@@ -20,6 +20,7 @@ from app.models.recognition import (
     RecognitionSurvey,
     SalesSpecialistMapping,
 )
+from app.models.subscription import SubscriptionAuth
 
 __all__ = [
     "CertificateRecord",
@@ -41,6 +42,7 @@ __all__ = [
     "RecognitionSubmission",
     "RecognitionSurvey",
     "SalesSpecialistMapping",
+    "SubscriptionAuth",
     "User",
     "Question",
     "AnswerRecord",

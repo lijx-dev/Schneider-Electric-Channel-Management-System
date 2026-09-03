@@ -202,6 +202,20 @@
       </view>
     </view>
 
+    <view
+      wx:if="{{showSubscriptionGuide}}"
+      style="margin:24rpx 24rpx 0; background:#E8F7EE; border:2rpx solid #00B050; border-radius:16rpx; padding:20rpx 24rpx; display:flex; align-items:center; justify-content:space-between;"
+    >
+      <view style="flex:1; margin-right:16rpx;">
+        <view style="font-size:26rpx; color:#333333; font-weight:600;">开启每周答题提醒</view>
+        <view style="font-size:22rpx; color:#666666; margin-top:4rpx;">每周一 9:00 微信通知你，不落下新题目</view>
+      </view>
+      <view
+        bindtap="enableSubscriptionReminder"
+        style="background:#00B050; color:#ffffff; font-size:24rpx; padding:12rpx 24rpx; border-radius:999rpx; flex-shrink:0;"
+      >开启提醒</view>
+    </view>
+
     <view class="flex-col group_9">
       <view class="flex-row justify-between items-center">
         <view class="flex-row">

@@ -1,4 +1,5 @@
 const app = getApp();
+const env = require('../../config/env');
 const {
   buildWeeklyQuizSeenKey,
   shouldShowWeeklyQuizBadge
@@ -54,6 +55,7 @@ Page({
     todayStudyTime: 0,
     answeredProgress: 0,
     showWeeklyQuizBadge: false,
+    showSubscriptionGuide: false,
     lotteryNotice: null,
     // 认可计划
     recognitionRole: '',
@@ -233,6 +235,9 @@ Page({
 
       this.loadLotteryNotice();
 
+      // 每周答题提醒：检查是否展示订阅引导条
+      this.checkSubscriptionGuide();
+
       // 按角色加载认可计划数据
       if (recognitionRole === 'sales') {
         this.loadSalesRatingReminder();
@@ -244,6 +249,95 @@ Page({
     } finally {
       this._isLoadingData = false;
     }
+  },
+
+  getSubGuideSeenKey() {
+    return `subGuideDismissed_${app.globalData.userId || 'guest'}`;
+  },
+
+  todayString() {
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${now.getFullYear()}-${mm}-${dd}`;
+  },
+
+  markSubGuideDismissed() {
+    try {
+      wx.setStorageSync(this.getSubGuideSeenKey(), this.todayString());
+    } catch (err) {
+      console.warn('mark sub guide dismissed failed:', err);
+    }
+  },
+
+  async checkSubscriptionGuide() {
+    if (app.globalData.guestMode || !app.globalData.userId) {
+      return;
+    }
+
+    // 模板未配置时前端不弹订阅授权
+    if (!env.subscriptionTemplateId) {
+      return;
+    }
+
+    try {
+      const res = await app.request({ url: '/api/subscription/status' });
+      if (res && res.has_pending) {
+        return;
+      }
+
+      // 当天已拒绝过则不再重复打扰
+      let dismissed = '';
+      try {
+        dismissed = wx.getStorageSync(this.getSubGuideSeenKey()) || '';
+      } catch (err) {
+        dismissed = '';
+      }
+      if (dismissed === this.todayString()) {
+        return;
+      }
+
+      this.setData({ showSubscriptionGuide: true });
+    } catch (err) {
+      console.warn('check subscription guide failed:', err);
+    }
+  },
+
+  enableSubscriptionReminder() {
+    if (!env.subscriptionTemplateId) {
+      wx.showToast({ title: '提醒功能即将上线', icon: 'none' });
+      return;
+    }
+
+    if (!app.requireLogin()) {
+      return;
+    }
+
+    wx.requestSubscribeMessage({
+      tmplIds: [env.subscriptionTemplateId],
+      success: (res) => {
+        if (res[env.subscriptionTemplateId] === 'accept') {
+          app.request({
+            url: '/api/subscription/auth',
+            method: 'POST',
+            data: { template_id: env.subscriptionTemplateId, auth_source: 'home' }
+          })
+            .then(() => {
+              this.setData({ showSubscriptionGuide: false });
+              wx.showToast({ title: '已开启每周提醒', icon: 'success' });
+            })
+            .catch(() => {
+              wx.showToast({ title: '开启失败，请稍后重试', icon: 'none' });
+            });
+        } else {
+          wx.showToast({ title: '已取消，需要时可再开启', icon: 'none' });
+        }
+        this.markSubGuideDismissed();
+      },
+      fail: () => {
+        // 用户在系统层拒绝/关闭等，静默降级，不打扰
+      }
+    });
   },
 
   async loadLotteryNotice() {

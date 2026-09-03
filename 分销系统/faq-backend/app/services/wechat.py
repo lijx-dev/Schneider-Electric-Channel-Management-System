@@ -13,6 +13,7 @@ logger = get_logger(__name__)
 WECHAT_JSCODE2SESSION_URL = "https://api.weixin.qq.com/sns/jscode2session"
 WECHAT_TOKEN_URL = "https://api.weixin.qq.com/cgi-bin/token"
 WECHAT_GET_PHONE_URL = "https://api.weixin.qq.com/wxa/business/getuserphonenumber"
+WECHAT_SUBSCRIBE_SEND_URL = "https://api.weixin.qq.com/cgi-bin/message/subscribe/send"
 
 _access_token_cache = {
     "token": None,
@@ -154,3 +155,48 @@ async def get_user_phone_number(code: str) -> str:
 
     logger.info("wechat_get_phone_success", phone=f"{phone_number[:3]}****{phone_number[-4:]}")
     return phone_number
+
+
+async def send_subscribe_message(
+    openid: str,
+    template_id: str,
+    page: str,
+    data: dict,
+    miniprogram_state: str = "formal",
+) -> dict:
+    """发送小程序订阅消息（一次性订阅）。
+
+    复用 get_access_token 的缓存；errcode 非 0 时抛 ValueError，由调度器捕获记录。
+    data 中的字段 key（如 thing1/time2）必须与小程序后台申请的模板关键词一致，
+    thing 类型 value 不超过 20 字符，time 类型需为 "yyyy-MM-dd HH:mm" 格式。
+    """
+    if not template_id:
+        raise ValueError("Missing template_id for subscribe message")
+
+    access_token = await get_access_token()
+    url = f"{WECHAT_SUBSCRIBE_SEND_URL}?access_token={access_token}"
+
+    payload = {
+        "touser": openid,
+        "template_id": template_id,
+        "page": page,
+        "miniprogram_state": miniprogram_state,
+        "lang": "zh_CN",
+        "data": data,
+    }
+
+    async with _build_wechat_http_client() as client:
+        response = await client.post(url, json=payload)
+        resp_data = response.json()
+
+    if resp_data.get("errcode", 0) != 0:
+        logger.error(
+            "subscribe_send_error",
+            errcode=resp_data.get("errcode"),
+            errmsg=resp_data.get("errmsg"),
+            openid=openid[:8],
+        )
+        raise ValueError(f"subscribe/send failed: {resp_data.get('errmsg')}")
+
+    logger.info("subscribe_send_success", openid=openid[:8], template_id=template_id[:12])
+    return resp_data

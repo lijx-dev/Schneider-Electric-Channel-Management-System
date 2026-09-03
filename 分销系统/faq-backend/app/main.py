@@ -15,6 +15,10 @@ from app.services.monthly_reward_scheduler import (
     start_monthly_reward_scheduler,
     stop_monthly_reward_scheduler,
 )
+from app.services.subscription_reminder_scheduler import (
+    start_subscription_scheduler,
+    stop_subscription_scheduler,
+)
 
 setup_logging(debug=settings.DEBUG)
 logger = get_logger(__name__)
@@ -39,10 +43,12 @@ async def lifespan(app: FastAPI):
     )
     await init_db()
     start_monthly_reward_scheduler()
+    start_subscription_scheduler()
 
     yield
 
     await stop_monthly_reward_scheduler()
+    await stop_subscription_scheduler()
     await close_db()
     logger.info("app_shutdown")
 

@@ -148,6 +148,12 @@
       <text>下周一早上 9:00 更新新题目</text>
     </view>
 
+    <view
+      wx:if="{{showReminderBtn}}"
+      bindtap="enableReminder"
+      style="margin:24rpx auto 0; width:560rpx; background:#00B050; color:#ffffff; font-size:28rpx; text-align:center; padding:20rpx 0; border-radius:999rpx;"
+    >下周一答题提醒 · 点击开启</view>
+
     <view class="result-actions">
       <button class="result-secondary-btn" bindtap="goBack">返回首页</button>
     </view>

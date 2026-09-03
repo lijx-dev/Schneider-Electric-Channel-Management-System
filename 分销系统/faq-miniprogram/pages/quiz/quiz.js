@@ -1,4 +1,5 @@
 const app = getApp();
+const env = require('../../config/env');
 
 function normalizeTrueFalseValue(value) {
   if (value === undefined || value === null) return '';
@@ -57,6 +58,7 @@ Page({
     totalScore: 0,
     correctCount: 0,
     isFinished: false,
+    showReminderBtn: false,
     accuracy: 0,
     startTime: 0,
     quizDate: '',
@@ -172,6 +174,7 @@ Page({
           answeredCount: data.answered_count || questions.length,
           loading: false
         });
+        this.maybeCheckReminder();
         return;
       }
 
@@ -467,6 +470,65 @@ Page({
       isFinished: true,
       isReviewMode: false,
       accuracy: calculateAccuracy(this.data.correctCount, this.data.questions.length)
+    });
+    this.maybeCheckReminder();
+  },
+
+  async maybeCheckReminder() {
+    if (!app.globalData.userId || app.globalData.guestMode) {
+      return;
+    }
+
+    // 模板未配置时前端不弹订阅授权
+    if (!env.subscriptionTemplateId) {
+      return;
+    }
+
+    try {
+      const res = await app.request({ url: '/api/subscription/status', retryCount: 0 });
+      const hasPending = !!(res && res.has_pending);
+      if (!hasPending) {
+        this.setData({ showReminderBtn: true });
+      }
+    } catch (err) {
+      console.warn('check reminder status failed:', err);
+    }
+  },
+
+  enableReminder() {
+    if (!env.subscriptionTemplateId) {
+      wx.showToast({ title: '提醒功能即将上线', icon: 'none' });
+      return;
+    }
+
+    if (!app.requireLogin()) {
+      return;
+    }
+
+    wx.requestSubscribeMessage({
+      tmplIds: [env.subscriptionTemplateId],
+      success: (res) => {
+        if (res[env.subscriptionTemplateId] === 'accept') {
+          app.request({
+            url: '/api/subscription/auth',
+            method: 'POST',
+            data: { template_id: env.subscriptionTemplateId, auth_source: 'quiz' }
+          })
+            .then(() => {
+              this.setData({ showReminderBtn: false });
+              wx.showToast({ title: '已开启每周提醒', icon: 'success' });
+            })
+            .catch(() => {
+              wx.showToast({ title: '开启失败，请稍后重试', icon: 'none' });
+            });
+        } else {
+          wx.showToast({ title: '本次已取消，可下次再开启', icon: 'none' });
+          this.setData({ showReminderBtn: false });
+        }
+      },
+      fail: () => {
+        // 用户在系统层拒绝/关闭等，静默降级
+      }
     });
   },
 

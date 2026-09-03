@@ -19,6 +19,14 @@ class Settings(BaseSettings):
     ENABLE_MONTHLY_REWARD_SCHEDULER: bool = False
     MONTHLY_REWARD_CHECK_INTERVAL_SECONDS: int = 21600
 
+    # 每周一答题提醒订阅消息（一次性订阅，每次授权推一条）
+    ENABLE_SUBSCRIPTION_SCHEDULER: bool = False
+    SUBSCRIPTION_SEND_INTERVAL_SECONDS: int = 60
+    SUBSCRIPTION_SEND_BATCH_SIZE: int = 50
+    SUBSCRIPTION_SEND_BETWEEN_SECONDS: float = 1.0
+    SUBSCRIPTION_TEMPLATE_ID: Optional[str] = None      # 小程序后台申请的订阅消息模板 ID
+    SUBSCRIPTION_MINIPROGRAM_STATE: str = "formal"      # developer/trial/formal
+
     SECRET_KEY: str = "change-me-in-production"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
 
