@@ -43,8 +43,8 @@
 
         <!-- text_list 类型 -->
         <block wx:elif="{{item.item_type === 'text_list'}}">
-          <view wx:for="{{predefinedValues[item.item_key]}}" wx:key="index" wx:for-index="idx" class="text-list-item">
-            <input class="form-input" placeholder="{{item.item_placeholder || '请输入内容'}}" value="{{item}}" data-key="{{item.item_key}}" data-index="{{idx}}" bindinput="onTextListInput" />
+          <view wx:for="{{predefinedValues[item.item_key]}}" wx:for-item="val" wx:for-index="idx" wx:key="*this" class="text-list-item">
+            <input class="form-input" placeholder="{{item.item_placeholder || '请输入内容'}}" value="{{val}}" data-key="{{item.item_key}}" data-index="{{idx}}" bindinput="onTextListInput" />
             <view class="text-list-remove" data-key="{{item.item_key}}" data-index="{{idx}}" bindtap="removeTextListItem">
               <text class="remove-icon">×</text>
             </view>
