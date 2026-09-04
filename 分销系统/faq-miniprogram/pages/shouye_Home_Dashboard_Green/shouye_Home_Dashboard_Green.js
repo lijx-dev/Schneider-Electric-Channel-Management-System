@@ -506,7 +506,20 @@ Page({
 
   goToManagerReview() {
     if (!app.requireLogin()) return;
-    wx.navigateTo({ url: '/pages/recognition/submit/submit' });
+    // 审核功能在网页端管理后台，小程序内无审核页面；
+    // 复制后台地址提示经理到电脑端审核，而不是跳转到专员的申报页。
+    const adminUrl = 'https://faq-backend-229183-5-1407839340.sh.run.tcloudbase.com/admin';
+    wx.setClipboardData({
+      data: adminUrl,
+      success: () => {
+        wx.showModal({
+          title: '请在电脑端审核',
+          content: '申报审核需要在网页端管理后台进行。后台地址已复制到剪贴板，请粘贴到电脑浏览器打开，登录后进入「认可计划管理 → 审核申报」。',
+          showCancel: false,
+          confirmText: '知道了'
+        });
+      }
+    });
   },
 
   onShareAppMessage() {
