@@ -18,7 +18,7 @@
 
     <view class="legal-section">
       <text class="legal-heading">二、服务内容</text>
-      <text class="legal-paragraph">1. 本小程序向用户提供学习、答题、排行榜、证书查询、母线豆包、能量商城兑换等服务。</text>
+      <text class="legal-paragraph">1. 本小程序向用户提供学习、答题、排行榜、证书查询、赋能助手、能量商城兑换等服务。</text>
       <text class="legal-paragraph">2. 平台有权根据业务发展情况，对服务内容进行调整、优化或下线。</text>
     </view>
 
@@ -43,9 +43,9 @@
     </view>
 
     <view class="legal-section">
-      <text class="legal-heading">六、母线豆包与内容说明</text>
-      <text class="legal-paragraph">1. 平台提供的母线豆包功能仅用于学习辅助和信息参考。</text>
-      <text class="legal-paragraph">2. 母线豆包结果不构成法律、医疗、投资等专业建议。</text>
+      <text class="legal-heading">六、赋能助手与内容说明</text>
+      <text class="legal-paragraph">1. 平台提供的赋能助手功能仅用于学习辅助和信息参考。</text>
+      <text class="legal-paragraph">2. 赋能助手结果不构成法律、医疗、投资等专业建议。</text>
       <text class="legal-paragraph">3. 用户应自行判断和承担基于问答结果采取行动的风险。</text>
     </view>
 

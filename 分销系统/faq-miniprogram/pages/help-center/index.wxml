@@ -2,7 +2,7 @@
   <view class="help-hero">
     <text class="help-kicker">Help Center</text>
     <text class="help-title">帮助中心</text>
-    <text class="help-desc">这里整理了登录、答题、兑换、证书查询和母线豆包的常见使用问题。</text>
+    <text class="help-desc">这里整理了登录、答题、兑换、证书查询和赋能助手的常见使用问题。</text>
   </view>
 
   <view class="help-list">
