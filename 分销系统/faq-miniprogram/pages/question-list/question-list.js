@@ -76,12 +76,18 @@ Page({
   },
 
   onLoad(options) {
+    const { buildWatermarkText } = require('../../utils/watermark');
     const categoryName = decodeURIComponent(options.name || '题库');
     const questionCategory = decodeURIComponent(options.category || '');
     const legacyQuestionType = options.type || '';
 
     wx.setNavigationBarTitle({ title: categoryName });
-    this.setData({ categoryName, questionCategory, legacyQuestionType });
+    this.setData({
+      categoryName,
+      questionCategory,
+      legacyQuestionType,
+      watermarkName: buildWatermarkText(app)
+    });
     this.loadAllQuestions();
   },
 

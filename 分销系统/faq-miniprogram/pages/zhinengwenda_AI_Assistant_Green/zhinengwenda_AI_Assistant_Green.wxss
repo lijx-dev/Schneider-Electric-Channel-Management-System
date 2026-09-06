@@ -1080,3 +1080,8 @@
 .voice-status-active {
   color: #059669;
 }
+
+/* 姓名水印：避开固定输入区 composer */
+.ai-wm {
+  bottom: calc(250rpx + env(safe-area-inset-bottom));
+}

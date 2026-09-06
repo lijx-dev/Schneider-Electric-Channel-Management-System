@@ -1,0 +1,11 @@
+<view wx:if="{{name && !hidden}}" class="wm-wrap {{wm-class}}">
+  <view
+    class="wm-row"
+    wx:for="{{rowList}}"
+    wx:key="*this"
+    wx:for-index="rowIndex"
+    style="margin-left: {{rowIndex % 2 === 0 ? '-160' : '-40'}}rpx;"
+  >
+    <text class="wm-item" wx:for="{{colList}}" wx:key="*this">{{name}}</text>
+  </view>
+</view>

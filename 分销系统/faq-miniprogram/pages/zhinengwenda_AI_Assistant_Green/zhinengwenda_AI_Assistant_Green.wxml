@@ -332,4 +332,6 @@
       >{{feedbackSubmitting ? '提交中...' : '提交'}}</view>
     </view>
   </view>
+
+  <watermark name="{{watermarkName}}" wm-class="ai-wm" />
 </view>

@@ -125,4 +125,6 @@
       </view>
     </view>
   </view>
+
+  <watermark name="{{watermarkName}}" wm-class="ql-wm" />
 </view>

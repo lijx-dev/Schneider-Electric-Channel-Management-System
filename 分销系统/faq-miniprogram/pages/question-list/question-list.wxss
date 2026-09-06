@@ -495,3 +495,8 @@
   background: #f44336;
   color: #fff;
 }
+
+/* 姓名水印：避开固定底栏 */
+.ql-wm {
+  bottom: calc(132rpx + env(safe-area-inset-bottom));
+}

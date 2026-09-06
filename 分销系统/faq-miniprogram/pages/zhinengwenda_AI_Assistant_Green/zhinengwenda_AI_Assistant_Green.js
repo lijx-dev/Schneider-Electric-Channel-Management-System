@@ -2383,6 +2383,8 @@ Page({
 
   async onShow() {
     await this.syncUserInfo();
+    const { buildWatermarkText } = require('../../utils/watermark');
+    this.setData({ watermarkName: buildWatermarkText(app) });
     if (!this.data.guideBreadcrumbs.length) {
       await this.initGuide();
     }

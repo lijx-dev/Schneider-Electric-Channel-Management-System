@@ -142,6 +142,8 @@ Page({
 
   onLoad() {
     if (!app.requireLogin()) return;
+    const { buildWatermarkText } = require('../../utils/watermark');
+    this.setData({ watermarkName: buildWatermarkText(app) });
     this.loadDailyQuiz();
   },
 

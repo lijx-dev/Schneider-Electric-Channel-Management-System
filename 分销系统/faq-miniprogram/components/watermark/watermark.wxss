@@ -1,0 +1,31 @@
+/* 学员姓名水印：固定覆盖视口，不随内容滚动，斜排半透明平铺 */
+.wm-wrap {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  pointer-events: none; /* 不挡任何点击/滚动/输入 */
+  z-index: 50; /* 高于正文，低于页面弹层（如答题卡 999、反馈 60） */
+}
+
+.wm-row {
+  display: flex;
+  align-items: center;
+  height: 240rpx;
+  white-space: nowrap;
+  transform: rotate(-30deg);
+  transform-origin: center center;
+}
+
+.wm-item {
+  flex-shrink: 0;
+  width: 520rpx;
+  font-size: 32rpx;
+  font-style: italic;
+  color: rgba(0, 176, 80, 0.09); /* 主色 #00B050 半透明，白底/浅绿底均适用 */
+  letter-spacing: 8rpx;
+  text-align: center;
+  white-space: nowrap;
+}
