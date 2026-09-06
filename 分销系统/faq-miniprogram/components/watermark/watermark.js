@@ -1,7 +1,7 @@
 /**
  * 学员姓名水印组件
  * 在页面内容上层平铺半透明斜体姓名水印（position:fixed 固定视口，防截屏追责）
- * 属性：name 水印文案（空串/未登录时不渲染）；hidden 强制隐藏
+ * 属性：name 水印文案（空串/未登录时不渲染）
  * 外部类：wm-class 供页面覆盖 bottom，避开各自固定底栏/输入区
  */
 Component({
@@ -11,10 +11,6 @@ Component({
     name: {
       type: String,
       value: ''
-    },
-    hidden: {
-      type: Boolean,
-      value: false
     }
   },
 

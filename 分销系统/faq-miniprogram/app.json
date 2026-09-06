@@ -74,8 +74,5 @@
     }
   },
   "sitemapLocation": "sitemap.json",
-  "style": "v2",
-  "usingComponents": {
-    "watermark": "components/watermark/watermark"
-  }
+  "style": "v2"
 }

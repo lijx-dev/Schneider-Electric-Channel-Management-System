@@ -1,4 +1,4 @@
-<view wx:if="{{name && !hidden}}" class="wm-wrap {{wm-class}}">
+<view wx:if="{{name}}" class="wm-wrap {{wm-class}}">
   <view
     class="wm-row"
     wx:for="{{rowList}}"

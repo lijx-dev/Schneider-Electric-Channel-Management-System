@@ -1,5 +1,8 @@
 {
   "navigationBarTitleText": "题目列表",
   "navigationBarBackgroundColor": "#0EA765",
-  "navigationBarTextStyle": "white"
+  "navigationBarTextStyle": "white",
+  "usingComponents": {
+    "watermark": "/components/watermark/watermark"
+  }
 }
