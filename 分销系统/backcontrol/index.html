@@ -432,7 +432,6 @@
 
           <div class="recognition-tabs">
             <button class="sub-tab-btn active" data-subtab="recognition-users">用户角色</button>
-            <button class="sub-tab-btn" data-subtab="recognition-mappings">对接关系</button>
             <button class="sub-tab-btn" data-subtab="recognition-criteria">评分标准</button>
             <button class="sub-tab-btn" data-subtab="recognition-rules">规则配置</button>
             <button class="sub-tab-btn" data-subtab="recognition-calc">评选计算</button>
@@ -458,26 +457,6 @@
                   <tr><th>姓名</th><th>公司</th><th>当前角色</th><th>认可积分</th><th>操作</th></tr>
                 </thead>
                 <tbody id="recognitionUsersBody"></tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- 对接关系管理 -->
-          <div class="recognition-subview" id="recognitionMappingsPanel">
-            <div class="form-card">
-              <div class="form-grid">
-                <label><span>销售用户ID</span><input id="mappingSalesId" placeholder="输入销售用户ID"></label>
-                <label><span>专员用户ID</span><input id="mappingSpecialistId" placeholder="输入专员用户ID"></label>
-              </div>
-              <div class="form-actions">
-                <button class="primary-btn" id="addMappingBtn">添加对接关系</button>
-                <p id="mappingFeedback" class="feedback"></p>
-              </div>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>销售</th><th>专员</th><th>创建时间</th><th>操作</th></tr></thead>
-                <tbody id="mappingsBody"></tbody>
               </table>
             </div>
           </div>

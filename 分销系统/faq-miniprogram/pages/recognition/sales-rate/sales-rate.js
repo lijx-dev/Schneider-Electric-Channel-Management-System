@@ -10,11 +10,14 @@ const DIMENSIONS = [
 Page({
   data: {
     loading: true,
-    submitted: false,
-    specialistList: [],
     surveyMonth: '',
+    submitted: false,
+    ratedCount: 0,
+    maxSpecialists: 4,
+    displayList: [],   // 展示列表，每项 { specialist_id, specialist_name, scores, rated, selected }
     // 评分数据 { specialist_id: { efficiency, response, training, communication } }
     scores: {},
+    selectedCount: 0,
     submitting: false
   },
 
@@ -27,16 +30,25 @@ Page({
       const result = await app.request({
         url: '/api/recognition/surveys/status'
       });
-      const specialistList = result.specialists || [];
-      // 预初始化 scores，避免 WXML 中需要用 || {} 兜底导致 }} 解析错误
+      const specialists = result.specialists || [];
+      // 展示列表：标记 rated/selected；scores 只为未评专员预初始化，避免 WXML 中 || {} 兜底导致 }} 解析错误
+      const displayList = specialists.map(sp => ({
+        ...sp,
+        rated: !!sp.scores,
+        selected: false
+      }));
       const scores = {};
-      specialistList.forEach(sp => {
-        scores[sp.specialist_id] = { efficiency: 0, response: 0, training: 0, communication: 0 };
+      displayList.forEach(sp => {
+        if (!sp.rated) {
+          scores[sp.specialist_id] = { efficiency: 0, response: 0, training: 0, communication: 0 };
+        }
       });
       this.setData({
         loading: false,
         submitted: result.submitted,
-        specialistList,
+        ratedCount: result.rated_count || 0,
+        maxSpecialists: result.max_specialists || 4,
+        displayList,
         scores,
         surveyMonth: result.survey_month
       });
@@ -45,6 +57,37 @@ Page({
       wx.showToast({ title: '加载失败', icon: 'none' });
       this.setData({ loading: false });
     }
+  },
+
+  // 选择 / 取消选择要评分的专员
+  onToggleSelect(e) {
+    const { specialistId } = e.currentTarget.dataset;
+    const { displayList, maxSpecialists, ratedCount, scores } = this.data;
+    const target = displayList.find(sp => sp.specialist_id === specialistId);
+    if (!target || target.rated) return;
+
+    if (!target.selected) {
+      const selectedCount = displayList.filter(sp => sp.selected).length;
+      if (selectedCount >= maxSpecialists - ratedCount) {
+        wx.showToast({
+          title: `本月最多可为 ${maxSpecialists} 位专员评分`,
+          icon: 'none'
+        });
+        return;
+      }
+    } else {
+      // 取消选择：清空该专员的草稿分
+      delete scores[specialistId];
+    }
+
+    target.selected = !target.selected;
+    const selectedCount = displayList.filter(sp => sp.selected).length;
+    this.setData({ displayList: [...displayList], scores: { ...scores }, selectedCount });
+  },
+
+  // 从已选中列表中移除（取消选择）
+  onRemoveSelect(e) {
+    this.onToggleSelect(e);
   },
 
   onScoreChange(e) {
@@ -68,20 +111,20 @@ Page({
     return value + '分';
   },
 
-  async submitAllScores() {
+  async submitSelected() {
     if (this.data.submitting) return;
 
-    const { specialistList, scores } = this.data;
+    const { displayList, scores, surveyMonth } = this.data;
+    const selectedList = displayList.filter(sp => sp.selected);
 
-    // 校验
-    const targets = specialistList.filter(s => !s.scores);
-    if (targets.length === 0) {
-      wx.showToast({ title: '所有专员已评分', icon: 'none' });
+    // 校验：至少选择一位
+    if (selectedList.length === 0) {
+      wx.showToast({ title: '请先选择要评分的专员', icon: 'none' });
       return;
     }
 
-    // 校验每个专员4个维度都有评分
-    for (const sp of targets) {
+    // 校验：每位专员至少一个维度 > 0
+    for (const sp of selectedList) {
       const spScores = scores[sp.specialist_id] || {};
       const dims = ['efficiency', 'response', 'training', 'communication'];
       const hasScore = dims.some(d => (spScores[d] || 0) > 0);
@@ -97,14 +140,14 @@ Page({
     this.setData({ submitting: true });
 
     try {
-      for (const sp of targets) {
+      for (const sp of selectedList) {
         const spScores = scores[sp.specialist_id] || {};
         await app.request({
           url: '/api/recognition/surveys',
           method: 'POST',
           data: {
             target_id: sp.specialist_id,
-            survey_month: this.data.surveyMonth,
+            survey_month: surveyMonth,
             score_efficiency: spScores.efficiency || 0,
             score_response: spScores.response || 0,
             score_training: spScores.training || 0,
@@ -114,7 +157,8 @@ Page({
       }
 
       wx.showToast({ title: '评分提交成功', icon: 'success' });
-      setTimeout(() => wx.navigateBack(), 1200);
+      // 留在页面续评：刷新状态，刚评的卡片变"已评分"
+      setTimeout(() => this.loadStatus(), 800);
     } catch (err) {
       console.error('Submit scores error:', err);
       wx.showToast({ title: (err && err.message) || '提交失败', icon: 'none' });

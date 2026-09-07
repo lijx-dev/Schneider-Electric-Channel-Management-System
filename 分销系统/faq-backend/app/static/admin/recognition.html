@@ -198,29 +198,7 @@
     </div>
   </div>
 
-  <!-- 对接关系管理 -->
-  <div class="rec-section">
-    <div class="rec-section-head">
-      <h3>销售-专员对接关系</h3>
-      <button class="ghost-btn" id="recLoadMappingsBtn">刷新</button>
-    </div>
-    <div class="filters">
-      <button class="primary-btn" id="recAddMappingBtn">+ 添加对接关系</button>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>销售</th>
-            <th>专员</th>
-            <th>创建时间</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody id="recMappingsBody"></tbody>
-      </table>
-    </div>
-  </div>
+  <!-- 对接关系管理：已废弃（销售自选专员评分，不再需要映射） -->
 </div>
 
 <!-- ==================== Tab 4: 规则配置 ==================== -->
@@ -400,26 +378,6 @@
   </div>
 </div>
 
-<!-- ==================== 弹窗：添加对接关系 ==================== -->
-<div class="modal-overlay hidden" id="recMappingAddModal">
-  <div class="modal-box">
-    <div class="modal-head">
-      <h3>添加对接关系</h3>
-      <button class="modal-close" id="recMappingAddModalClose">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-grid">
-        <label><span>销售用户ID *</span><input id="recMappingSalesId" placeholder="输入销售用户ID"></label>
-        <label><span>专员用户ID *</span><input id="recMappingSpecialistId" placeholder="输入专员用户ID"></label>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button class="ghost-btn" id="recMappingAddCancelBtn">取消</button>
-      <button class="primary-btn" id="recMappingAddSaveBtn">保存</button>
-    </div>
-  </div>
-</div>
-
 <!-- ==================== 弹窗：修改用户角色 ==================== -->
 <div class="modal-overlay hidden" id="recUserRoleModal">
   <div class="modal-box">
@@ -476,7 +434,6 @@
     quarterlyAwards: [],
     annualAwards: [],
     users: [],
-    mappings: [],
     rules: [],
     criteria: [],
     confirmCallback: null,
@@ -529,7 +486,7 @@
       recEl('rec' + tab.charAt(0).toUpperCase() + tab.slice(1) + 'Panel').classList.add('active');
       if (tab === 'submissions') recLoadSubmissions();
       else if (tab === 'awards') { recLoadMonthlyAwards(); recLoadQuarterlyAwards(); recLoadAnnualAwards(); }
-      else if (tab === 'users') { recLoadUsers(); recLoadMappings(); }
+      else if (tab === 'users') { recLoadUsers(); }
       else if (tab === 'rules') recLoadRules();
       else if (tab === 'criteria') recLoadCriteria();
     });
@@ -903,65 +860,8 @@
     } catch (e) { alert('修改失败：' + e.message); }
   }
 
-  async function recLoadMappings() {
-    try {
-      var data = await request(REC_API + '/mappings');
-      recState.mappings = Array.isArray(data) ? data : [];
-      recRenderMappings();
-    } catch (e) {
-      recEl('recMappingsBody').innerHTML = '<tr><td colspan="4" style="color:var(--danger);">加载失败：' + escapeHtml(e.message) + '</td></tr>';
-    }
-  }
-
-  function recRenderMappings() {
-    recEl('recMappingsBody').innerHTML = recState.mappings.map(function(m) {
-      return '<tr>' +
-        '<td>' + escapeHtml(m.sales_name) + ' <span class="muted">(' + escapeHtml(m.sales_id) + ')</span></td>' +
-        '<td>' + escapeHtml(m.specialist_name) + ' <span class="muted">(' + escapeHtml(m.specialist_id) + ')</span></td>' +
-        '<td>' + escapeHtml(formatDateTime(m.created_at)) + '</td>' +
-        '<td><button class="danger-btn rec-del-mapping-btn" data-id="' + m.id + '">删除</button></td>' +
-      '</tr>';
-    }).join('') || '<tr><td colspan="4">暂无对接关系</td></tr>';
-
-    recEl('recMappingsBody').querySelectorAll('.rec-del-mapping-btn').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var id = parseInt(this.getAttribute('data-id'));
-        recShowConfirm('确定要删除该对接关系吗？', function() { recDeleteMapping(id); });
-      });
-    });
-  }
-
-  async function recDeleteMapping(id) {
-    try {
-      await request(REC_API + '/mappings/' + id, { method: 'DELETE' });
-      recHideModal('recConfirmModal');
-      recLoadMappings();
-    } catch (e) { alert('删除失败：' + e.message); }
-  }
-
-  async function recAddMapping() {
-    var salesId = recEl('recMappingSalesId').value.trim();
-    var specialistId = recEl('recMappingSpecialistId').value.trim();
-    if (!salesId || !specialistId) { alert('请填写销售和专员用户ID'); return; }
-    try {
-      await request(REC_API + '/mappings', {
-        method: 'POST',
-        body: { sales_id: salesId, specialist_id: specialistId }
-      });
-      recHideModal('recMappingAddModal');
-      recLoadMappings();
-      recEl('recMappingSalesId').value = '';
-      recEl('recMappingSpecialistId').value = '';
-    } catch (e) { alert('添加失败：' + e.message); }
-  }
-
   if (recEl('recLoadUsersBtn')) recEl('recLoadUsersBtn').addEventListener('click', recLoadUsers);
   if (recEl('recUsersRoleFilter')) recEl('recUsersRoleFilter').addEventListener('change', recLoadUsers);
-  if (recEl('recLoadMappingsBtn')) recEl('recLoadMappingsBtn').addEventListener('click', recLoadMappings);
-  if (recEl('recAddMappingBtn')) recEl('recAddMappingBtn').addEventListener('click', function() { recShowModal('recMappingAddModal'); });
-  if (recEl('recMappingAddSaveBtn')) recEl('recMappingAddSaveBtn').addEventListener('click', recAddMapping);
-  if (recEl('recMappingAddCancelBtn')) recEl('recMappingAddCancelBtn').addEventListener('click', function() { recHideModal('recMappingAddModal'); });
-  if (recEl('recMappingAddModalClose')) recEl('recMappingAddModalClose').addEventListener('click', function() { recHideModal('recMappingAddModal'); });
   if (recEl('recUserRoleSaveBtn')) recEl('recUserRoleSaveBtn').addEventListener('click', recUpdateUserRole);
   if (recEl('recUserRoleCancelBtn')) recEl('recUserRoleCancelBtn').addEventListener('click', function() { recHideModal('recUserRoleModal'); });
   if (recEl('recUserRoleModalClose')) recEl('recUserRoleModalClose').addEventListener('click', function() { recHideModal('recUserRoleModal'); });

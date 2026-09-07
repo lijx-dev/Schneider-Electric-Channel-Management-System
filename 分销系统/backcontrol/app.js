@@ -1094,13 +1094,11 @@ document.querySelectorAll(".sub-tab-btn").forEach((btn) => {
     document.querySelectorAll(".recognition-subview").forEach((v) => v.classList.remove("active"));
     btn.classList.add("active");
     const panelId = btn.dataset.subtab === "recognition-users" ? "recognitionUsersPanel"
-      : btn.dataset.subtab === "recognition-mappings" ? "recognitionMappingsPanel"
       : btn.dataset.subtab === "recognition-criteria" ? "recognitionCriteriaPanel"
       : btn.dataset.subtab === "recognition-rules" ? "recognitionRulesPanel"
       : "recognitionCalcPanel";
     $(panelId).classList.add("active");
     if (btn.dataset.subtab === "recognition-users") loadRecognitionUsers();
-    if (btn.dataset.subtab === "recognition-mappings") loadMappings();
     if (btn.dataset.subtab === "recognition-criteria") loadCriteria();
     if (btn.dataset.subtab === "recognition-rules") loadRules();
     if (btn.dataset.subtab === "recognition-calc") loadCalcPanel();
@@ -1146,50 +1144,6 @@ async function loadRecognitionUsers() {
         alert("更新角色失败：" + err.message);
         loadRecognitionUsers();
       }
-    });
-  });
-}
-
-// ── 对接关系管理 ─────────────────────────────────────────────────────────
-
-$("addMappingBtn").addEventListener("click", async () => {
-  const salesId = $("mappingSalesId").value.trim();
-  const specialistId = $("mappingSpecialistId").value.trim();
-  if (!salesId || !specialistId) {
-    setFeedback($("mappingFeedback"), "请填写销售和专员用户ID", true);
-    return;
-  }
-  try {
-    await request("/api/recognition/mappings", {
-      method: "POST",
-      body: { sales_id: salesId, specialist_id: specialistId },
-    });
-    setFeedback($("mappingFeedback"), "添加成功");
-    $("mappingSalesId").value = "";
-    $("mappingSpecialistId").value = "";
-    loadMappings();
-  } catch (err) {
-    setFeedback($("mappingFeedback"), err.message, true);
-  }
-});
-
-async function loadMappings() {
-  const data = await request("/api/recognition/mappings");
-  $("mappingsBody").innerHTML = (data || []).map((m) => `
-    <tr>
-      <td>${escapeHtml(m.sales_name)}</td>
-      <td>${escapeHtml(m.specialist_name)}</td>
-      <td>${escapeHtml(formatDateTime(m.created_at))}</td>
-      <td><button class="danger-btn delete-mapping-btn" data-id="${m.id}">删除</button></td>
-    </tr>
-  `).join("");
-  $("mappingsBody").querySelectorAll(".delete-mapping-btn").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      if (!confirm("确定删除该对接关系？")) return;
-      try {
-        await request(`/api/recognition/mappings/${btn.dataset.id}`, { method: "DELETE" });
-        loadMappings();
-      } catch (err) { alert(err.message); }
     });
   });
 }

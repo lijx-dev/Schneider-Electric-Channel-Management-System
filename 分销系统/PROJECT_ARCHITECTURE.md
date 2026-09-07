@@ -611,7 +611,7 @@ RAGFLOW_GRAYSCALE_RATIO=0.0
 | `recognition_awards` | 获奖记录 |
 | `recognition_rules_config` | 积分/名额等规则配置（`rule_key`-`rule_value`，后台可改） |
 | `recognition_scoring_criteria` | 季度奖项评分标准（动态配置，表单选项数据源） |
-| `sales_specialist_mapping` | 销售-专员对接关系 |
+| `sales_specialist_mapping` | 销售-专员对接关系（已废弃：销售自选专员评分，不再使用） |
 | `recognition_annual_snapshots` | 年度快照 |
 
 用户表新增字段：`recognition_role`（默认 `distributor`）、`recognition_score`（认可积分，独立于能量 `total_score`）。
@@ -628,7 +628,7 @@ RAGFLOW_GRAYSCALE_RATIO=0.0
 
 #### 6.7.4 销售评分（满意度）
 
-每名销售按月对其对接专员评分（`surveys`），唯一约束 `(rater_id, target_id, survey_month)` 保证每月一次。评分为 4 维度整数，可填 N/A。
+销售从全部专员中**自选 1~4 位**按月评分（`surveys`），不再依赖销售-专员映射。唯一约束 `(rater_id, target_id, survey_month)` 保证每位专员每月只能被同一销售评一次；每销售每月最多 4 条。评分为 4 维度整数（0=N/A，不计入均值）。
 
 #### 6.7.5 评选与积分
 
@@ -642,7 +642,7 @@ RAGFLOW_GRAYSCALE_RATIO=0.0
 
 #### 6.7.6 核心接口前缀 `/api/recognition`
 
-`/submissions`（申报 CRUD+审核+提名统计）、`/surveys`（评分状态/提交/结果/明细/进度）、`/mappings`（对接关系管理）、`/points`（我的积分/积分排行/流水/手动调整）、`/awards`（月度/季度/年度计算、发布、结果）、`/ranking`（认可排行完整页）、`/rules`、`/scoring-criteria`（经理配置）、`/users`（角色管理）。
+`/submissions`（申报 CRUD+审核+提名统计）、`/surveys`（评分状态/提交/结果/明细/进度）、`/points`（我的积分/积分排行/流水/手动调整）、`/awards`（月度/季度/年度计算、发布、结果）、`/ranking`（认可排行完整页）、`/rules`、`/scoring-criteria`（经理配置）、`/users`（角色管理）。
 
 #### 6.7.7 小程序页面 `pages/recognition/`
 

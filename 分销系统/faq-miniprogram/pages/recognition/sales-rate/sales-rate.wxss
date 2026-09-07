@@ -22,6 +22,18 @@
   display: block;
 }
 
+.quota-bar {
+  margin-top: 16rpx;
+  background: #eff6ff;
+  border-radius: 12rpx;
+  padding: 12rpx 20rpx;
+}
+
+.quota-text {
+  font-size: 24rpx;
+  color: #1d4ed8;
+}
+
 .loading-wrap,
 .submitted-wrap,
 .empty-wrap {
@@ -78,6 +90,11 @@
   padding: 28rpx;
   margin-bottom: 20rpx;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+  border: 3rpx solid transparent;
+}
+
+.specialist-card-selected {
+  border-color: #00B050;
 }
 
 .sp-header {
@@ -102,6 +119,20 @@
   background: #f0fdf4;
   padding: 6rpx 16rpx;
   border-radius: 999rpx;
+}
+
+.sp-select-btn {
+  font-size: 24rpx;
+  color: #ffffff;
+  background: #00B050;
+  padding: 10rpx 28rpx;
+  border-radius: 999rpx;
+}
+
+.sp-select-link {
+  font-size: 24rpx;
+  color: #ef4444;
+  padding: 10rpx 16rpx;
 }
 
 .dimension-row {

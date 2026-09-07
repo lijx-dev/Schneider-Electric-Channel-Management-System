@@ -18,7 +18,6 @@ from app.models.recognition import (
     RecognitionScoringCriteria,
     RecognitionSubmission,
     RecognitionSurvey,
-    SalesSpecialistMapping,
 )
 from app.models.user import User
 

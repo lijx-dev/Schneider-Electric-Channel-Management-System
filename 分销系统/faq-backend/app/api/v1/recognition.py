@@ -26,7 +26,6 @@ from app.models.recognition import (
     RecognitionScoringCriteria,
     RecognitionSubmission,
     RecognitionSurvey,
-    SalesSpecialistMapping,
 )
 from app.models.user import User
 from app.schemas.recognition import (
@@ -34,8 +33,6 @@ from app.schemas.recognition import (
     AwardResultResponse,
     CalculateRequest,
     FormConfigResponse,
-    MappingCreate,
-    MappingResponse,
     NominationStatsResponse,
     PointsAdjustRequest,
     PointsStatusResponse,
@@ -357,21 +354,20 @@ async def get_survey_status(
     user_id: str = Depends(require_sales),
     db: AsyncSession = Depends(get_db),
 ):
-    """获取本月评分状态 + 对接专员列表."""
+    """获取本月评分状态 + 全部专员列表（销售自行选择打分）."""
     if not month:
         now = datetime.now()
         month = f"{now.year}-{now.month:02d}"
 
-    # 获取该销售对接的专员
-    mapping_result = await db.execute(
-        select(SalesSpecialistMapping).where(SalesSpecialistMapping.sales_id == user_id)
+    # 全部专员（不再依赖销售-专员映射）
+    specialist_result = await db.execute(
+        select(User)
+        .where(User.recognition_role == "specialist")
+        .order_by(User.real_name)
     )
-    mappings = mapping_result.scalars().all()
+    specialists_users = specialist_result.scalars().all()
 
-    specialist_ids = [m.specialist_id for m in mappings]
-    names = await _get_user_names(db, specialist_ids)
-
-    # 检查是否已提交
+    # 检查本月已提交的评分
     survey_result = await db.execute(
         select(RecognitionSurvey).where(
             RecognitionSurvey.rater_id == user_id,
@@ -384,17 +380,17 @@ async def get_survey_status(
     submitted_map = {s.target_id: s for s in submitted_surveys}
 
     specialists = []
-    for sp_id in specialist_ids:
+    for u in specialists_users:
         sp_info = {
-            "specialist_id": sp_id,
-            "specialist_name": names.get(sp_id, sp_id),
+            "specialist_id": u.id,
+            "specialist_name": u.real_name or u.id,
         }
-        if sp_id in submitted_map:
+        if u.id in submitted_map:
             sp_info["scores"] = {
-                "efficiency": submitted_map[sp_id].score_efficiency,
-                "response": submitted_map[sp_id].score_response,
-                "training": submitted_map[sp_id].score_training,
-                "communication": submitted_map[sp_id].score_communication,
+                "efficiency": submitted_map[u.id].score_efficiency,
+                "response": submitted_map[u.id].score_response,
+                "training": submitted_map[u.id].score_training,
+                "communication": submitted_map[u.id].score_communication,
             }
         specialists.append(sp_info)
 
@@ -403,6 +399,8 @@ async def get_survey_status(
         "data": {
             "survey_month": month,
             "submitted": submitted,
+            "rated_count": len(submitted_surveys),
+            "max_specialists": 4,
             "specialists": specialists,
         },
     }
@@ -415,17 +413,13 @@ async def submit_survey(
     db: AsyncSession = Depends(get_db),
 ):
     """提交满意度评分."""
-    # 校验对接关系
-    mapping_result = await db.execute(
-        select(SalesSpecialistMapping).where(
-            SalesSpecialistMapping.sales_id == user_id,
-            SalesSpecialistMapping.specialist_id == body.target_id,
-        )
-    )
-    if not mapping_result.scalar_one_or_none():
-        return {"code": 1, "message": "您与该专员无对接关系，无法评分"}
+    # ① 目标必须是专员角色（销售自行选择，不再校验映射关系）
+    target_result = await db.execute(select(User).where(User.id == body.target_id))
+    target = target_result.scalar_one_or_none()
+    if not target or target.recognition_role != "specialist":
+        return {"code": 1, "message": "评分对象无效：用户不存在或不是专员"}
 
-    # 唯一约束校验
+    # ② 唯一约束校验（每销售对每专员每月一次）
     existing = await db.execute(
         select(RecognitionSurvey).where(
             RecognitionSurvey.rater_id == user_id,
@@ -436,14 +430,28 @@ async def submit_survey(
     if existing.scalar_one_or_none():
         return {"code": 1, "message": "本月已提交评分，不可修改"}
 
+    # ③ 数量校验：每销售每月最多为 4 位专员评分
+    count_result = await db.execute(
+        select(func.count()).select_from(RecognitionSurvey).where(
+            RecognitionSurvey.rater_id == user_id,
+            RecognitionSurvey.survey_month == body.survey_month,
+        )
+    )
+    if count_result.scalar_one() >= 4:
+        return {"code": 1, "message": "本月最多可为4位专员评分"}
+
+    # ④ 0 分视为 N/A，归一化为 None（不计入统计平均分）
+    def _normalize(v: Optional[int]) -> Optional[int]:
+        return None if v in (None, 0) else v
+
     survey = RecognitionSurvey(
         rater_id=user_id,
         target_id=body.target_id,
         survey_month=body.survey_month,
-        score_efficiency=body.score_efficiency,
-        score_response=body.score_response,
-        score_training=body.score_training,
-        score_communication=body.score_communication,
+        score_efficiency=_normalize(body.score_efficiency),
+        score_response=_normalize(body.score_response),
+        score_training=_normalize(body.score_training),
+        score_communication=_normalize(body.score_communication),
         submitted_at=datetime.now(timezone.utc),
     )
     db.add(survey)
@@ -590,81 +598,6 @@ async def get_survey_progress(
             "unsubmitted_sales": unsubmitted,
         },
     }
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 销售-专员对接关系
-# ═══════════════════════════════════════════════════════════════════════════
-
-@router.get("/mappings")
-async def get_mappings(
-    user_id: str = Depends(require_manager),
-    db: AsyncSession = Depends(get_db),
-):
-    """获取对接关系列表."""
-    result = await db.execute(select(SalesSpecialistMapping))
-    mappings = result.scalars().all()
-
-    all_ids = list(set(m.sales_id for m in mappings)) + list(set(m.specialist_id for m in mappings))
-    names = await _get_user_names(db, all_ids)
-
-    data = []
-    for m in mappings:
-        data.append({
-            "id": m.id,
-            "sales_id": m.sales_id,
-            "sales_name": names.get(m.sales_id, m.sales_id),
-            "specialist_id": m.specialist_id,
-            "specialist_name": names.get(m.specialist_id, m.specialist_id),
-            "created_at": m.created_at,
-        })
-    return {"code": 0, "data": data}
-
-
-@router.post("/mappings")
-async def create_mapping(
-    body: MappingCreate,
-    user_id: str = Depends(require_manager),
-    db: AsyncSession = Depends(get_db),
-):
-    """添加对接关系."""
-    # 校验唯一约束
-    existing = await db.execute(
-        select(SalesSpecialistMapping).where(
-            SalesSpecialistMapping.sales_id == body.sales_id,
-            SalesSpecialistMapping.specialist_id == body.specialist_id,
-        )
-    )
-    if existing.scalar_one_or_none():
-        return {"code": 1, "message": "该对接关系已存在"}
-
-    mapping = SalesSpecialistMapping(
-        sales_id=body.sales_id,
-        specialist_id=body.specialist_id,
-        created_at=datetime.now(timezone.utc),
-    )
-    db.add(mapping)
-    await db.flush()
-    return {"code": 0, "data": {"message": "添加成功"}}
-
-
-@router.delete("/mappings/{mapping_id}")
-async def delete_mapping(
-    mapping_id: int,
-    user_id: str = Depends(require_manager),
-    db: AsyncSession = Depends(get_db),
-):
-    """删除对接关系."""
-    result = await db.execute(
-        select(SalesSpecialistMapping).where(SalesSpecialistMapping.id == mapping_id)
-    )
-    mapping = result.scalar_one_or_none()
-    if not mapping:
-        return {"code": 1, "message": "对接关系不存在"}
-
-    await db.delete(mapping)
-    await db.flush()
-    return {"code": 0, "data": {"message": "删除成功"}}
 
 
 # ═══════════════════════════════════════════════════════════════════════════

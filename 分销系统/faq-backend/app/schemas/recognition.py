@@ -101,10 +101,10 @@ class SurveyCreate(BaseModel):
     """提交满意度评分"""
     target_id: str = Field(..., description="被评分专员ID")
     survey_month: str = Field(..., description="评分月份 yyyy-mm")
-    score_efficiency: Optional[int] = Field(None, ge=1, le=5, description="报备处理效率 1-5")
-    score_response: Optional[int] = Field(None, ge=1, le=5, description="分销商诉求响应 1-5")
-    score_training: Optional[int] = Field(None, ge=1, le=5, description="赋能培训支持 1-5")
-    score_communication: Optional[int] = Field(None, ge=1, le=5, description="沟通对接顺畅度 1-5")
+    score_efficiency: Optional[int] = Field(None, ge=0, le=5, description="报备处理效率 0-5（0=N/A）")
+    score_response: Optional[int] = Field(None, ge=0, le=5, description="分销商诉求响应 0-5（0=N/A）")
+    score_training: Optional[int] = Field(None, ge=0, le=5, description="赋能培训支持 0-5（0=N/A）")
+    score_communication: Optional[int] = Field(None, ge=0, le=5, description="沟通对接顺畅度 0-5（0=N/A）")
 
 
 class SurveyStatusResponse(BaseModel):
@@ -232,27 +232,6 @@ class CalculateRequest(BaseModel):
 class PublishRequest(BaseModel):
     """发布评选结果"""
     award_ids: list[int] = Field(..., description="要发布的获奖记录ID列表")
-
-
-# ── 对接关系 (Mapping) ──────────────────────────────────────────────────
-
-class MappingCreate(BaseModel):
-    """添加对接关系"""
-    sales_id: str = Field(..., description="销售用户ID")
-    specialist_id: str = Field(..., description="专员用户ID")
-
-
-class MappingResponse(BaseModel):
-    """对接关系"""
-    id: int
-    sales_id: str
-    sales_name: str
-    specialist_id: str
-    specialist_name: str
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 # ── 规则配置 (Rules) ────────────────────────────────────────────────────

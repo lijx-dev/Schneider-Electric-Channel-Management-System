@@ -72,7 +72,7 @@
       <view class="recognition-card-icon rating-icon">📋</view>
       <view class="recognition-card-info">
         <text class="recognition-card-title">本月专员满意度评分</text>
-        <text class="recognition-card-desc">请为对接专员评分，您的反馈很重要</text>
+        <text class="recognition-card-desc">请为渠道专员评分，您的反馈很重要</text>
       </view>
       <text class="recognition-arrow">></text>
     </view>

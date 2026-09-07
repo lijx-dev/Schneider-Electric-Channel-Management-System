@@ -2,33 +2,60 @@
   <view class="header">
     <text class="header-title">专员满意度评分</text>
     <text class="header-desc" wx:if="{{surveyMonth}}">评分月份：{{surveyMonth}}</text>
+    <view class="quota-bar" wx:if="{{!loading}}">
+      <text class="quota-text">已评 {{ratedCount}}/{{maxSpecialists}} 位，还可评 {{maxSpecialists - ratedCount}} 位</text>
+    </view>
   </view>
 
   <view wx:if="{{loading}}" class="loading-wrap">
     <text class="loading-text">加载中...</text>
   </view>
 
-  <view wx:elif="{{submitted}}" class="submitted-wrap">
+  <view wx:elif="{{ratedCount >= maxSpecialists}}" class="submitted-wrap">
     <view class="submitted-icon-wrap">
       <text class="submitted-icon">✅</text>
     </view>
-    <text class="submitted-title">本月已提交</text>
-    <text class="submitted-desc">感谢您的反馈，评分已记录</text>
+    <text class="submitted-title">本月评分已完成</text>
+    <text class="submitted-desc">您已完成 {{maxSpecialists}} 位专员的评分，感谢您的反馈</text>
   </view>
 
-  <view wx:elif="{{specialistList.length === 0}}" class="empty-wrap">
-    <text class="empty-text">您暂无对接专员，无需评分</text>
+  <view wx:elif="{{displayList.length === 0}}" class="empty-wrap">
+    <text class="empty-text">暂无可评分专员</text>
   </view>
 
   <view wx:else class="specialist-list">
-    <view wx:for="{{specialistList}}" wx:for-item="sp" wx:key="specialist_id" class="specialist-card">
-      <view class="sp-header">
+    <view wx:for="{{displayList}}" wx:for-item="sp" wx:key="specialist_id" class="specialist-card {{sp.selected ? 'specialist-card-selected' : ''}}">
+
+      <!-- 已评分：只读汇总 -->
+      <view wx:if="{{sp.rated}}" class="sp-header">
         <text class="sp-name">{{sp.specialist_name}}</text>
-        <text wx:if="{{sp.scores}}" class="sp-rated">已评分</text>
+        <text class="sp-rated">已评分</text>
+      </view>
+      <view wx:if="{{sp.rated}}" class="submitted-scores">
+        <view class="submitted-score-row">
+          <text class="submitted-dim">响应效率</text>
+          <text class="submitted-val">{{sp.scores.efficiency || 'N/A'}}</text>
+        </view>
+        <view class="submitted-score-row">
+          <text class="submitted-dim">问题解决</text>
+          <text class="submitted-val">{{sp.scores.response || 'N/A'}}</text>
+        </view>
+        <view class="submitted-score-row">
+          <text class="submitted-dim">培训指导</text>
+          <text class="submitted-val">{{sp.scores.training || 'N/A'}}</text>
+        </view>
+        <view class="submitted-score-row">
+          <text class="submitted-dim">沟通协作</text>
+          <text class="submitted-val">{{sp.scores.communication || 'N/A'}}</text>
+        </view>
       </view>
 
-      <view wx:if="{{!sp.scores}}">
-        <!-- 响应效率 -->
+      <!-- 未评分：已选中，展开打分 -->
+      <block wx:elif="{{sp.selected}}">
+        <view class="sp-header">
+          <text class="sp-name">{{sp.specialist_name}}</text>
+          <text class="sp-select-link" data-specialist-id="{{sp.specialist_id}}" bindtap="onRemoveSelect">移除</text>
+        </view>
         <view class="dimension-row">
           <text class="dim-label-text">响应效率</text>
           <text class="dim-desc">处理报备和问题的响应速度</text>
@@ -47,7 +74,6 @@
             </view>
           </view>
         </view>
-        <!-- 问题解决 -->
         <view class="dimension-row">
           <text class="dim-label-text">问题解决</text>
           <text class="dim-desc">解决问题能力和专业程度</text>
@@ -66,7 +92,6 @@
             </view>
           </view>
         </view>
-        <!-- 培训指导 -->
         <view class="dimension-row">
           <text class="dim-label-text">培训指导</text>
           <text class="dim-desc">提供产品知识培训质量</text>
@@ -85,7 +110,6 @@
             </view>
           </view>
         </view>
-        <!-- 沟通协作 -->
         <view class="dimension-row">
           <text class="dim-label-text">沟通协作</text>
           <text class="dim-desc">沟通顺畅度和协作配合</text>
@@ -104,32 +128,19 @@
             </view>
           </view>
         </view>
-      </view>
+      </block>
 
-      <view wx:else class="submitted-scores">
-        <view class="submitted-score-row">
-          <text class="submitted-dim">响应效率</text>
-          <text class="submitted-val">{{sp.scores.efficiency || 'N/A'}}</text>
-        </view>
-        <view class="submitted-score-row">
-          <text class="submitted-dim">问题解决</text>
-          <text class="submitted-val">{{sp.scores.response || 'N/A'}}</text>
-        </view>
-        <view class="submitted-score-row">
-          <text class="submitted-dim">培训指导</text>
-          <text class="submitted-val">{{sp.scores.training || 'N/A'}}</text>
-        </view>
-        <view class="submitted-score-row">
-          <text class="submitted-dim">沟通协作</text>
-          <text class="submitted-val">{{sp.scores.communication || 'N/A'}}</text>
-        </view>
+      <!-- 未评分：未选中，显示选择按钮 -->
+      <view wx:else class="sp-header">
+        <text class="sp-name">{{sp.specialist_name}}</text>
+        <text class="sp-select-btn" data-specialist-id="{{sp.specialist_id}}" bindtap="onToggleSelect">选择评分</text>
       </view>
     </view>
   </view>
 
-  <view wx:if="{{!loading && !submitted && specialistList.length > 0}}" class="bottom-bar">
-    <view class="btn-submit {{submitting ? 'btn-disabled' : ''}}" bindtap="submitAllScores">
-      <text wx:if="{{!submitting}}">提交评分</text>
+  <view wx:if="{{!loading && ratedCount < maxSpecialists && selectedCount > 0}}" class="bottom-bar">
+    <view class="btn-submit {{submitting ? 'btn-disabled' : ''}}" bindtap="submitSelected">
+      <text wx:if="{{!submitting}}">提交评分（{{selectedCount}}）</text>
       <text wx:else>提交中...</text>
     </view>
   </view>
