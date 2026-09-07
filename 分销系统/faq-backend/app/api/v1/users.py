@@ -94,6 +94,8 @@ async def get_user_rank(
             "redeemed_energy": energy_summary["redeemed_energy"],
             "available_energy": energy_summary["available_energy"],
             "redemption_count": energy_summary["redemption_count"],
+            "recognition_role": user.recognition_role or "distributor",
+            "recognition_score": user.recognition_score or 0,
         },
     }
 
