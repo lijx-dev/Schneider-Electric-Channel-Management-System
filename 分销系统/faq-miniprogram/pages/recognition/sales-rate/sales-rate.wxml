@@ -1,9 +1,9 @@
 <view class="page">
   <view class="header">
-    <text class="header-title">专员满意度评分</text>
-    <text class="header-desc" wx:if="{{surveyMonth}}">评分月份：{{surveyMonth}}</text>
-    <view class="quota-bar" wx:if="{{!loading}}">
-      <text class="quota-text">已评 {{ratedCount}}/{{maxSpecialists}} 位，还可评 {{maxSpecialists - ratedCount}} 位</text>
+    <text class="header-title">渠道专员满意度评分</text>
+    <text class="header-desc" wx:if="{{surveyMonth}}">评分月份：{{surveyMonth}}（针对上月表现）</text>
+    <view class="guide-bar" wx:if="{{!loading}}">
+      <text class="guide-text">请选择上个月与你有对接过的渠道专员，逐位进行评分</text>
     </view>
   </view>
 
@@ -11,12 +11,12 @@
     <text class="loading-text">加载中...</text>
   </view>
 
-  <view wx:elif="{{ratedCount >= maxSpecialists}}" class="submitted-wrap">
+  <view wx:elif="{{ratedCount > 0 && ratedCount >= displayList.length}}" class="submitted-wrap">
     <view class="submitted-icon-wrap">
       <text class="submitted-icon">✅</text>
     </view>
-    <text class="submitted-title">本月评分已完成</text>
-    <text class="submitted-desc">您已完成 {{maxSpecialists}} 位专员的评分，感谢您的反馈</text>
+    <text class="submitted-title">评分已完成</text>
+    <text class="submitted-desc">您已为全部渠道专员完成评分，感谢您的反馈</text>
   </view>
 
   <view wx:elif="{{displayList.length === 0}}" class="empty-wrap">
@@ -32,21 +32,9 @@
         <text class="sp-rated">已评分</text>
       </view>
       <view wx:if="{{sp.rated}}" class="submitted-scores">
-        <view class="submitted-score-row">
-          <text class="submitted-dim">响应效率</text>
-          <text class="submitted-val">{{sp.scores.efficiency || 'N/A'}}</text>
-        </view>
-        <view class="submitted-score-row">
-          <text class="submitted-dim">问题解决</text>
-          <text class="submitted-val">{{sp.scores.response || 'N/A'}}</text>
-        </view>
-        <view class="submitted-score-row">
-          <text class="submitted-dim">培训指导</text>
-          <text class="submitted-val">{{sp.scores.training || 'N/A'}}</text>
-        </view>
-        <view class="submitted-score-row">
-          <text class="submitted-dim">沟通协作</text>
-          <text class="submitted-val">{{sp.scores.communication || 'N/A'}}</text>
+        <view class="submitted-score-row" wx:for="{{dims}}" wx:for-item="dim" wx:key="key">
+          <text class="submitted-dim">{{dim.label}}</text>
+          <text class="submitted-val">{{sp.scores[dim.key] || 'N/A'}}</text>
         </view>
       </view>
 
@@ -56,75 +44,35 @@
           <text class="sp-name">{{sp.specialist_name}}</text>
           <text class="sp-select-link" data-specialist-id="{{sp.specialist_id}}" bindtap="onRemoveSelect">移除</text>
         </view>
-        <view class="dimension-row">
-          <text class="dim-label-text">响应效率</text>
-          <text class="dim-desc">处理报备和问题的响应速度</text>
+        <view class="dimension-row" wx:for="{{dims}}" wx:for-item="dim" wx:key="key">
+          <text class="dim-label-text">{{dim.label}}</text>
+          <text class="dim-tip" wx:if="{{dim.noDistributorTip}}">{{dim.noDistributorTip}}</text>
           <view class="score-options">
             <view
-              wx:for="{{[0,1,2,3,4,5]}}"
+              wx:for="{{scoreValues}}"
               wx:for-item="scoreVal"
               wx:key="*this"
-              class="score-option {{scores[sp.specialist_id].efficiency === scoreVal ? 'score-option-active' : ''}}"
+              class="score-option {{scores[sp.specialist_id][dim.key] === scoreVal ? 'score-option-active' : ''}}"
               data-specialist-id="{{sp.specialist_id}}"
-              data-dimension="efficiency"
+              data-dimension="{{dim.key}}"
               data-value="{{scoreVal}}"
               bindtap="onScoreTap"
             >
               <text class="score-num">{{scoreVal === 0 ? 'N/A' : scoreVal}}</text>
             </view>
           </view>
-        </view>
-        <view class="dimension-row">
-          <text class="dim-label-text">问题解决</text>
-          <text class="dim-desc">解决问题能力和专业程度</text>
-          <view class="score-options">
-            <view
-              wx:for="{{[0,1,2,3,4,5]}}"
-              wx:for-item="scoreVal"
-              wx:key="*this"
-              class="score-option {{scores[sp.specialist_id].response === scoreVal ? 'score-option-active' : ''}}"
-              data-specialist-id="{{sp.specialist_id}}"
-              data-dimension="response"
-              data-value="{{scoreVal}}"
-              bindtap="onScoreTap"
-            >
-              <text class="score-num">{{scoreVal === 0 ? 'N/A' : scoreVal}}</text>
+          <view class="anchor-list">
+            <view class="anchor-item" wx:if="{{dim.anchors[5]}}">
+              <text class="anchor-score">5分</text>
+              <text class="anchor-text">{{dim.anchors[5]}}</text>
             </view>
-          </view>
-        </view>
-        <view class="dimension-row">
-          <text class="dim-label-text">培训指导</text>
-          <text class="dim-desc">提供产品知识培训质量</text>
-          <view class="score-options">
-            <view
-              wx:for="{{[0,1,2,3,4,5]}}"
-              wx:for-item="scoreVal"
-              wx:key="*this"
-              class="score-option {{scores[sp.specialist_id].training === scoreVal ? 'score-option-active' : ''}}"
-              data-specialist-id="{{sp.specialist_id}}"
-              data-dimension="training"
-              data-value="{{scoreVal}}"
-              bindtap="onScoreTap"
-            >
-              <text class="score-num">{{scoreVal === 0 ? 'N/A' : scoreVal}}</text>
+            <view class="anchor-item" wx:if="{{dim.anchors[3]}}">
+              <text class="anchor-score">3分</text>
+              <text class="anchor-text">{{dim.anchors[3]}}</text>
             </view>
-          </view>
-        </view>
-        <view class="dimension-row">
-          <text class="dim-label-text">沟通协作</text>
-          <text class="dim-desc">沟通顺畅度和协作配合</text>
-          <view class="score-options">
-            <view
-              wx:for="{{[0,1,2,3,4,5]}}"
-              wx:for-item="scoreVal"
-              wx:key="*this"
-              class="score-option {{scores[sp.specialist_id].communication === scoreVal ? 'score-option-active' : ''}}"
-              data-specialist-id="{{sp.specialist_id}}"
-              data-dimension="communication"
-              data-value="{{scoreVal}}"
-              bindtap="onScoreTap"
-            >
-              <text class="score-num">{{scoreVal === 0 ? 'N/A' : scoreVal}}</text>
+            <view class="anchor-item" wx:if="{{dim.anchors[1]}}">
+              <text class="anchor-score">1分</text>
+              <text class="anchor-text">{{dim.anchors[1]}}</text>
             </view>
           </view>
         </view>
@@ -138,7 +86,7 @@
     </view>
   </view>
 
-  <view wx:if="{{!loading && ratedCount < maxSpecialists && selectedCount > 0}}" class="bottom-bar">
+  <view wx:if="{{!loading && selectedCount > 0}}" class="bottom-bar">
     <view class="btn-submit {{submitting ? 'btn-disabled' : ''}}" bindtap="submitSelected">
       <text wx:if="{{!submitting}}">提交评分（{{selectedCount}}）</text>
       <text wx:else>提交中...</text>

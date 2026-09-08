@@ -1,10 +1,10 @@
-"""端到端测试：销售给渠道专员评分全流程（销售自选专员，每月最多4位）
+"""端到端测试：销售给渠道专员评分全流程（销售自选专员，无数量上限，评上月表现）
 
-1. 销售查看本月评分状态（全部专员列表 + rated_count/max_specialists）
-2. 销售为选中的专员提交评分（4维度）
+1. 销售查看上月评分状态（全部专员列表 + rated_count，无 max_specialists）
+2. 销售为选中的专员提交评分（4维度，含0=N/A）
 3. 重复提交校验（同销售同专员同月不可重复）
 4. 非专员目标被拒 / 目标不存在被拒
-5. 超过每月4位上限被拒
+5. 同销售可为多位专员评分（无4位上限）
 6. 专员端查看匿名汇总结果
 7. 经理端查看明细分
 8. 非销售角色访问被拒(403)
@@ -25,7 +25,7 @@ SPECIALIST_5 = 'test-specialist-005'  # 补位专员
 DISTRIBUTOR = 'test-distributor-001'  # 分销商（非专员）
 MANAGER = 'test-manager-001'         # 张经理
 BASE = 'http://127.0.0.1:8011'
-MONTH = '2026-09'
+MONTH = '2026-08'  # 上月（评分针对上月表现）
 
 results = []
 
@@ -66,17 +66,18 @@ def main():
     def h(uid):
         return {"Authorization": f"Bearer {create_access_token(uid)}"}
 
-    # ── 1. 销售查看本月评分状态（全部专员列表） ──
+    # ── 1. 销售查看上月评分状态（全部专员列表，无名额字段） ──
     r = client.get('/api/recognition/surveys/status', headers=h(SALES_1))
     body = r.json()
     data = body.get('data', {})
     specialists = data.get('specialists') or []
     ids = [s.get('specialist_id') for s in specialists]
     ok = (body.get('code') == 0 and SPECIALIST_1 in ids and SPECIALIST_2 in ids
-          and SPECIALIST_3 in ids and 'rated_count' in data and data.get('max_specialists') == 4
+          and SPECIALIST_3 in ids and 'rated_count' in data
+          and 'max_specialists' not in data
           and not any(s.get('scores') for s in specialists))
-    log('销售查看本月评分状态(全部专员+名额字段)', ok,
-        f"specialists={ids} rated_count={data.get('rated_count')} max={data.get('max_specialists')} month={data.get('survey_month')}")
+    log('销售查看上月评分状态(全部专员，无数量上限)', ok,
+        f"specialists={ids} rated_count={data.get('rated_count')} month={data.get('survey_month')}")
 
     # ── 2. 销售为两位专员提交评分 ──
     scores_s1 = {"target_id": SPECIALIST_1, "survey_month": MONTH,
@@ -118,8 +119,8 @@ def main():
     ok = body.get('code') == 1
     log('目标不存在被拒绝', ok, f"msg={body.get('message')}")
 
-    # ── 5. 超过每月4位上限被拒 ──
-    rater2_targets = [SPECIALIST_1, SPECIALIST_3, SPECIALIST_4, SPECIALIST_5]
+    # ── 5. 同销售可为多位专员评分（无4位上限） ──
+    rater2_targets = [SPECIALIST_1, SPECIALIST_3, SPECIALIST_4, SPECIALIST_5, SPECIALIST_2]
     for i, tid in enumerate(rater2_targets):
         payload = {"target_id": tid, "survey_month": MONTH,
                    "score_efficiency": 4, "score_response": 4,
@@ -127,15 +128,7 @@ def main():
         r = client.post('/api/recognition/surveys', headers=h(SALES_2), json=payload)
         ok = r.json().get('code') == 0
         log(f'销售2为第{i+1}位专员提交评分', ok, f"target={tid} msg={r.json().get('message')}")
-    # 第5位被拒
-    r = client.post('/api/recognition/surveys',
-                    headers=h(SALES_2),
-                    json={"target_id": SPECIALIST_2, "survey_month": MONTH,
-                          "score_efficiency": 4, "score_response": 4,
-                          "score_training": 4, "score_communication": 4})
-    body = r.json()
-    ok = body.get('code') == 1 and '最多' in (body.get('message') or '')
-    log('超过4位上限被拒绝', ok, f"msg={body.get('message')}")
+    log('同销售可评5位专员(无数量上限)', all(x[1] for x in results[-5:]), '5位全部成功')
 
     # ── 6. 专员查看匿名汇总（不含提交人） ──
     r = client.get('/api/recognition/surveys/results', headers=h(SPECIALIST_1), params={'month': MONTH})

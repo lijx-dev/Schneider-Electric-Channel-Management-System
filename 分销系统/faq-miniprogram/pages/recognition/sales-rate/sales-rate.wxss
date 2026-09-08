@@ -22,14 +22,14 @@
   display: block;
 }
 
-.quota-bar {
+.guide-bar {
   margin-top: 16rpx;
   background: #eff6ff;
   border-radius: 12rpx;
   padding: 12rpx 20rpx;
 }
 
-.quota-text {
+.guide-text {
   font-size: 24rpx;
   color: #1d4ed8;
 }
@@ -155,6 +155,41 @@
   color: #94a3b8;
   margin-top: 4rpx;
   display: block;
+}
+
+.dim-tip {
+  font-size: 20rpx;
+  color: #1d4ed8;
+  margin-top: 4rpx;
+  display: block;
+}
+
+.anchor-list {
+  margin-top: 12rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.anchor-item {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12rpx;
+}
+
+.anchor-score {
+  font-size: 20rpx;
+  font-weight: 600;
+  color: #00B050;
+  flex-shrink: 0;
+  line-height: 30rpx;
+}
+
+.anchor-text {
+  font-size: 20rpx;
+  color: #64748b;
+  line-height: 30rpx;
 }
 
 .dim-score-row {

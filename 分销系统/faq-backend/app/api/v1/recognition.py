@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select, delete, and_
+from sqlalchemy import select, delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
@@ -348,16 +348,22 @@ async def review_submission(
 # 销售评分
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _previous_month(now: Optional[datetime] = None) -> str:
+    """评分针对上月表现：返回上月 yyyy-mm（默认取当前时间上月）."""
+    now = now or datetime.now()
+    if now.month == 1:
+        return f"{now.year - 1}-12"
+    return f"{now.year}-{now.month - 1:02d}"
+
 @router.get("/surveys/status")
 async def get_survey_status(
-    month: Optional[str] = Query(None, description="月份 yyyy-mm，默认本月"),
+    month: Optional[str] = Query(None, description="月份 yyyy-mm，默认上月"),
     user_id: str = Depends(require_sales),
     db: AsyncSession = Depends(get_db),
 ):
-    """获取本月评分状态 + 全部专员列表（销售自行选择打分）."""
+    """获取评分状态 + 全部专员列表（销售自行选择打分，默认评上月表现）."""
     if not month:
-        now = datetime.now()
-        month = f"{now.year}-{now.month:02d}"
+        month = _previous_month()
 
     # 全部专员（不再依赖销售-专员映射）
     specialist_result = await db.execute(
@@ -400,7 +406,6 @@ async def get_survey_status(
             "survey_month": month,
             "submitted": submitted,
             "rated_count": len(submitted_surveys),
-            "max_specialists": 4,
             "specialists": specialists,
         },
     }
@@ -430,17 +435,7 @@ async def submit_survey(
     if existing.scalar_one_or_none():
         return {"code": 1, "message": "本月已提交评分，不可修改"}
 
-    # ③ 数量校验：每销售每月最多为 4 位专员评分
-    count_result = await db.execute(
-        select(func.count()).select_from(RecognitionSurvey).where(
-            RecognitionSurvey.rater_id == user_id,
-            RecognitionSurvey.survey_month == body.survey_month,
-        )
-    )
-    if count_result.scalar_one() >= 4:
-        return {"code": 1, "message": "本月最多可为4位专员评分"}
-
-    # ④ 0 分视为 N/A，归一化为 None（不计入统计平均分）
+    # ③ 0 分视为 N/A，归一化为 None（不计入统计平均分）
     def _normalize(v: Optional[int]) -> Optional[int]:
         return None if v in (None, 0) else v
 
@@ -564,8 +559,7 @@ async def get_survey_progress(
 ):
     """获取评分进度."""
     if not month:
-        now = datetime.now()
-        month = f"{now.year}-{now.month:02d}"
+        month = _previous_month()
 
     # 所有销售
     sales_result = await db.execute(
