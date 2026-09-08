@@ -14,7 +14,7 @@
             />
           </view>
           <view class="ml-8 flex-col items-start">
-            <text class="font">你好，{{rankData.nickname || '分销伙伴'}}</text>
+            <text class="font">你好{{rankData.nickname ? '，' + rankData.nickname : ''}}</text>
             <text class="font_3 text_3 mt-5">{{rankData.company || '登录后查看更多信息'}}</text>
           </view>
         </view>

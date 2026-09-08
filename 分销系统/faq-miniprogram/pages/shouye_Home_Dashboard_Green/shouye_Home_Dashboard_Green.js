@@ -109,7 +109,7 @@ Page({
       isGuestMode: true,
       userInfo: null,
       rankData: {
-        nickname: '分销商',
+        nickname: '',
         company: '登录后查看专属学习数据',
         total_score: 0,
         available_energy: 0,
