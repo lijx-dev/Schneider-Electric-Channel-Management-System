@@ -23,7 +23,7 @@ const DIMENSIONS = [
   {
     key: 'response',
     label: '分销商诉求响应',
-    noDistributorTip: '如名下无对接分销商，可选择【不适用】',
+    noDistributorTip: '如名下无对接分销商，可选择N/A',
     anchors: {
       5: '主动预判需求，提前解决问题，分销商多次表扬',
       3: '及时响应，按需支持，基本满足诉求',
@@ -33,7 +33,7 @@ const DIMENSIONS = [
   {
     key: 'training',
     label: '分销商赋能培训支持',
-    noDistributorTip: '如名下无对接分销商，可选择【不适用】',
+    noDistributorTip: '如名下无对接分销商，可选择N/A',
     anchors: {
       5: '主动提供有价值的市场/产品/政策信息，积极推动分销商参与赋能，切实有效地提升了分销商能力',
       3: '按照公司要求为分销商提供赋能',
@@ -54,7 +54,7 @@ Page({
     dims: DIMENSIONS,
     scoreValues: SCORE_VALUES,
     // 评分数据 { specialist_id: { efficiency, communication, response, training } }
-    // 未选择时值为 ''（空），0 表示「不适用」
+    // 未选择时值为 ''（空），0 表示 N/A
     scores: {},
     selectedCount: 0,
     submitting: false
@@ -138,7 +138,7 @@ Page({
       return;
     }
 
-    // 校验：每位选中专员的每个评分项都必须选择（1~5 或 不适用）
+    // 校验：每位选中专员的每个评分项都必须选择（1~5 或 N/A）
     for (const sp of selectedList) {
       const spScores = scores[sp.specialist_id] || {};
       const missing = DIMENSIONS
