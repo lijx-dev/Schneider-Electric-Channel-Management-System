@@ -1,6 +1,6 @@
 <view class="page">
   <view class="header">
-    <text class="header-title">渠道专员满意度评分</text>
+    <text class="header-title">销售对渠道专员满意度评分</text>
     <text class="header-desc" wx:if="{{surveyMonth}}">评分月份：{{surveyMonth}}（针对上月表现）</text>
     <view class="guide-bar" wx:if="{{!loading}}">
       <text class="guide-text">请选择上个月与你有对接过的渠道专员，逐位进行评分</text>
