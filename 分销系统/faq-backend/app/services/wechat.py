@@ -167,7 +167,7 @@ async def send_subscribe_message(
     """发送小程序订阅消息（一次性订阅）。
 
     复用 get_access_token 的缓存；errcode 非 0 时抛 ValueError，由调度器捕获记录。
-    data 中的字段 key（如 thing1/time2）必须与小程序后台申请的模板关键词一致，
+    data 中的字段 key（如 thing1/thing2）必须与小程序后台申请的模板关键词一致，
     thing 类型 value 不超过 20 字符，time 类型需为 "yyyy-MM-dd HH:mm" 格式。
     """
     if not template_id:

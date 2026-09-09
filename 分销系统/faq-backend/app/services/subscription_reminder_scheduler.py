@@ -46,11 +46,12 @@ def should_start_scheduler() -> bool:
 
 
 def _build_template_data(send_time: datetime) -> dict:
-    """构造订阅消息 data。字段 key 取决于后台申请的模板关键词，默认 thing1/time2/thing3。"""
+    """构造订阅消息 data。字段对应后台模板 77696「分销商培训答题提醒」：
+    thing1=答题事项、thing2=温馨提示，均为 thing 类型，value 不超过 20 字符。
+    """
     return {
-        "thing1": {"value": "每周一答题提醒"},
-        "time2": {"value": send_time.strftime("%Y-%m-%d %H:%M")},
-        "thing3": {"value": "本周新题目已上线，欢迎挑战"},
+        "thing1": {"value": f"{send_time.month}月{send_time.day}日答题已开启"},
+        "thing2": {"value": "完成答题可赢取能量奖励"},
     }
 
 
