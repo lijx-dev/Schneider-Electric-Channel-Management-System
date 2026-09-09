@@ -1,0 +1,155 @@
+.page {
+  background: #f5f7fa;
+  min-height: 100vh;
+  padding-bottom: 40rpx;
+}
+
+.loading-wrap {
+  padding: 120rpx;
+  text-align: center;
+}
+
+.loading-text {
+  font-size: 28rpx;
+  color: #94a3b8;
+}
+
+.empty-wrap {
+  padding: 160rpx 60rpx;
+  text-align: center;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #94a3b8;
+}
+
+/* 月份切换条 */
+.month-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20rpx;
+  background: #ffffff;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.month-picker {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #0f172a;
+  padding: 8rpx 60rpx;
+  text-align: center;
+}
+
+.month-btn {
+  width: 64rpx;
+  height: 64rpx;
+  line-height: 60rpx;
+  text-align: center;
+  font-size: 40rpx;
+  color: #00B050;
+  border: 2rpx solid #00B050;
+  border-radius: 16rpx;
+}
+
+.month-btn:active {
+  opacity: 0.6;
+}
+
+/* 评分记录卡片 */
+.record-list {
+  margin: 24rpx;
+}
+
+.record-card {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 24rpx 28rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.record-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.record-rater {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.rater-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.rater-tag {
+  font-size: 20rpx;
+  color: #00B050;
+  background: rgba(0, 176, 80, 0.1);
+  border-radius: 8rpx;
+  padding: 2rpx 10rpx;
+  margin-left: 10rpx;
+}
+
+.record-arrow {
+  font-size: 28rpx;
+  color: #94a3b8;
+  margin: 0 16rpx;
+}
+
+.target-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* 维度得分 */
+.dims {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  margin-bottom: 16rpx;
+}
+
+.dim {
+  width: 50%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 8rpx 0;
+}
+
+.dim-label {
+  font-size: 24rpx;
+  color: #64748b;
+}
+
+.dim-value {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #00B050;
+  margin-left: 10rpx;
+}
+
+.dim-na {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.record-footer {
+  border-top: 2rpx solid #f8fafc;
+  padding-top: 14rpx;
+}
+
+.submit-time {
+  font-size: 22rpx;
+  color: #94a3b8;
+}

@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from io import BytesIO
 from typing import Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select, delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -549,6 +552,75 @@ async def get_survey_details(
         })
 
     return {"code": 0, "data": results}
+
+
+@router.get("/surveys/export")
+async def export_surveys(
+    month: Optional[str] = Query(None, description="评分月份，如 2026-08"),
+    user_id: str = Depends(require_manager),
+    db: AsyncSession = Depends(get_db),
+):
+    """导出评分明细 Excel（经理端含提交人，用于追溯销售反馈）."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+
+    if not month:
+        now = datetime.now()
+        month = f"{now.year}-{now.month:02d}"
+
+    result = await db.execute(
+        select(RecognitionSurvey).where(RecognitionSurvey.survey_month == month)
+    )
+    surveys = result.scalars().all()
+
+    rater_ids = list(set(s.rater_id for s in surveys))
+    target_ids = list(set(s.target_id for s in surveys))
+    names = await _get_user_names(db, rater_ids + target_ids)
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "评分明细"
+
+    headers = ["评分月份", "销售（提交人）", "评分专员", "报备处理效率", "沟通顺畅程度", "分销商诉求响应", "分销商赋能培训支持", "提交时间"]
+    rows = []
+    for s in surveys:
+        rows.append([
+            s.survey_month,
+            names.get(s.rater_id, s.rater_id),
+            names.get(s.target_id, s.target_id),
+            _xlsx_blank(s.score_efficiency),
+            _xlsx_blank(s.score_communication),
+            _xlsx_blank(s.score_response),
+            _xlsx_blank(s.score_training),
+            s.submitted_at.strftime("%Y-%m-%d %H:%M:%S") if s.submitted_at else "",
+        ])
+
+    sheet.append(headers)
+    for cell in sheet[1]:
+        cell.font = Font(bold=True)
+    for row in rows:
+        sheet.append(row)
+    sheet.auto_filter.ref = sheet.dimensions
+    sheet.freeze_panes = "A2"
+    for column_cells in sheet.columns:
+        max_length = max(len(str(cell.value or "")) for cell in column_cells)
+        sheet.column_dimensions[column_cells[0].column_letter].width = min(max(max_length + 2, 10), 36)
+
+    stream = BytesIO()
+    workbook.save(stream)
+    stream.seek(0)
+
+    filename = f"评分明细-{month}.xlsx"
+    return StreamingResponse(
+        stream,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+    )
+
+
+def _xlsx_blank(v: Optional[int]):
+    """导出时 0/N/A 显示为 'N/A'，与其他维度保持一致."""
+    return v if v is not None else "N/A"
 
 
 @router.get("/surveys/progress")

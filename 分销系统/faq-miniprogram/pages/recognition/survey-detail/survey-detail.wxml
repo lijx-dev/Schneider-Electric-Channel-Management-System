@@ -1,0 +1,40 @@
+<view class="page">
+  <!-- 月份切换 -->
+  <view class="month-bar">
+    <view class="month-btn" bindtap="loadPrevMonth">‹</view>
+    <picker mode="date" fields="month" value="{{month}}" bindchange="onMonthChange">
+      <view class="month-picker">{{month}}</view>
+    </picker>
+    <view class="month-btn" bindtap="loadNextMonth">›</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view wx:elif="{{records.length === 0}}" class="empty-wrap">
+    <text class="empty-text">本月暂无销售评分记录</text>
+  </view>
+
+  <view wx:else class="record-list">
+    <view class="record-card" wx:for="{{records}}" wx:key="id">
+      <view class="record-header">
+        <view class="record-rater">
+          <text class="rater-name">{{item.raterName}}</text>
+          <text class="rater-tag">提交人</text>
+        </view>
+        <text class="record-arrow">→</text>
+        <text class="target-name">{{item.targetName}}</text>
+      </view>
+      <view class="dims">
+        <view class="dim" wx:for="{{item.dims}}" wx:for-item="dim" wx:key="label">
+          <text class="dim-label">{{dim.label}}</text>
+          <text class="dim-value {{dim.value === 'N/A' ? 'dim-na' : ''}}">{{dim.value}}</text>
+        </view>
+      </view>
+      <view class="record-footer">
+        <text class="submit-time">提交：{{item.submittedAt}}</text>
+      </view>
+    </view>
+  </view>
+</view>

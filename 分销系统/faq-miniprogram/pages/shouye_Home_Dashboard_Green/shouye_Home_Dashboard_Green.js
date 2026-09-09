@@ -501,7 +501,7 @@ Page({
 
   goToSurveyResults() {
     if (!app.requireLogin()) return;
-    wx.navigateTo({ url: '/pages/recognition/ranking/ranking' });
+    wx.navigateTo({ url: '/pages/recognition/survey-detail/survey-detail' });
   },
 
   goToManagerReview() {

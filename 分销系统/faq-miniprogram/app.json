@@ -27,7 +27,8 @@
     "pages/recognition/submit-form/submit-form",
     "pages/recognition/sales-rate/sales-rate",
     "pages/recognition/my-awards/my-awards",
-    "pages/recognition/ranking/ranking"
+    "pages/recognition/ranking/ranking",
+    "pages/recognition/survey-detail/survey-detail"
   ],
   "window": {
     "navigationBarBackgroundColor": "#00B050",
