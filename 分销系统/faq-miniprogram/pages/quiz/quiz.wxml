@@ -157,6 +157,17 @@
     <view class="result-actions">
       <button class="result-secondary-btn" bindtap="goBack">返回首页</button>
     </view>
+
+    <!-- 交卷即弹：开启每周答题提醒引导卡片 -->
+    <view class="reminder-mask" wx:if="{{showReminderPopup}}" catchtap="closeReminderPopup">
+      <view class="reminder-pop" catchtap="noop">
+        <view class="reminder-pop-icon">🔔</view>
+        <view class="reminder-pop-title">开启每周答题提醒</view>
+        <view class="reminder-pop-desc">每周一 9:00 提醒您参与本周新题答题，答对题目赢取能量奖励</view>
+        <button class="reminder-pop-btn" bindtap="enableReminder">开启每周提醒</button>
+        <view class="reminder-pop-later" bindtap="closeReminderPopup">暂不开启</view>
+      </view>
+    </view>
   </view>
 
   <watermark name="{{watermarkName}}" />

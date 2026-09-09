@@ -59,6 +59,7 @@ Page({
     correctCount: 0,
     isFinished: false,
     showReminderBtn: false,
+    showReminderPopup: false,
     accuracy: 0,
     startTime: 0,
     quizDate: '',
@@ -489,13 +490,50 @@ Page({
     try {
       const res = await app.request({ url: '/api/subscription/status', retryCount: 0 });
       const hasPending = !!(res && res.has_pending);
-      if (!hasPending) {
-        this.setData({ showReminderBtn: true });
+      if (hasPending) {
+        return;
       }
+
+      // 当天已关闭过弹窗则不再弹，仅保留结果页小入口按钮
+      let dismissed = '';
+      try {
+        dismissed = wx.getStorageSync(this.reminderDismissKey()) || '';
+      } catch (err) {
+        dismissed = '';
+      }
+      if (dismissed === this.todayString()) {
+        this.setData({ showReminderBtn: true });
+        return;
+      }
+
+      // 交卷即弹：交卷后直接弹出醒目的引导卡片
+      this.setData({ showReminderPopup: true, showReminderBtn: true });
     } catch (err) {
       console.warn('check reminder status failed:', err);
     }
   },
+
+  reminderDismissKey() {
+    return `quizReminderPopupDismiss_${app.globalData.userId || 'guest'}`;
+  },
+
+  todayString() {
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${now.getFullYear()}-${mm}-${dd}`;
+  },
+
+  closeReminderPopup() {
+    try {
+      wx.setStorageSync(this.reminderDismissKey(), this.todayString());
+    } catch (err) {
+      console.warn('mark reminder popup dismissed failed:', err);
+    }
+    this.setData({ showReminderPopup: false, showReminderBtn: true });
+  },
+
+  noop() {},
 
   enableReminder() {
     if (!env.subscriptionTemplateId) {
@@ -517,7 +555,7 @@ Page({
             data: { template_id: env.subscriptionTemplateId, auth_source: 'quiz' }
           })
             .then(() => {
-              this.setData({ showReminderBtn: false });
+              this.setData({ showReminderPopup: false, showReminderBtn: false });
               wx.showToast({ title: '已开启每周提醒', icon: 'success' });
             })
             .catch(() => {
@@ -525,7 +563,7 @@ Page({
             });
         } else {
           wx.showToast({ title: '本次已取消，可下次再开启', icon: 'none' });
-          this.setData({ showReminderBtn: false });
+          this.setData({ showReminderPopup: false, showReminderBtn: true });
         }
       },
       fail: () => {

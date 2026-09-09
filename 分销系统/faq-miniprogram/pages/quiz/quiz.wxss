@@ -486,3 +486,65 @@
   color: #4f7f63;
   background: linear-gradient(180deg, #e8f7eb 0%, #dff2e3 100%);
 }
+
+/* 交卷即弹：开启每周答题提醒引导卡片 */
+.reminder-mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reminder-pop {
+  width: 580rpx;
+  background: #ffffff;
+  border-radius: 28rpx;
+  padding: 56rpx 40rpx 40rpx;
+  text-align: center;
+  box-shadow: 0 8rpx 40rpx rgba(0, 0, 0, 0.15);
+}
+
+.reminder-pop-icon {
+  font-size: 88rpx;
+  line-height: 1;
+  margin-bottom: 24rpx;
+}
+
+.reminder-pop-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 16rpx;
+}
+
+.reminder-pop-desc {
+  font-size: 26rpx;
+  color: #666666;
+  line-height: 1.6;
+  margin-bottom: 40rpx;
+}
+
+.reminder-pop-btn {
+  background: #00b050;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 500;
+  border-radius: 999rpx;
+  line-height: 84rpx;
+  height: 84rpx;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.reminder-pop-later {
+  font-size: 26rpx;
+  color: #999999;
+  margin-top: 30rpx;
+}
