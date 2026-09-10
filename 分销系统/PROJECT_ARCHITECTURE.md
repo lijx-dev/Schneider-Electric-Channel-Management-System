@@ -7,7 +7,7 @@
 
 ## 1. 项目概述
 
-"分销商学堂" 是面向施耐德电气分销商的移动端培训与学习系统，基于微信小程序构建，提供答题闯关、积分排行、能量商城、AI 智能问答（知识库 RAG 增强）、招标文件分析、认可计划（内部积分评选）等核心功能。
+"分销商学堂" 是面向施耐德电气分销商的移动端培训与学习系统，基于微信小程序构建，提供答题闯关、积分排行、能量商城、AI 智能问答（知识库 RAG 增强 + 样本下载）、招标文件分析、认可计划（内部积分评选）、每周答题提醒（订阅消息）、姓名水印（防截屏）、免责声明合规等核心功能。
 
 | 属性 | 值 |
 |------|-----|
@@ -39,8 +39,10 @@
 | HTTP 客户端 | httpx | 调用微信 API、HiAgent (Coze)、RAGFlow API |
 | PDF 解析 | pdfplumber | 招标文件分析 / PDF 文本提取 |
 | Word 解析 | python-docx + 降级策略 | .docx→python-docx, .doc→ZIP检测+原始字节扫描 |
+| 订阅消息 | 微信订阅消息 API + asyncio 调度 | 每周答题提醒（一次性订阅，见 6.9） |
+| 样本代理下载 | httpx + 腾讯云 COS SDK | 智能体返回的样本链接代理下载（过期签名自动重签 + 分片传输，见 6.12） |
 | 对象存储 | 腾讯云 COS | 头像/文件上传，自动回退本地存储 |
-| 部署 | Docker + 微信云托管 | 云托管自动扩缩，容器重启需注意配置持久化 |
+| 部署 | Docker + 微信云托管 | 云托管自动扩缩，Dockerfile 启动前执行 `alembic upgrade head`，容器重启需注意配置持久化 |
 
 ### 2.2 知识库引擎 (`ragflow/`)
 
@@ -65,7 +67,8 @@
 | 样式方案 | 原生 WXSS + CSS 变量 | 主题色在 `app.wxss` 定义 |
 | 状态管理 | `App.globalData` + Storage | 无第三方状态库 |
 | 网络请求 | `wx.cloud.callContainer` | 通过微信云托管内网调用后端 |
-| 文件下载 | `wx.downloadFile` + `wx.openDocument` | 招标文件下载预览 |
+| 文件下载 | `wx.cloud.callContainer`（分片协议） | 招标文件 + 赋能助手样本下载预览；规避 `wx.downloadFile` 合法域名限制与 1MB 响应上限 |
+| 自定义组件 | 原生 Component | `components/watermark/` 姓名水印（页面级注册） |
 
 ### 2.4 管理后台
 
@@ -111,6 +114,8 @@
 │   │   │       ├── knowledge.py # 知识库条目
 │   │   │       ├── distributor_data.py # 分销商注册数据
 │   │   │       ├── upload.py    # 文件上传
+│   │   │       ├── samples.py   # ★ 样本/资料分片代理下载（见 6.12）
+│   │   │       ├── subscription.py    # 订阅消息授权/状态（见 6.9）
 │   │   │       ├── recognition.py     # 表彰系统
 │   │   │       └── bidding.py   # ★ 招标文件分析
 │   │   ├── core/
@@ -150,16 +155,17 @@
 │   │   │   ├── storage.py       # 存储服务 (本地/COS 自适应)
 │   │   │   ├── admin_auth.py    # 管理后台认证
 │   │   │   ├── monthly_leaderboard.py # 月度排行服务
-│   │   │   └── monthly_reward_scheduler.py # 月度奖励定时调度
+│   │   │   ├── monthly_reward_scheduler.py # 月度奖励定时调度
+│   │   │   └── subscription_reminder_scheduler.py # ★ 订阅消息调度（每周一 09:00 答题提醒）
 │   │   ├── static/
 │   │   │   ├── admin/           # 内嵌管理后台 (index.html + recognition.html)
 │   │   │   ├── avatars/         # 用户头像
 │   │   │   └── bidding-docs/    # 投标文件资源库 (21个PDF)
 │   │   └── utils/
 │   │       └── province.py      # 中国省份数据
-│   ├── migrations/              # Alembic 迁移脚本 (18个版本)
-│   ├── scripts/                 # 运维/数据导入脚本 (30+)
-│   ├── tests/                   # pytest 测试 (含 test_ragflow_retriever.py)
+│   ├── migrations/              # Alembic 迁移脚本 (23个版本)
+│   ├── scripts/                 # 运维/数据导入脚本 (35+，含 refresh_guide_asset_urls.py COS 签名刷新)
+│   ├── tests/                   # pytest 测试 (含 test_ragflow_retriever.py, test_energy_products.py)
 │   ├── loadtests/               # Locust 压力测试
 │   ├── Dockerfile
 │   ├── requirements.txt
@@ -195,13 +201,17 @@
 │   │   ├── studyRecord/         # 学习记录
 │   │   ├── help-center/         # 帮助中心
 │   │   ├── about-academy/       # 关于学堂
+│   │   ├── disclaimer/          # ★ 免责声明同意页 (2026-08 新增，见 6.10)
 │   │   └── recognition/         # ★ 认可计划 (2026-08 新增，见 6.7)
 │   │       ├── submit/          # 申报类型入口
 │   │       ├── submit-form/     # 申报表单
 │   │       ├── sales-rate/      # 销售满意度评分
+│   │       ├── survey-detail/   # 评分明细页（经理端，2026-09 新增）
 │   │       ├── my-awards/       # 我的获奖/积分
 │   │       └── ranking/         # 认可排行
-│   └── images/                  # 图标资源
+│   ├── images/                  # 图标资源
+│   └── components/
+│       └── watermark/           # ★ 姓名水印组件（页面级注册，见 6.11）
 │
 ├── ragflow/                     # ★ RAGFlow 知识库引擎 (2026-08 新增)
 │   ├── docker-compose.yml       # RAGFlow + MySQL + ES + Redis + MinIO
@@ -268,14 +278,18 @@
   1. setup_logging()            → structlog 初始化
   2. lifespan.startup:
      a. settings.validate_runtime_requirements() → 环境变量校验
-     b. init_db()               → 创建引擎 + 自动执行 Alembic 迁移
-     c. start_monthly_reward_scheduler() → 月度奖励定时器
+     b. init_db()               → 校验数据库连接 + Alembic head 一致性（不再自动执行迁移）
+     c. start_monthly_reward_scheduler() → 月度奖励定时器（管理员手动触发）
+     d. start_subscription_scheduler()  → 订阅提醒调度器（每 60s 扫描待发送授权）
   3. FastAPI app 实例创建:
      - CORS: 仅允许 https://servicewechat.com
      - 路由挂载: /api → api_v1_router
      - 静态文件: /static → static/ 目录
      - 管理后台: /admin → static/admin/index.html
-  4. lifespan.shutdown: close_db()
+     - /health 健康检查
+  4. lifespan.shutdown: 停止两个调度器 + close_db()
+
+数据库迁移：生产由 Dockerfile CMD 在启动前执行 `alembic upgrade head`（二进制包含 alembic.ini + migrations/），应用启动仅校验 head 一致性并报错提示；本地开发手动执行。
 ```
 
 ### 4.2 路由注册 `faq-backend/app/api/v1/router.py`
@@ -297,6 +311,8 @@
 | knowledge | `/api/knowledge` | 知识库 |
 | distributor_data | `/api/distributor` | 省份/公司数据 |
 | upload | `/api/upload` | 文件上传 |
+| samples | `/api/samples` | 智能体样本/资料分片代理下载（meta+part，COS 过期自动重签） |
+| subscription | `/api/subscription` | 订阅消息授权与状态查询（每周答题提醒） |
 | recognition | `/api/recognition` | 认可计划（申报/评分/评选/积分） |
 | bidding | `/api/bidding` | 招标文件分析（extract/analyze/upload） |
 
@@ -346,7 +362,9 @@ const result = await app.request({
 - 响应自动解包：`{ code: 0, data: ... }` → 直接返回 `data`
 - 401 → 自动清除认证状态并跳转登录页
 
-**禁止事项**：不要在页面中直接使用 `wx.request` 或 `wx.cloud.callContainer`，必须通过 `app.request()`。招标文件分析页 (`bidding-result.js`) 因需要直接传递 `download_url` 且超时 120s，使用了 `wx.cloud.callContainer` 直接调用，是唯一例外。
+**禁止事项**：不要在页面中直接使用 `wx.request` 或 `wx.cloud.callContainer`，必须通过 `app.request()`。仅两处例外（均需自定义请求头，`wx.downloadFile` 无法满足）：
+1. 招标文件分析页 (`bidding-result.js`)：直接传递 `download_url` 且超时 120s
+2. 赋能助手样本下载 (`zhinengwenda_AI_Assistant_Green.js`)：调用 `/api/samples/download` 分片下载，并通过 `Authorization` 头透传登录态（见 6.12）
 
 ### 5.2 如何管理用户认证
 
@@ -357,6 +375,10 @@ const result = await app.request({
   3. 存储: wx.setStorageSync('userId', ...) / wx.setStorageSync('token', ...)
   4. globalData 同步更新
 ```
+
+**强制登录（2026-09 整改）**：微信"取消授权/返回"无效，未登录用户不可停留在需登录页面，统一跳转登录。
+
+**免责声明合规（2026-08-31 新增，见 6.10）**：登录后未同意的用户会被三层拦截（登录成功 → 首页 `onShow` → 需登录页 `checkLogin`）引导至 `pages/disclaimer/`，同意后通过 `POST /api/auth/consent` 落库，未同意无法使用系统。
 
 ### 5.3 全局状态管理
 
@@ -444,7 +466,7 @@ alembic revision --autogenerate -m "描述你的变更"
 alembic upgrade head
 ```
 
-迁移文件命名格式：`YYYYMMDD_NN_描述.py`。当前共 18 个迁移版本。
+迁移文件命名格式：`YYYYMMDD_NN_描述.py`。当前共 23 个迁移版本（清单见第 10 章）。
 
 ---
 
@@ -459,7 +481,10 @@ alembic upgrade head
 - 题库：分类管理，支持难度分级 (1-3 星)，`20260810_01` 迁移新增题目图片 URL 字段
 - 注意：`app/services/quiz.py` 中的 `QUESTIONS` 数组是 MVP 硬编码数据，生产环境已废弃
 
-### 6.2 AI 问答 (母线豆包) — RAG 增强版 ★
+### 6.2 AI 问答 (赋能助手) — RAG 增强版 ★
+
+> AI 助手原名为「母线豆包」，已于 2026-09-05 更名为「赋能助手」（Tab 文案、帮助中心、服务条款同步更新）。
+> 助手回答中返回的"样本下载"链接由前端通过 `/api/samples/download` 分片代理下载（见 6.12），不直接 `wx.downloadFile`。
 
 核心架构：**RAGFlow 文档检索 → HiAgent LLM 生成**。在调用 HiAgent 之前，先从 RAGFlow 检索相关文档片段作为上下文注入 Prompt。
 
@@ -611,7 +636,7 @@ RAGFLOW_GRAYSCALE_RATIO=0.0
 | `recognition_awards` | 获奖记录 |
 | `recognition_rules_config` | 积分/名额等规则配置（`rule_key`-`rule_value`，后台可改） |
 | `recognition_scoring_criteria` | 季度奖项评分标准（动态配置，表单选项数据源） |
-| `sales_specialist_mapping` | 销售-专员对接关系（已废弃：销售自选专员评分，不再使用） |
+| `sales_specialist_mapping` | 销售-专员对接关系表（2026-09-07 自选专员后已废弃，表保留未删） |
 | `recognition_annual_snapshots` | 年度快照 |
 
 用户表新增字段：`recognition_role`（默认 `distributor`）、`recognition_score`（认可积分，独立于能量 `total_score`）。
@@ -628,7 +653,16 @@ RAGFLOW_GRAYSCALE_RATIO=0.0
 
 #### 6.7.4 销售评分（满意度）
 
-销售从全部专员中**自选 1~4 位**按月评分（`surveys`），不再依赖销售-专员映射。唯一约束 `(rater_id, target_id, survey_month)` 保证每位专员每月只能被同一销售评一次；每销售每月最多 4 条。评分为 4 维度整数（0=N/A，不计入均值）。
+- 页面/指引标题统一为**「销售对渠道专员满意度评分」**，评分为**上月表现**（2026-09-08 统一）；评分值措辞统一「不适用」→「N/A」（可选择 N/A）。
+- 销售从**系统展示的全部专员**中自行选择评分对象（多选/取消、逐位提交），**不设人数上限**，不再依赖销售-专员映射。
+- 周期为**每月**（曾于 08-17 改为季度，08-25 回滚为月度，还原 `survey_month` 字段）；唯一约束 `(rater_id, target_id, survey_month)` 保证同一销售对同一专员每月只能评一次。
+- 4 维度整数 0~5（0=N/A，后端归一化为 `None` 不计入均值，前端要求每项必选"打分或 N/A"）：
+  - `score_efficiency` 报备处理效率
+  - `score_response` 分销商诉求响应
+  - `score_training` 赋能培训支持
+  - `score_communication` 沟通对接顺畅度
+- 接口：`GET /surveys/status`（返回全部专员 + 已评状态）、`POST /surveys`、`GET /surveys/results`（专员端匿名汇总）、`GET /surveys/details` + `GET /surveys/export`（经理端明细/导出，2026-09-09 新增）。
+- 角色缓存：`GET /api/user/rank` 返回 `recognition_role` 与 `recognition_score`，前端按日刷新，避免角色缓存过期导致 403 刷屏（2026-09-07）。
 
 #### 6.7.5 评选与积分
 
@@ -636,6 +670,7 @@ RAGFLOW_GRAYSCALE_RATIO=0.0
 - **月度·销圈人气王**：取对某专员评分总分的**中位数**，前 2 名
 - **季度奖项**：按动态评分标准得分取前 N 名（`QUARTERLY_AWARD_TYPES`）
 - **年度·渠道之星**：综合加权 `积分40% + 获奖20% + 人气王15% + 微光之星10% + 经理15%`
+- 排名展示：积分/奖项名次统一用数字序号 1、2、3、4…（2026-08-17 由"金银铜"改为 1234）
 - 积分发放：经理先 `calculate-monthly/quarterly/annual` 生成 `RecognitionAward`（`published=False`），再 `publish` 统一发放积分并置为已发布。
 
 积分等级（`users.recognition_score` 判定）：启明星☆(0-100) → 灿星★(101-300) → 耀星✦(301-600) → 极星✧(601+)。
@@ -650,7 +685,8 @@ RAGFLOW_GRAYSCALE_RATIO=0.0
 |------|------|------|
 | `submit/` | 专员 | 选择申报类型入口 |
 | `submit-form/` | 专员 | 申报表单（选项从 scoring_criteria 动态加载） |
-| `sales-rate/` | 销售 | 满意度评分 |
+| `sales-rate/` | 销售 | 满意度评分（自选专员、逐位提交） |
+| `survey-detail/` | 经理 | 查看销售评分明细与反馈（2026-09-09 新增） |
 | `my-awards/` | 专员 | 我的获奖/积分 |
 | `ranking/` | 专员/经理 | 认可排行页 |
 
@@ -668,10 +704,63 @@ RAGFLOW_GRAYSCALE_RATIO=0.0
 
 针对「苏州舍得电力科技有限公司」定制化的周答题排行榜，供后台查看与导出。
 
-- 白名单：`admin.py` 内 `SUZHOU_SHEDE_WHITELIST` 硬编码该公司 79 人手机号→姓名/角色映射（销售/技术）
+- 白名单：`admin.py` 内 `SUZHOU_SHEDE_WHITELIST` 硬编码该公司 **98 人**手机号→姓名/角色映射（销售/技术），2026-08~09 陆续追加（16 名新导入用户、袁孝威、江乐群、陈新瑞等）
 - 按周聚合：`week_start`（周一）起 7 天内的答题记录，按答对数降序 + 用时升序排名；未答题者红色高亮
 - 接口：`/api/admin/reports/suzhou-shede-weekly-quiz`（列表）+ `/export`（Excel，文件名 `舍得每周答题排行榜-{weekStart}.xlsx`）
 - 后台入口：`index.html`「舍得每周排行榜」Tab
+
+### 6.9 每周答题提醒（订阅消息）(2026-09 新增) ★
+
+基于微信**一次性订阅消息**实现"每周一 09:00 答题提醒"，解决学员遗忘答题问题（微信限制：一次性订阅每次授权仅可推一条，需用户每周再次授权）。
+
+```
+用户点击（首页引导条 / 答题完成页"开启每周提醒"）
+  → wx.requestSubscribeMessage(tmplIds=[subscriptionTemplateId])   # 必须在用户点击行为后触发
+  → 授权成功 → POST /api/subscription/auth（幂等）→ 记录 SubscriptionAuth(status=waiting)
+  → 计算 target_send_at = 授权后最近的下一个周一 09:00（距目标<2h 顺延一周，避免授权即扣次）
+  → 调度器每 60s 扫描 waiting 且到期记录 → 发送后置为 sent/failed
+```
+
+- 模板：`env.js → subscriptionTemplateId`（模板 77696「分销商培训答题提醒」，thing1/thing2 字段，value≤20 字符）
+- 数据表：`subscription_auths`（迁移 `20260903_02`，含 `ix_subscription_auths_status_target` 索引）
+- 接口：`POST /api/subscription/auth`（幂等：已有 waiting 记录直接返回）、`GET /api/subscription/status`
+- 调度器：`app/services/subscription_reminder_scheduler.py`，由 `main.py` 启动；`ENABLE_SUBSCRIPTION_SCHEDULER=true` 时开启
+- 前端触发点：首页引导条（`shouye_*`）+ 答题完成页交卷即弹引导卡片（`pages/quiz/quiz.js`，每天最多弹一次，可有 `quizReminderPopupDismiss_*` 关闭标记）；未登录/游客不弹
+
+### 6.10 免责声明合规 (2026-08-31 新增)
+
+首次登录及老用户升级后必须同意免责声明后方可使用系统，声明文案："本系统内容仅供授权合作伙伴开展业务活动使用，不得对外传播、复制或向第三方披露"。
+
+- 同意记录：`users` 表 `disclaimer_agreed` / `disclaimer_version` / `disclaimer_agreed_at`（迁移 `20260820_01`）
+- 后端接口：`POST /api/auth/consent`（仅登录用户，写版本与时间）；登录返回值携带三个字段
+- 前端拦截：登录成功 → 首页 `onShow` → 需登录页 `checkLogin` 三层（`app.js`），跳 `pages/disclaimer/`
+- 页面：勾选后才能点"同意"，拒绝显示"无法继续使用"提示且不能使用系统
+
+### 6.11 姓名水印（防截屏追责）(2026-09-06 新增) ★
+
+在**学员答题**（`quiz/`）、**题库练习**（`question-list/`）、**赋能助手 AI 问答**（`zhinengwenda_*`）页面叠加半透明斜体姓名水印，防止内容截屏外泄并追责。
+
+- 文案：**真实姓名 + 手机尾号 4 位**；优先级 `real_name > nickname`，未登录/游客不渲染
+- 组件：`faq-miniprogram/components/watermark/`（`name` 属性，`wm-class` 外部类覆盖底栏）；页面级注册（`quiz.json` / `question-list.json` / `zhinengwenda_*.json`），**禁止全局注册**（组件缓存兼容问题，操作"清缓存→清全部缓存→重新编译"生效）
+- 样式：#00B050 半透明斜体 -30°，`position:fixed`，`pointer-events:none`，z-index 50，按屏幕尺寸动态行列斜排平铺，避开底部操作栏
+- 注意：禁止使用 `hidden` 属性，用 `wx:if` 按 `name` 判显隐
+
+### 6.12 智能体样本下载代理 (2026-09-02 新增) ★
+
+赋能助手（HiAgent 工作流）返回的"样本下载"链接为腾讯云 COS 带时效签名地址（`https://{bucket}.tcb.qcloud.la/{key}?sign=..&t=..`）。直连 `wx.downloadFile` 会因**签名过期 403** 或 **COS 域名未配置合法域名被拦截**失败，因此统一走后端代理。
+
+```
+前端解析出 COS 链接
+  → wx.cloud.callContainer GET /api/samples/download?url=..&action=meta → {size, parts}
+  → 按 part 并发/串行取片（每片 786KB，byte 区间）→ 写临时文件 → wx.openDocument
+```
+
+- 路由：`GET /api/samples/download`（`app/api/v1/samples.py`），参数 `url/filename/action(meta|download)/part/part_size`
+- **分片协议**：微信云托管 `wx.cloud.callContainer` 响应包上限 **1000KiB**（超限报 `-606002`），故 `meta` 返回文件大小后按字节区间切片；旧版整包返回的部署会被 `version=2` 区分
+- **COS 过期自动重签**：请求 401/403 时用 COS SDK（`COS_SECRET_ID/KEY`）按 host 推断 bucket/region 重新签发 900s 签名后重试（Range GET 校验，避免 HEAD 403 假删除）
+- **安全**：SSRF 防护——仅允许 `.tcb.qcloud.la / .myqcloud.com / .qcloud.la / .qcloud.com`（可 `SAMPLE_DOWNLOAD_ALLOWED_SUFFIXES` 追加），拦截内网 IP；文件 ≤50MB、分片 ≤200 片；文件名清洗防 header 注入
+- 前端：`zhinengwenda_AI_Assistant_Green.js` 解析富文本中的 PDF/文件链接自动触发下载
+- 配套脚本：`scripts/refresh_guide_asset_urls.py` 批量刷新 `product_guide_assets` 表过期签名（env 读取 COS 密钥，幂等，失败保留原值告警，已 `COPY scripts` 进 Docker 镜像）
 
 ---
 
@@ -737,6 +826,9 @@ RAGFLOW_GRAYSCALE_RATIO=0.0
 | 认证标准检索不完整 | `ragflow_retriever.py` | 中 | 4 条认证查询仅 5 个 chunks，3 条返回 0 结果 |
 | HiAgent 403 限流 | `agent.py` | 高 | 对比测试时大量请求返回 403，需确认 API Key 配额和限流策略 |
 | 施耐德 PDF 知识带 HTML 表格 | RAGFlow 上下文 | 中 | 检索上下文可能含 `<table>` 标签，影响 LLM 理解 |
+| 订阅消息一次性限制 | 微信平台机制 | 外部限制 | 一次性订阅每次授权只能推一条，需用户每周再次授权（非代码可解） |
+
+> 注：微信云托管 `callContainer` 1MB 响应上限（`-606002`）已通过分片下载协议解决（见 6.12）；脑机 AI 会话记忆依赖 `hiagent_conversations` 表，必须确保迁移 `20260903_01` 已执行，否则持久化报错。
 
 ### 8.3 环境变量关键配置
 
@@ -763,13 +855,24 @@ RAGFLOW_GRAYSCALE_RATIO=0.0
 
 ENABLE_MONTHLY_REWARD_SCHEDULER=true
 CORS_ORIGINS=https://servicewechat.com
+
+# 每周答题提醒订阅消息（2026-09 新增，见 6.9）
+ENABLE_SUBSCRIPTION_SCHEDULER=true
+SUBSCRIPTION_SEND_INTERVAL_SECONDS=60
+SUBSCRIPTION_SEND_BATCH_SIZE=50
+SUBSCRIPTION_SEND_BETWEEN_SECONDS=1.0
+SUBSCRIPTION_TEMPLATE_ID=nTjfKzlUIeYoYH4N-xS1d-dBCNFx6PDsw9hk0PM21Kk   # 模板77696 分销商培训答题提醒
+SUBSCRIPTION_MINIPROGRAM_STATE=formal   # developer/trial/formal，正式环境必须为 formal
+
+# 样本下载代理（2026-09 新增，见 6.12）：额外允许的下载域名后缀（逗号分隔）
+SAMPLE_DOWNLOAD_ALLOWED_SUFFIXES=
 ```
 
 ### 8.4 测试
 
 - 框架：pytest + pytest-asyncio + httpx (ASGI 传输)
 - 数据库：测试使用 SQLite 内存数据库，通过 `dependency_overrides` 注入
-- 位置：`faq-backend/tests/`（含 `test_ragflow_retriever.py`）
+- 位置：`faq-backend/tests/`（含 `test_ragflow_retriever.py`、`test_energy_products.py`）
 - 运行：`pytest` (在 `faq-backend/` 目录下)
 - 压力测试：`faq-backend/loadtests/` (Locust)
 - RAGFlow 评测：`ragflow/eval_accuracy.py` + `ragflow/compare_systems.py`
@@ -784,6 +887,7 @@ CORS_ORIGINS=https://servicewechat.com
 cd faq-backend
 cp .env.example .env        # 编辑 .env 填入真实配置
 pip install -r requirements.txt
+alembic upgrade head        # 先执行迁移（生产由 Dockerfile 启动前自动执行）
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -834,7 +938,14 @@ docker run -p 8000:8000 --env-file .env faq-backend
 | 20260520_01 | 2026-05-20 | 用户表添加岗位角色字段 |
 | 20260531_01 | 2026-05-31 | 能量交易添加通知已读字段 |
 | 20260805_01 | 2026-08-05 | 创建认可计划 8 张表 |
+| 20260806_01 | 2026-08-06 | 评分周期字段 月度→季度（配套 02 回滚，保留链） |
+| 20260806_02 | 2026-08-06 | 评分周期字段 季度→月度（最终态为月度） |
 | 20260810_01 | 2026-08-10 | 题目表添加图片 URL 字段 |
+| 20260820_01 | 2026-08-20 | 用户表添加免责声明同意字段（disclaimer_*） |
+| 20260903_01 | 2026-09-03 | 创建 hiagent_conversations 会话表（AI 会话记忆持久化） |
+| 20260903_02 | 2026-09-03 | 创建订阅授权表 subscription_auths |
+
+> 注：2026-08 曾出现迁移多 head 导致部署失败（ddbf975 / 1fa485d 线性化），后续新增迁移须线性追加，禁止分叉产生多 head。
 
 ---
 
@@ -844,10 +955,27 @@ docker run -p 8000:8000 --env-file .env faq-backend
 
 | 日期 | 提交 | 变更 | 涉及文件 |
 |------|------|------|---------|
+| 09-09 | 2d92039, e994aa0 | 答题交卷即弹每周提醒引导卡片 + 适配模板77696填入真实模板ID | `pages/quiz/`、`config/env.js` |
+| 09-09 | 5acf45f | ★ 经理端评分反馈：小程序新增评分明细页 + 后端 surveys/export 导出 | `recognition/survey-detail/`、`api/v1/recognition.py` |
+| 09-08 | 00b7e56, 36c7c8f, 287debf, 3024be8, 1df1852 | 渠道专员评分优化：评上月表现/无人数上限/每项必选，「不适用」→N/A，标题统一「销售对渠道专员满意度评分」，未登录欢迎语去"分销商" | `sales-rate.*`、评分指引.md/html、`shouye_*` |
+| 09-07 | 1681034, 99298e5 | 销售评分自选专员（废弃映射）+ /api/user/rank 返回认可角色与积分修复403刷屏 | `api/v1/recognition.py`、`services/recognition.py`、`sales-rate.js` |
+| 09-06 | 19567be, 3cdb66a | ★ 姓名水印组件：学员答题/题库练习/赋能助手页叠加"姓名+尾号4位"防截屏追责，页面级注册 | `components/watermark/`、`utils/watermark.js`、quiz/question-list/zhinengwenda |
+| 09-05 | 4b3610a | AI 助手更名：母线豆包 → 赋能助手 | `app.json`、帮助中心、条款/隐私文案 |
+| 09-04 | 901848c, 9bff41e | 经理看板待审核改提示电脑端后台地址 + 修复申报表 text_list 输入丢失(wx:for变量遮蔽) | `shouye_*`、`recognition/submit-form.wxml` |
+| 09-03 | 3a28bff, 025d185, 93379ac, 294f78b | ★ 每周答题提醒订阅消息 + hiagent_conversations 迁移补建 + COS签名刷新脚本(打入镜像) + 分片meta解码 | `api/v1/subscription.py`、`subscription_reminder_scheduler.py`、`models/subscription.py`、`scripts/refresh_guide_asset_urls.py` |
+| 09-03 | da7bd85 | 登录规范整改：取消/返回无效、强制登录 | `pages/login/` |
+| 09-02 | 3cb1ee4, 2617f3a, f0430db, d3c7a66, 56777ca, 281f230, 92d656e, f778d48 | ★ 样本下载代理：/api/samples/download + COS过期自动重签 + 分片协议规避 callContainer 1MB(-606002) + 直连优先 | `api/v1/samples.py`、`zhinengwenda_AI_Assistant_Green.js` |
+| 09-01 | f6dfe4a | 修复抽奖发放能量提示显示0格（run_monthly_lottery 缺 _raw_winners 返回值） | `services/lottery.py` |
+| 08-31 | 2888540 | ★ 首次登录免责声明同意功能，同意记录留存备查 | `api/v1/auth.py`、`pages/disclaimer/`、迁移 `20260820_01` |
+| 08-27 | 1fa485d, ceb97a5 | alembic 迁移链线性化(消除多head) + 能量商城商品按分档内能量升序 + 回归测试 | `migrations/`、`api/v1/energy.py`、`tests/test_energy_products.py` |
+| 08-25 | 6a7f2db | 销售评分从季度改回每月一次，还原 survey_month 字段 | `api/v1/recognition.py`、`services/recognition.py` |
+| 08-24 | 3836c93, deb02f1, e3a92ec, c7c5062 | 舍得每周排行榜名单追加（16名新用户 + 袁孝威/江乐群/陈新瑞等，白名单达98人） | `api/v1/admin.py` |
+| 08-18 | c86f0ee | 2026版 I-Line H 新样本 PDF（SCDOC1874/1896/1936）替换旧版权威样本 | `schneider_pdfs/00 2026/` |
+| 08-17 | 9b02acf | 认可计划积分排名金银铜改数字1234 + 销售评分由月度改为季度 | `services/recognition.py`、`api/v1/recognition.py` |
 | 08-14 | fc7cdb4, ec3d07e, 7a2c8ec | RAGFlow 检索桥接层 + 话术/友商/通用知识库迁移 + 友商 PDF 导入 + 精度评测 | `services/ragflow_retriever.py`、`services/agent.py`、`ragflow/` |
 | 08-10 | 3b2f73c | 题目图片支持 | 迁移 `20260810_01`、questions 相关 |
 | 08-07 | a8d7b3a, acca1d0 | 标书分析修复：云托管超时 + PDF 识别鲁棒性 + E-11/框招识别优化 | `services/bidding_analyzer.py`、`api/v1/bidding.py` |
-| 08-06 | 57b742f, 63d7b2a | 修复认可计划管理后台认证失败 / Tab 切换与 API 路径 | `api/deps.py`、`static/admin/app.js`、`recognition.html` |
+| 08-06 | 57b742f, 63d7b2a, 30e4f3c | 认可后台认证修复 / Tab切换与API路径 + Dockerfile 启动前执行 alembic upgrade head | `api/deps.py`、`static/admin/`、`Dockerfile` |
 | 08-05 | c2b18f3, e2a0430 | ★ 认可计划系统完整实现 | models/services/api/schemas/`recognition*`、`static/admin/recognition.html`、小程序 `pages/recognition/` |
 | 08-04 | c5c191c | 修复导出活动奖励时"名次/奖项"列误显排名 | `api/v1/admin.py` |
 | 08-03 | 5da9dea | 统一抽奖月份逻辑，操作月份=参与月份，月初抽奖→月度抽奖 | `services/lottery.py`、`services/monthly_reward_scheduler.py`、`api/v1/rewards.py`、`static/admin/` |
@@ -857,4 +985,4 @@ docker run -p 8000:8000 --env-file .env faq-backend
 
 ---
 
-> 文档版本: 4.0 | 最后更新: 2026-08-04 | 补充认可计划、标书分析 v2.0、苏州舍得周榜、周答题积分规则
+> 文档版本: 5.0 | 最后更新: 2026-09-10 | 增加了订阅消息提醒、免责声明合规、姓名水印、样本下载代理（分片协议），更新认可计划评分规则（自选专员/月度/评上月表现）、赋能助手更名、苏州舍得白名单至 98 人、迁移清单 18→23，并线性化重写近期变更记录（08-04 ~ 09-09）
