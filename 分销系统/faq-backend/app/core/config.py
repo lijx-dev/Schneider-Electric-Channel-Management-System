@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     WECHAT_CA_BUNDLE: Optional[str] = None
     WECHAT_HTTP_TRUST_ENV: bool = False
 
-    HIAGENT_API_BASE: str = "https://hiagent-stg.schneider-electric.cn/api/proxy/api/v1"
+    HIAGENT_API_BASE: str = "https://hiagent.schneider-electric.cn/api/proxy/api/v1"
     HIAGENT_API_KEY: Optional[str] = None
     HIAGENT_FEEDBACK_PATH: str = "/feedback"
     HIAGENT_LIKE_TYPE: int = 1

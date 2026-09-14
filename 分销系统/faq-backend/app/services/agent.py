@@ -14,7 +14,7 @@ RAG 增强:
   将检索结果作为上下文注入到用户消息中，提升回答精度。
 
 .env 配置:
-  HIAGENT_API_BASE=https://hiagent-stg.schneider-electric.cn/api/proxy/api/v1
+  HIAGENT_API_BASE=https://hiagent.schneider-electric.cn/api/proxy/api/v1
   HIAGENT_API_KEY=your-hiagent-api-key
   RAGFLOW_API_BASE=http://localhost:9380/api/v1
   RAGFLOW_API_KEY=your-ragflow-api-key
