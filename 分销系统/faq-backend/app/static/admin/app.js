@@ -741,6 +741,7 @@ function renderPracticeAnalysis(data) {
       <tr class="${rowClass}">
         <td><strong>${escapeHtml(item.name)}</strong></td>
         <td>${escapeHtml(item.phone)}</td>
+        <td>${escapeHtml(item.job_role || "-")}</td>
         <td>${escapeHtml(item.company)}</td>
         <td><strong>${escapeHtml(item.bank_recent_count)}</strong></td>
         <td>${escapeHtml(item.daily_recent_count)}</td>
@@ -752,7 +753,7 @@ function renderPracticeAnalysis(data) {
     `;
   });
   $("practiceAnalysisBody").innerHTML = rows.join("") ||
-    '<tr><td colspan="9" style="text-align:center" class="muted">暂无数据</td></tr>';
+    '<tr><td colspan="10" style="text-align:center" class="muted">暂无数据</td></tr>';
 }
 
 async function loadPracticeAnalysis() {

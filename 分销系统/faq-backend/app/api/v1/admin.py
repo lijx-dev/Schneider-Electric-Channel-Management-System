@@ -2108,10 +2108,11 @@ SUZHOU_SHEDE_WHITELIST: dict[str, dict[str, str]] = {
 # 老板关注的“平时自行刷题但较少做每周推题”学员判定阈值（近28天维度）
 # - PRACTICE_HIGH_THRESHOLD：近28天题库刷题数达到该值认为“平时刷题积极”
 # - WEEKLY_PUSH_LOW_THRESHOLD：近28天每周推题答题数低于该值认为“较少做每周推题”
-# 每周推题10题/轮，近28天约4轮（40题）；答题数低于该阈值说明至少缺了2轮以上推题。
+# 每周推题10题/轮，近28天约4轮（40题）；答题数低于24即近4轮推题完成率不足60%，
+# 视作“较少做每周推题”。不做“有推题参与历史”限制——刷题积极却从不做推题者正属目标。
 # 说明：老学员历史累计推题普遍70+，若用累计判定“推题少”会永远不命中，故按近28天行为判定。
 PRACTICE_HIGH_THRESHOLD = 20
-WEEKLY_PUSH_LOW_THRESHOLD = 20
+WEEKLY_PUSH_LOW_THRESHOLD = 24
 
 
 @router.get("/reports/suzhou-shede-weekly-quiz")
@@ -2230,10 +2231,9 @@ async def get_suzhou_shede_weekly_quiz(
         lifetime = lifetime_stats_map.get(user.id, {}) if user else {}
         answered = stats.get("answered_count", 0) > 0
 
-        # “平时刷题多但较少做每周推题”：近28天刷题达到阈值、有推题参与历史、且近28天推题低于阈值
+        # “平时刷题多但较少做每周推题”：近28天刷题达到阈值、且近28天推题低于阈值
         flagged = (
             lifetime.get("bank_recent_count", 0) >= PRACTICE_HIGH_THRESHOLD
-            and lifetime.get("lifetime_daily_count", 0) >= 1
             and lifetime.get("daily_recent_count", 0) < WEEKLY_PUSH_LOW_THRESHOLD
         )
 
@@ -2424,10 +2424,9 @@ async def export_suzhou_shede_weekly_quiz(
             "bank_answer_count": lifetime.get("bank_answer_count", 0),
             "bank_correct_count": lifetime.get("bank_correct_count", 0),
             "lifetime_daily_count": lifetime.get("lifetime_daily_count", 0),
-            # “刷题多但推题少”：近28天刷题达到阈值、有推题参与历史、且近28天推题低于阈值
+            # “刷题多但推题少”：近28天刷题达到阈值、且近28天推题低于阈值
             "flagged": (
                 lifetime.get("bank_recent_count", 0) >= PRACTICE_HIGH_THRESHOLD
-                and lifetime.get("lifetime_daily_count", 0) >= 1
                 and lifetime.get("daily_recent_count", 0) < WEEKLY_PUSH_LOW_THRESHOLD
             ),
         })
@@ -2576,16 +2575,17 @@ async def _build_practice_analysis_rows(
         # 只有近28天有刷题或推题行为的学员才纳入分析，避免展示长期不活跃用户
         if stats.get("bank_recent_count", 0) == 0 and stats.get("daily_recent_count", 0) == 0:
             continue
-        # “刷题多但推题少”：近28天刷题积极、有推题参与历史、但近28天推题答题低于阈值
+        # “刷题多但推题少”：近28天刷题积极、但近28天推题答题数低于阈值
+        # （不做“有推题参与历史”限制，刷题积极却从不做推题者正属目标）
         flagged = (
             stats.get("bank_recent_count", 0) >= PRACTICE_HIGH_THRESHOLD
-            and stats.get("lifetime_daily_count", 0) >= 1
             and stats.get("daily_recent_count", 0) < WEEKLY_PUSH_LOW_THRESHOLD
         )
         entries.append({
             "name": user.real_name or user.nickname or "",
             "phone": user.phone or "",
             "company": user.company or "",
+            "job_role": user.job_role or "",
             "bank_recent_count": stats.get("bank_recent_count", 0),
             "daily_recent_count": stats.get("daily_recent_count", 0),
             "bank_answer_count": stats.get("bank_answer_count", 0),
@@ -2645,7 +2645,7 @@ async def export_practice_analysis(
         entries = [e for e in entries if e["flagged"]]
 
     headers = [
-        "姓名", "手机号", "公司",
+        "姓名", "手机号", "岗位", "公司",
         "近28天题库刷题", "近28天每周推题",
         "题库累计刷题", "题库累计答对", "历史推题累计",
         "刷题多但推题少",
@@ -2654,6 +2654,7 @@ async def export_practice_analysis(
         [
             entry["name"],
             entry["phone"],
+            entry["job_role"],
             entry["company"],
             entry["bank_recent_count"],
             entry["daily_recent_count"],
