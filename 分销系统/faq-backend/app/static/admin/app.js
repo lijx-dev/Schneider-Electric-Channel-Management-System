@@ -762,6 +762,15 @@ async function loadPracticeAnalysis() {
   renderPracticeAnalysis(data);
 }
 
+async function exportPracticeAnalysisXlsx() {
+  const params = new URLSearchParams();
+  if ($("practiceFlagOnly").checked) params.set("flag_only", "true");
+  await downloadFile(
+    `/api/admin/reports/practice-analysis/export?${params.toString()}`,
+    `题库刷题vs每周推题分析.xlsx`,
+  );
+}
+
 function buildOrdersParams() {
   const params = new URLSearchParams();
   if ($("ordersProvince").value) params.set("province", $("ordersProvince").value);
@@ -1141,6 +1150,7 @@ $("shedeWeeklyWeek").addEventListener("change", () => loadShedeWeeklyReport().ca
 $("exportShedeWeeklyBtn").addEventListener("click", () => exportShedeWeeklyXlsx().catch((error) => alert(error.message)));
 $("loadPracticeAnalysisBtn").addEventListener("click", () => loadPracticeAnalysis().catch((error) => alert(error.message)));
 $("practiceFlagOnly").addEventListener("change", () => loadPracticeAnalysis().catch((error) => alert(error.message)));
+$("exportPracticeAnalysisBtn").addEventListener("click", () => exportPracticeAnalysisXlsx().catch((error) => alert(error.message)));
 $("exportRewardsBtn").addEventListener("click", () => exportRewardsXlsx().catch((error) => alert(error.message)));
 $("loadRewardsBtn").addEventListener("click", () => loadRewards().catch((error) => alert(error.message)));
 $("rewardsMonth").addEventListener("change", () => loadRewards().catch((error) => alert(error.message)));

@@ -2498,41 +2498,25 @@ async def export_suzhou_shede_weekly_quiz(
     )
 
 
-@router.get("/reports/practice-analysis")
-async def get_practice_analysis(
-    flag_only: bool = Query(False, description="只看存在「刷题多但推题少」标记的学员"),
-    limit: int = Query(500, ge=1, le=1000),
-    db: AsyncSession = Depends(get_db),
-    _: str = Depends(get_current_admin),
-) -> dict[str, object]:
-    """全体分销商学员：题库刷题 vs 每周推题 分析
+async def _build_practice_analysis_rows(
+    db: AsyncSession,
+) -> tuple[list[dict[str, object]], int, str]:
+    """统计全体分销商学员“题库刷题 vs 每周推题”行为清单（供接口与导出共用）。
 
-    老板关注的“平时自行刷题但较少做每周推题的学员”可能不在舍得白名单内，
-    故本接口统计全体已注册学员（排除施耐德内部人员）的题库刷题与每周推题行为：
-    - 近28天题库刷题数 / 近28天推题答题数（行为判定依据）
-    - 题库累计刷题数、答对数 / 历史推题累计答题数（总量展示）
-    - flagged：近28天刷题>=阈值 且有推题参与历史、但近28天推题低于阈值
+    - 范围：全体已注册学员，排除施耐德电气内部人员
+    - 仅保留近28天有刷题或推题行为的学员
+    - 标记“刷题多但推题少”：近28天刷题>=阈值、有推题参与历史、但近28天推题低于阈值
+
+    返回 (entries, flag_count, recent_start_iso)
     """
     recent_start = (datetime.now(timezone(timedelta(hours=8))).date() - timedelta(days=28))
     recent_start_iso = recent_start.isoformat()
 
-    # 全体用户，排除施耐德电气内部人员（公司名含“施耐德电气”）
     user_result = await db.execute(select(User))
     users = [u for u in user_result.scalars().all() if not is_ranking_excluded_user(u)]
     user_ids = [u.id for u in users]
-    user_list: list[dict[str, object]] = []
     if not user_ids:
-        return {
-            "code": 0,
-            "data": {
-                "total": 0,
-                "flag_count": 0,
-                "recent_start": recent_start_iso,
-                "practice_threshold": PRACTICE_HIGH_THRESHOLD,
-                "push_low_threshold": WEEKLY_PUSH_LOW_THRESHOLD,
-                "entries": [],
-            },
-        }
+        return [], 0, recent_start_iso
 
     stats_result = await db.execute(
         select(
@@ -2586,6 +2570,7 @@ async def get_practice_analysis(
             "daily_recent_count": int(row.daily_recent_count or 0),
         }
 
+    entries: list[dict[str, object]] = []
     for user in users:
         stats = stats_map.get(user.id, {})
         # 只有近28天有刷题或推题行为的学员才纳入分析，避免展示长期不活跃用户
@@ -2597,9 +2582,7 @@ async def get_practice_analysis(
             and stats.get("lifetime_daily_count", 0) >= 1
             and stats.get("daily_recent_count", 0) < WEEKLY_PUSH_LOW_THRESHOLD
         )
-        if flag_only and not flagged:
-            continue
-        user_list.append({
+        entries.append({
             "name": user.real_name or user.nickname or "",
             "phone": user.phone or "",
             "company": user.company or "",
@@ -2612,17 +2595,87 @@ async def get_practice_analysis(
         })
 
     # 刷题多的排前面；标记学员优先展示，便于老板快速定位
-    user_list.sort(key=lambda e: (0 if e["flagged"] else 1, -e["bank_recent_count"]))
+    entries.sort(key=lambda e: (0 if e["flagged"] else 1, -e["bank_recent_count"]))
+    flag_count = sum(1 for e in entries if e["flagged"])
+    return entries, flag_count, recent_start_iso
 
-    flag_count = sum(1 for e in user_list if e["flagged"])
+
+@router.get("/reports/practice-analysis")
+async def get_practice_analysis(
+    flag_only: bool = Query(False, description="只看存在「刷题多但推题少」标记的学员"),
+    limit: int = Query(500, ge=1, le=1000),
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> dict[str, object]:
+    """全体分销商学员：题库刷题 vs 每周推题 分析
+
+    老板关注的“平时自行刷题但较少做每周推题的学员”可能不在舍得白名单内，
+    故本接口统计全体已注册学员（排除施耐德内部人员）的题库刷题与每周推题行为：
+    - 近28天题库刷题数 / 近28天推题答题数（行为判定依据）
+    - 题库累计刷题数、答对数 / 历史推题累计答题数（总量展示）
+    - flagged：近28天刷题>=阈值 且有推题参与历史、但近28天推题低于阈值
+    """
+    entries, flag_count, recent_start_iso = await _build_practice_analysis_rows(db)
+    if flag_only:
+        entries = [e for e in entries if e["flagged"]]
+        flag_count = len(entries)
+
     return {
         "code": 0,
         "data": {
-            "total": len(user_list),
+            "total": len(entries),
             "flag_count": flag_count,
             "recent_start": recent_start_iso,
             "practice_threshold": PRACTICE_HIGH_THRESHOLD,
             "push_low_threshold": WEEKLY_PUSH_LOW_THRESHOLD,
-            "entries": user_list[:limit],
+            "entries": entries[:limit],
         },
     }
+
+
+@router.get("/reports/practice-analysis/export")
+async def export_practice_analysis(
+    flag_only: bool = Query(False, description="仅导出存在「刷题多但推题少」标记的学员"),
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> StreamingResponse:
+    """导出「题库刷题 vs 每周推题」分析 Excel（与页面查询同一套统计逻辑）"""
+    entries, _flag_count, recent_start_iso = await _build_practice_analysis_rows(db)
+    if flag_only:
+        entries = [e for e in entries if e["flagged"]]
+
+    headers = [
+        "姓名", "手机号", "公司",
+        "近28天题库刷题", "近28天每周推题",
+        "题库累计刷题", "题库累计答对", "历史推题累计",
+        "刷题多但推题少",
+    ]
+    rows: list[list[object]] = [
+        [
+            entry["name"],
+            entry["phone"],
+            entry["company"],
+            entry["bank_recent_count"],
+            entry["daily_recent_count"],
+            entry["bank_answer_count"],
+            entry["bank_correct_count"],
+            entry["lifetime_daily_count"],
+            "是" if entry["flagged"] else "",
+        ]
+        for entry in entries
+    ]
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "刷题vs推题分析"
+    _append_xlsx_rows(sheet, headers, rows)
+
+    stream = BytesIO()
+    workbook.save(stream)
+    stream.seek(0)
+    filename = f"题库刷题vs每周推题分析-{recent_start_iso}.xlsx"
+    return StreamingResponse(
+        stream,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+    )
