@@ -661,8 +661,11 @@ async function exportAllParticipationXlsx() {
 
 function renderShedeWeekly(data) {
   const range = data.week_start && data.week_end ? `（${data.week_start} 至 ${data.week_end}）` : "";
+  const flagNote = data.flag_count > 0
+    ? `<span style="color:var(--danger)">，已答题学员中 ${data.flag_count} 人存在“平时刷题多但较少做每周推题”</span>`
+    : "";
   $("shedeWeeklySummary").innerHTML =
-    `<strong>${data.company}</strong> 本周${range}：<span style="color:var(--brand-dark)">已答题 ${data.answered_count} 人</span>，<span style="color:var(--danger)">未答题 ${data.unanswered_count} 人</span>，共 ${data.total} 人`;
+    `<strong>${data.company}</strong> 本周${range}：<span style="color:var(--brand-dark)">已答题 ${data.answered_count} 人</span>，<span style="color:var(--danger)">未答题 ${data.unanswered_count} 人</span>，共 ${data.total} 人${flagNote}`;
 
   const rows = (data.entries || []).map((item) => {
     const isUnanswered = !item.answered;
@@ -671,8 +674,20 @@ function renderShedeWeekly(data) {
       : '<span class="status-answered">已答题</span>';
     const rankHtml = item.rank != null ? escapeHtml(item.rank) : "-";
     const timeHtml = item.answered ? `${escapeHtml(Math.round(item.total_time_spent))}s` : "-";
+    const flagHtml = item.flagged
+      ? '<span class="status-warning" title="平时题库刷题较多，但每周推题答题较少">刷题多/推题少</span>'
+      : "";
+    const rowClass = item.flagged
+      ? isUnanswered ? "row-flagged row-unanswered" : "row-flagged"
+      : isUnanswered ? "row-unanswered" : "";
+    const bankCountHtml = item.bank_answer_count > 0
+      ? `${escapeHtml(item.bank_answer_count)}<span class="muted">（对${escapeHtml(item.bank_correct_count)}）</span>`
+      : "0";
+    const lifetimeDailyHtml = item.lifetime_daily_count > 0
+      ? escapeHtml(item.lifetime_daily_count)
+      : "0";
     return `
-      <tr class="${isUnanswered ? "row-unanswered" : ""}">
+      <tr class="${rowClass}">
         <td>${rankHtml}</td>
         <td>${escapeHtml(item.name)}</td>
         <td>${escapeHtml(item.role)}</td>
@@ -682,6 +697,9 @@ function renderShedeWeekly(data) {
         <td>${escapeHtml(item.total_score)}</td>
         <td>${timeHtml}</td>
         <td>${statusHtml}</td>
+        <td>${bankCountHtml}</td>
+        <td>${lifetimeDailyHtml}</td>
+        <td>${flagHtml}</td>
       </tr>
     `;
   });
@@ -703,6 +721,45 @@ async function exportShedeWeeklyXlsx() {
     `/api/admin/reports/suzhou-shede-weekly-quiz/export?${params.toString()}`,
     `舍得每周答题排行榜-${weekStart}.xlsx`,
   );
+}
+
+// ==================== 刷题行为分析（全体分销商学员） ====================
+
+function renderPracticeAnalysis(data) {
+  const flagNote = data.flag_count > 0
+    ? `<span style="color:var(--danger)">；其中 <strong>${data.flag_count}</strong> 人存在“刷题多但推题少”标记（黄色高亮）</span>`
+    : "";
+  $("practiceAnalysisSummary").innerHTML =
+    `统计窗口：近28天（<span class="muted">${data.recent_start} 至今</span>），共 <strong>${data.total}</strong> 名活跃学员${flagNote}`;
+
+  const rows = (data.entries || []).map((item) => {
+    const flagHtml = item.flagged
+      ? '<span class="status-warning" title="近28天题库刷题较多，但每周推题答题较少">刷题多/推题少</span>'
+      : "";
+    const rowClass = item.flagged ? "row-flagged" : "";
+    return `
+      <tr class="${rowClass}">
+        <td><strong>${escapeHtml(item.name)}</strong></td>
+        <td>${escapeHtml(item.phone)}</td>
+        <td>${escapeHtml(item.company)}</td>
+        <td><strong>${escapeHtml(item.bank_recent_count)}</strong></td>
+        <td>${escapeHtml(item.daily_recent_count)}</td>
+        <td>${escapeHtml(item.bank_answer_count)}</td>
+        <td>${escapeHtml(item.bank_correct_count)}</td>
+        <td>${escapeHtml(item.lifetime_daily_count)}</td>
+        <td>${flagHtml}</td>
+      </tr>
+    `;
+  });
+  $("practiceAnalysisBody").innerHTML = rows.join("") ||
+    '<tr><td colspan="9" style="text-align:center" class="muted">暂无数据</td></tr>';
+}
+
+async function loadPracticeAnalysis() {
+  const params = new URLSearchParams();
+  if ($("practiceFlagOnly").checked) params.set("flag_only", "true");
+  const data = await request(`/api/admin/reports/practice-analysis?${params.toString()}`);
+  renderPracticeAnalysis(data);
 }
 
 function buildOrdersParams() {
@@ -1082,6 +1139,8 @@ $("exportAllParticipationBtn").addEventListener("click", () => exportAllParticip
 $("loadShedeWeeklyBtn").addEventListener("click", () => loadShedeWeeklyReport().catch((error) => alert(error.message)));
 $("shedeWeeklyWeek").addEventListener("change", () => loadShedeWeeklyReport().catch((error) => alert(error.message)));
 $("exportShedeWeeklyBtn").addEventListener("click", () => exportShedeWeeklyXlsx().catch((error) => alert(error.message)));
+$("loadPracticeAnalysisBtn").addEventListener("click", () => loadPracticeAnalysis().catch((error) => alert(error.message)));
+$("practiceFlagOnly").addEventListener("change", () => loadPracticeAnalysis().catch((error) => alert(error.message)));
 $("exportRewardsBtn").addEventListener("click", () => exportRewardsXlsx().catch((error) => alert(error.message)));
 $("loadRewardsBtn").addEventListener("click", () => loadRewards().catch((error) => alert(error.message)));
 $("rewardsMonth").addEventListener("change", () => loadRewards().catch((error) => alert(error.message)));

@@ -15,7 +15,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from pydantic import BaseModel, Field
-from sqlalchemy import case, distinct, func, or_, select
+from sqlalchemy import and_, case, distinct, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -2105,6 +2105,15 @@ SUZHOU_SHEDE_WHITELIST: dict[str, dict[str, str]] = {
 }
 
 
+# 老板关注的“平时自行刷题但较少做每周推题”学员判定阈值（近28天维度）
+# - PRACTICE_HIGH_THRESHOLD：近28天题库刷题数达到该值认为“平时刷题积极”
+# - WEEKLY_PUSH_LOW_THRESHOLD：近28天每周推题答题数低于该值认为“较少做每周推题”
+# 每周推题10题/轮，近28天约4轮（40题）；答题数低于该阈值说明至少缺了2轮以上推题。
+# 说明：老学员历史累计推题普遍70+，若用累计判定“推题少”会永远不命中，故按近28天行为判定。
+PRACTICE_HIGH_THRESHOLD = 20
+WEEKLY_PUSH_LOW_THRESHOLD = 20
+
+
 @router.get("/reports/suzhou-shede-weekly-quiz")
 async def get_suzhou_shede_weekly_quiz(
     quiz_date: str = Query(..., pattern=r"^\d{4}-\d{2}-\d{2}$"),
@@ -2150,20 +2159,90 @@ async def get_suzhou_shede_weekly_quiz(
                 "total_time_spent": int(row.total_time_spent or 0),
             }
 
+    # 累计数据：题库刷题（source=bank）与历史每周推题（source=daily，不限本周）
+    # 另统计近28天题库刷题与推题答题数，用于“刷题多但推题少”学员判定
+    recent_start = (datetime.now(timezone(timedelta(hours=8))).date() - timedelta(days=28))
+    recent_start_iso = recent_start.isoformat()
+    lifetime_stats_map: dict[str, dict[str, int]] = {}
+    if user_ids:
+        lifetime_result = await db.execute(
+            select(
+                AnswerRecord.user_id,
+                func.sum(case((AnswerRecord.source == "bank", 1), else_=0)).label("bank_answer_count"),
+                func.sum(
+                    case(
+                        (
+                            and_(AnswerRecord.source == "bank", AnswerRecord.is_correct == True),  # noqa: E712
+                            1,
+                        ),
+                        else_=0,
+                    )
+                ).label("bank_correct_count"),
+                func.sum(case((AnswerRecord.source == "daily", 1), else_=0)).label("lifetime_daily_count"),
+                # 近28天题库刷题数（bank 记录 quiz_date 恒为空，按 created_at 过滤）
+                func.sum(
+                    case(
+                        (
+                            and_(
+                                AnswerRecord.source == "bank",
+                                AnswerRecord.created_at >= recent_start,
+                            ),
+                            1,
+                        ),
+                        else_=0,
+                    )
+                ).label("bank_recent_count"),
+                # 近28天每周推题答题数（按 quiz_date 过滤）
+                func.sum(
+                    case(
+                        (
+                            and_(
+                                AnswerRecord.source == "daily",
+                                AnswerRecord.quiz_date >= recent_start_iso,
+                            ),
+                            1,
+                        ),
+                        else_=0,
+                    )
+                ).label("daily_recent_count"),
+            )
+            .where(AnswerRecord.user_id.in_(user_ids))
+            .group_by(AnswerRecord.user_id)
+        )
+        for row in lifetime_result.all():
+            lifetime_stats_map[row.user_id] = {
+                "bank_answer_count": int(row.bank_answer_count or 0),
+                "bank_correct_count": int(row.bank_correct_count or 0),
+                "lifetime_daily_count": int(row.lifetime_daily_count or 0),
+                "bank_recent_count": int(row.bank_recent_count or 0),
+                "daily_recent_count": int(row.daily_recent_count or 0),
+            }
+
     # 按照白名单顺序构建排行榜
     entries: list[dict[str, object]] = []
     answered_count_total = 0
     unanswered_count_total = 0
+    flag_count_total = 0
 
     for phone, info in SUZHOU_SHEDE_WHITELIST.items():
         user = db_users.get(phone)
         stats = stats_map.get(user.id, {}) if user else {}
+        lifetime = lifetime_stats_map.get(user.id, {}) if user else {}
         answered = stats.get("answered_count", 0) > 0
+
+        # “平时刷题多但较少做每周推题”：近28天刷题达到阈值、有推题参与历史、且近28天推题低于阈值
+        flagged = (
+            lifetime.get("bank_recent_count", 0) >= PRACTICE_HIGH_THRESHOLD
+            and lifetime.get("lifetime_daily_count", 0) >= 1
+            and lifetime.get("daily_recent_count", 0) < WEEKLY_PUSH_LOW_THRESHOLD
+        )
 
         if answered:
             answered_count_total += 1
         else:
             unanswered_count_total += 1
+        if flagged:
+            flag_count_total += 1
 
         entries.append({
             "name": info["name"],
@@ -2176,6 +2255,10 @@ async def get_suzhou_shede_weekly_quiz(
             "total_score": stats.get("total_score", 0),
             "total_time_spent": stats.get("total_time_spent", 0),
             "answered": answered,
+            "bank_answer_count": lifetime.get("bank_answer_count", 0),
+            "bank_correct_count": lifetime.get("bank_correct_count", 0),
+            "lifetime_daily_count": lifetime.get("lifetime_daily_count", 0),
+            "flagged": flagged,
         })
 
     # 排序：已答题按答对数降序、用时升序；未答题排在最后按姓名排序
@@ -2203,6 +2286,9 @@ async def get_suzhou_shede_weekly_quiz(
             "total": len(sorted_entries),
             "answered_count": answered_count_total,
             "unanswered_count": unanswered_count_total,
+            "flag_count": flag_count_total,
+            "practice_threshold": PRACTICE_HIGH_THRESHOLD,
+            "push_low_threshold": WEEKLY_PUSH_LOW_THRESHOLD,
             "entries": sorted_entries,
         },
     }
@@ -2251,7 +2337,71 @@ async def export_suzhou_shede_weekly_quiz(
                 "total_time_spent": int(row.total_time_spent or 0),
             }
 
-    headers = ["排名", "姓名", "岗位", "手机号", "答题数", "答对数", "得分", "用时(秒)", "状态", "已注册"]
+    # 累计数据：题库刷题（source=bank）与历史每周推题（source=daily，不限本周）
+    # 另统计近28天题库刷题与推题答题数，用于“刷题多但推题少”学员判定
+    recent_start = (datetime.now(timezone(timedelta(hours=8))).date() - timedelta(days=28))
+    recent_start_iso = recent_start.isoformat()
+    lifetime_stats_map: dict[str, dict[str, int]] = {}
+    if user_ids:
+        lifetime_result = await db.execute(
+            select(
+                AnswerRecord.user_id,
+                func.sum(case((AnswerRecord.source == "bank", 1), else_=0)).label("bank_answer_count"),
+                func.sum(
+                    case(
+                        (
+                            and_(AnswerRecord.source == "bank", AnswerRecord.is_correct == True),  # noqa: E712
+                            1,
+                        ),
+                        else_=0,
+                    )
+                ).label("bank_correct_count"),
+                func.sum(case((AnswerRecord.source == "daily", 1), else_=0)).label("lifetime_daily_count"),
+                # 近28天题库刷题数（bank 记录 quiz_date 恒为空，按 created_at 过滤）
+                func.sum(
+                    case(
+                        (
+                            and_(
+                                AnswerRecord.source == "bank",
+                                AnswerRecord.created_at >= recent_start,
+                            ),
+                            1,
+                        ),
+                        else_=0,
+                    )
+                ).label("bank_recent_count"),
+                # 近28天每周推题答题数（按 quiz_date 过滤）
+                func.sum(
+                    case(
+                        (
+                            and_(
+                                AnswerRecord.source == "daily",
+                                AnswerRecord.quiz_date >= recent_start_iso,
+                            ),
+                            1,
+                        ),
+                        else_=0,
+                    )
+                ).label("daily_recent_count"),
+            )
+            .where(AnswerRecord.user_id.in_(user_ids))
+            .group_by(AnswerRecord.user_id)
+        )
+        for row in lifetime_result.all():
+            lifetime_stats_map[row.user_id] = {
+                "bank_answer_count": int(row.bank_answer_count or 0),
+                "bank_correct_count": int(row.bank_correct_count or 0),
+                "lifetime_daily_count": int(row.lifetime_daily_count or 0),
+                "bank_recent_count": int(row.bank_recent_count or 0),
+                "daily_recent_count": int(row.daily_recent_count or 0),
+            }
+
+    headers = [
+        "排名", "姓名", "岗位", "手机号",
+        "本周答题数", "本周答对数", "本周得分", "本周用时(秒)", "状态",
+        "题库累计刷题数", "题库累计答对数", "历史推题累计答题数", "刷题多但推题少",
+        "已注册",
+    ]
     answered_rows: list[list[object]] = []
     unanswered_rows: list[list[object]] = []
 
@@ -2260,6 +2410,7 @@ async def export_suzhou_shede_weekly_quiz(
     for phone, info in SUZHOU_SHEDE_WHITELIST.items():
         user = db_users.get(phone)
         stats = stats_map.get(user.id, {}) if user else {}
+        lifetime = lifetime_stats_map.get(user.id, {}) if user else {}
         all_entries.append({
             "name": info["name"],
             "role": info["role"],
@@ -2270,6 +2421,15 @@ async def export_suzhou_shede_weekly_quiz(
             "total_time_spent": stats.get("total_time_spent", 0),
             "answered": stats.get("answered_count", 0) > 0,
             "registered": user is not None,
+            "bank_answer_count": lifetime.get("bank_answer_count", 0),
+            "bank_correct_count": lifetime.get("bank_correct_count", 0),
+            "lifetime_daily_count": lifetime.get("lifetime_daily_count", 0),
+            # “刷题多但推题少”：近28天刷题达到阈值、有推题参与历史、且近28天推题低于阈值
+            "flagged": (
+                lifetime.get("bank_recent_count", 0) >= PRACTICE_HIGH_THRESHOLD
+                and lifetime.get("lifetime_daily_count", 0) >= 1
+                and lifetime.get("daily_recent_count", 0) < WEEKLY_PUSH_LOW_THRESHOLD
+            ),
         })
 
     # 排序：已答题按答对数降序、用时升序；未答题按姓名排序
@@ -2294,6 +2454,10 @@ async def export_suzhou_shede_weekly_quiz(
             entry["total_score"],
             entry["total_time_spent"],
             "已答题",
+            entry["bank_answer_count"],
+            entry["bank_correct_count"],
+            entry["lifetime_daily_count"],
+            "是" if entry["flagged"] else "",
             "是" if entry["registered"] else "否",
         ])
 
@@ -2308,6 +2472,10 @@ async def export_suzhou_shede_weekly_quiz(
             entry["total_score"],
             entry["total_time_spent"],
             "未答题",
+            entry["bank_answer_count"],
+            entry["bank_correct_count"],
+            entry["lifetime_daily_count"],
+            "是" if entry["flagged"] else "",
             "是" if entry["registered"] else "否",
         ])
 
@@ -2328,3 +2496,133 @@ async def export_suzhou_shede_weekly_quiz(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
     )
+
+
+@router.get("/reports/practice-analysis")
+async def get_practice_analysis(
+    flag_only: bool = Query(False, description="只看存在「刷题多但推题少」标记的学员"),
+    limit: int = Query(500, ge=1, le=1000),
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> dict[str, object]:
+    """全体分销商学员：题库刷题 vs 每周推题 分析
+
+    老板关注的“平时自行刷题但较少做每周推题的学员”可能不在舍得白名单内，
+    故本接口统计全体已注册学员（排除施耐德内部人员）的题库刷题与每周推题行为：
+    - 近28天题库刷题数 / 近28天推题答题数（行为判定依据）
+    - 题库累计刷题数、答对数 / 历史推题累计答题数（总量展示）
+    - flagged：近28天刷题>=阈值 且有推题参与历史、但近28天推题低于阈值
+    """
+    recent_start = (datetime.now(timezone(timedelta(hours=8))).date() - timedelta(days=28))
+    recent_start_iso = recent_start.isoformat()
+
+    # 全体用户，排除施耐德电气内部人员（公司名含“施耐德电气”）
+    user_result = await db.execute(select(User))
+    users = [u for u in user_result.scalars().all() if not is_ranking_excluded_user(u)]
+    user_ids = [u.id for u in users]
+    user_list: list[dict[str, object]] = []
+    if not user_ids:
+        return {
+            "code": 0,
+            "data": {
+                "total": 0,
+                "flag_count": 0,
+                "recent_start": recent_start_iso,
+                "practice_threshold": PRACTICE_HIGH_THRESHOLD,
+                "push_low_threshold": WEEKLY_PUSH_LOW_THRESHOLD,
+                "entries": [],
+            },
+        }
+
+    stats_result = await db.execute(
+        select(
+            AnswerRecord.user_id,
+            func.sum(case((AnswerRecord.source == "bank", 1), else_=0)).label("bank_answer_count"),
+            func.sum(
+                case(
+                    (
+                        and_(AnswerRecord.source == "bank", AnswerRecord.is_correct == True),  # noqa: E712
+                        1,
+                    ),
+                    else_=0,
+                )
+            ).label("bank_correct_count"),
+            func.sum(
+                case(
+                    (
+                        and_(
+                            AnswerRecord.source == "bank",
+                            AnswerRecord.created_at >= recent_start,
+                        ),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ).label("bank_recent_count"),
+            func.sum(case((AnswerRecord.source == "daily", 1), else_=0)).label("lifetime_daily_count"),
+            func.sum(
+                case(
+                    (
+                        and_(
+                            AnswerRecord.source == "daily",
+                            AnswerRecord.quiz_date >= recent_start_iso,
+                        ),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ).label("daily_recent_count"),
+        )
+        .where(AnswerRecord.user_id.in_(user_ids))
+        .group_by(AnswerRecord.user_id)
+    )
+    stats_map: dict[str, dict[str, int]] = {}
+    for row in stats_result.all():
+        stats_map[row.user_id] = {
+            "bank_answer_count": int(row.bank_answer_count or 0),
+            "bank_correct_count": int(row.bank_correct_count or 0),
+            "bank_recent_count": int(row.bank_recent_count or 0),
+            "lifetime_daily_count": int(row.lifetime_daily_count or 0),
+            "daily_recent_count": int(row.daily_recent_count or 0),
+        }
+
+    for user in users:
+        stats = stats_map.get(user.id, {})
+        # 只有近28天有刷题或推题行为的学员才纳入分析，避免展示长期不活跃用户
+        if stats.get("bank_recent_count", 0) == 0 and stats.get("daily_recent_count", 0) == 0:
+            continue
+        # “刷题多但推题少”：近28天刷题积极、有推题参与历史、但近28天推题答题低于阈值
+        flagged = (
+            stats.get("bank_recent_count", 0) >= PRACTICE_HIGH_THRESHOLD
+            and stats.get("lifetime_daily_count", 0) >= 1
+            and stats.get("daily_recent_count", 0) < WEEKLY_PUSH_LOW_THRESHOLD
+        )
+        if flag_only and not flagged:
+            continue
+        user_list.append({
+            "name": user.real_name or user.nickname or "",
+            "phone": user.phone or "",
+            "company": user.company or "",
+            "bank_recent_count": stats.get("bank_recent_count", 0),
+            "daily_recent_count": stats.get("daily_recent_count", 0),
+            "bank_answer_count": stats.get("bank_answer_count", 0),
+            "bank_correct_count": stats.get("bank_correct_count", 0),
+            "lifetime_daily_count": stats.get("lifetime_daily_count", 0),
+            "flagged": flagged,
+        })
+
+    # 刷题多的排前面；标记学员优先展示，便于老板快速定位
+    user_list.sort(key=lambda e: (0 if e["flagged"] else 1, -e["bank_recent_count"]))
+
+    flag_count = sum(1 for e in user_list if e["flagged"])
+    return {
+        "code": 0,
+        "data": {
+            "total": len(user_list),
+            "flag_count": flag_count,
+            "recent_start": recent_start_iso,
+            "practice_threshold": PRACTICE_HIGH_THRESHOLD,
+            "push_low_threshold": WEEKLY_PUSH_LOW_THRESHOLD,
+            "entries": user_list[:limit],
+        },
+    }

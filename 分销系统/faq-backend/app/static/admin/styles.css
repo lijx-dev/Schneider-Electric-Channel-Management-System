@@ -310,6 +310,24 @@ select {
   min-width: 150px;
 }
 
+.checkbox-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.checkbox-line input[type="checkbox"] {
+  min-height: auto;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+
 .search-options {
   position: absolute;
   z-index: 30;
@@ -464,6 +482,28 @@ th {
 
 .row-unanswered:hover {
   background: #fee2e2;
+}
+
+/* 舍得每周排行榜 - “刷题多但推题少”学员行高亮 */
+.row-flagged {
+  background: #fffbeb !important;
+}
+
+.row-flagged:hover {
+  background: #fef3c7 !important;
+}
+
+.status-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 3px 10px;
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .status-answered {
