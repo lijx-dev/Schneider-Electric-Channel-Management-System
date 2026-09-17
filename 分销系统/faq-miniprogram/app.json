@@ -28,7 +28,11 @@
     "pages/recognition/sales-rate/sales-rate",
     "pages/recognition/my-awards/my-awards",
     "pages/recognition/ranking/ranking",
-    "pages/recognition/survey-detail/survey-detail"
+    "pages/recognition/survey-detail/survey-detail",
+    "pages/conference/hall/index",
+    "pages/conference/zone-quiz/index",
+    "pages/conference/zone-channel/index",
+    "pages/conference/my-medal/index"
   ],
   "window": {
     "navigationBarBackgroundColor": "#00B050",

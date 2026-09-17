@@ -311,6 +311,28 @@ const pageDefinition = {
 
   onLoad() {
     this._isLoadingMallData = false;
+    // 分销商大会渠道展区步骤3：白名单用户浏览施能量页时上报计数（失败静默不影响页面）
+    this.reportEnergyViewIfWhitelisted();
+  },
+
+  reportEnergyViewIfWhitelisted() {
+    try {
+      const userInfo = (app.globalData && app.globalData.userInfo) || {};
+      if (!userInfo.conference_whitelisted) {
+        return;
+      }
+      app.request({
+        url: '/api/conference/activity',
+        method: 'POST',
+        data: { action: 'energy_view' },
+        dedupe: true,
+        retryCount: 0
+      }).catch(() => {
+        // 静默失败，不阻塞能量商城页面
+      });
+    } catch (err) {
+      console.warn('report energy_view failed:', err);
+    }
   },
 
   onShow() {

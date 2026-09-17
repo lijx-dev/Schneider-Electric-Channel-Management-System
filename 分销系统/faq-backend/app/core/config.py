@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "change-me-in-production"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
 
+    # 登录接口限流阈值（大会现场 100 人集中登录同一 IP 时需调大）
+    RATE_LIMIT_LOGIN: int = 300
+    RATE_LIMIT_LOGIN_PHONE: int = 200
+
     ADMIN_USERNAME: Optional[str] = None
     ADMIN_PASSWORD: Optional[str] = None
     ADMIN_SECRET_KEY: Optional[str] = None

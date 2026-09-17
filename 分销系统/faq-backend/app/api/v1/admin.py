@@ -20,9 +20,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.db.session import get_db
+from app.models.conference import ConferenceActivity, ConferenceMedal, ConferenceZone, ConferenceZoneMark
 from app.models.energy import EnergyRedemptionRecord, EnergyTransaction
 from app.models.lottery import LotteryWinner
 from app.models.monthly import MonthlyRankSnapshot
+from app.models.question import Question
 from app.models.record import AnswerRecord
 from app.models.user import User
 from app.services.admin_auth import create_admin_token, verify_admin_token
@@ -2675,6 +2677,427 @@ async def export_practice_analysis(
     workbook.save(stream)
     stream.seek(0)
     filename = f"题库刷题vs每周推题分析-{recent_start_iso}.xlsx"
+    return StreamingResponse(
+        stream,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+    )
+
+
+# ── 分销商大会管理 ────────────────────────────────────────────────────────
+# 展区配置 / 题组题目 / 实时看板 / 参与名单导出
+
+CONFERENCE_QUESTION_CATEGORIES = (
+    "conference_business",
+    "conference_new_v",
+    "conference_digital",
+)
+
+
+class ConferenceZoneUpdatePayload(BaseModel):
+    name: Optional[str] = None
+    slogan: Optional[str] = None
+    icon_url: Optional[str] = None
+    sort_order: Optional[int] = None
+    task_type: Optional[str] = None
+    question_category: Optional[str] = None
+    required_daily_quiz_count: Optional[int] = None
+    required_ai_chat_count: Optional[int] = None
+    active_from: Optional[str] = None  # ISO datetime or empty
+    active_to: Optional[str] = None    # ISO datetime or empty
+    is_active: Optional[bool] = None
+
+
+class ConferenceZoneCreatePayload(BaseModel):
+    code: str = Field(min_length=1, max_length=30)
+    name: str = Field(min_length=1, max_length=50)
+    slogan: Optional[str] = None
+    icon_url: Optional[str] = None
+    sort_order: int = 0
+    task_type: str = "quiz"
+    question_category: Optional[str] = None
+    required_daily_quiz_count: int = 2
+    required_ai_chat_count: int = 2
+    is_active: bool = True
+
+
+class ConferenceQuestionCreatePayload(BaseModel):
+    question_type: str = "single_choice"
+    content: str = Field(min_length=1)
+    options: Optional[list[str]] = None
+    answer: str = Field(min_length=1)
+    explanation: Optional[str] = None
+    difficulty: int = 1
+    category: str = Field(..., description="conference_business/conference_new_v/conference_digital")
+    is_active: bool = True
+
+
+class ConferenceQuestionUpdatePayload(BaseModel):
+    question_type: Optional[str] = None
+    content: Optional[str] = None
+    options: Optional[list[str]] = None
+    answer: Optional[str] = None
+    explanation: Optional[str] = None
+    difficulty: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+def _parse_iso_dt(value: Optional[str]):
+    if value is None or not str(value).strip():
+        return None
+    text = str(value).strip()
+    if text.lower() in {"null", "none", "-"}:
+        return None
+    return datetime.fromisoformat(text.replace("Z", "+00:00"))
+
+
+def _zone_admin_dict(zone) -> dict:
+    return {
+        "id": zone.id,
+        "code": zone.code,
+        "name": zone.name,
+        "slogan": zone.slogan,
+        "icon_url": zone.icon_url,
+        "sort_order": zone.sort_order,
+        "task_type": zone.task_type,
+        "question_category": zone.question_category,
+        "required_daily_quiz_count": zone.required_daily_quiz_count,
+        "required_ai_chat_count": zone.required_ai_chat_count,
+        "active_from": zone.active_from.isoformat() if zone.active_from else None,
+        "active_to": zone.active_to.isoformat() if zone.active_to else None,
+        "is_active": bool(zone.is_active),
+    }
+
+
+@router.get("/conference/zones")
+async def list_conference_zones(
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> dict:
+    result = await db.execute(
+        select(ConferenceZone).order_by(ConferenceZone.sort_order, ConferenceZone.id)
+    )
+    zones = result.scalars().all()
+    return {
+        "code": 0,
+        "data": {
+            "zones": [_zone_admin_dict(z) for z in zones],
+        },
+    }
+
+
+@router.post("/conference/zones")
+async def create_conference_zone(
+    body: ConferenceZoneCreatePayload,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> dict:
+    existing = await db.scalar(
+        select(ConferenceZone.id).where(ConferenceZone.code == body.code)
+    )
+    if existing:
+        raise HTTPException(status_code=400, detail="展区 code 已存在")
+
+    zone = ConferenceZone(
+        code=body.code,
+        name=body.name,
+        slogan=body.slogan,
+        icon_url=body.icon_url,
+        sort_order=body.sort_order,
+        task_type=body.task_type,
+        question_category=body.question_category,
+        required_daily_quiz_count=body.required_daily_quiz_count,
+        required_ai_chat_count=body.required_ai_chat_count,
+        is_active=body.is_active,
+    )
+    db.add(zone)
+    await db.commit()
+    await db.refresh(zone)
+    return {"code": 0, "data": _zone_admin_dict(zone)}
+
+
+@router.put("/conference/zones/{zone_id}")
+async def update_conference_zone(
+    zone_id: int,
+    body: ConferenceZoneUpdatePayload,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> dict:
+    zone = await db.get(ConferenceZone, zone_id)
+    if not zone:
+        raise HTTPException(status_code=404, detail="展区不存在")
+
+    if body.name is not None:
+        zone.name = body.name
+    if body.slogan is not None:
+        zone.slogan = body.slogan or None
+    if body.icon_url is not None:
+        zone.icon_url = body.icon_url or None
+    if body.sort_order is not None:
+        zone.sort_order = body.sort_order
+    if body.task_type is not None:
+        zone.task_type = body.task_type
+    if body.question_category is not None:
+        zone.question_category = body.question_category or None
+    if body.required_daily_quiz_count is not None:
+        zone.required_daily_quiz_count = body.required_daily_quiz_count
+    if body.required_ai_chat_count is not None:
+        zone.required_ai_chat_count = body.required_ai_chat_count
+    if body.active_from is not None:
+        zone.active_from = _parse_iso_dt(body.active_from)
+    if body.active_to is not None:
+        zone.active_to = _parse_iso_dt(body.active_to)
+    if body.is_active is not None:
+        zone.is_active = body.is_active
+
+    await db.commit()
+    await db.refresh(zone)
+    return {"code": 0, "data": _zone_admin_dict(zone)}
+
+
+# ── 题组题目管理 ──────────────────────────────────────────────────────────
+
+@router.get("/conference/questions")
+async def list_conference_questions(
+    category: str = Query(..., description="conference_business/conference_new_v/conference_digital"),
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> dict:
+    if category not in CONFERENCE_QUESTION_CATEGORIES:
+        raise HTTPException(status_code=400, detail="无效的题组分类")
+
+    result = await db.execute(
+        select(Question)
+        .where(Question.category == category)
+        .order_by(Question.id)
+    )
+    questions = result.scalars().all()
+    return {
+        "code": 0,
+        "data": {
+            "category": category,
+            "questions": [q.to_dict(hide_answer=False) for q in questions],
+        },
+    }
+
+
+@router.post("/conference/questions")
+async def create_conference_question(
+    body: ConferenceQuestionCreatePayload,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> dict:
+    if body.category not in CONFERENCE_QUESTION_CATEGORIES:
+        raise HTTPException(status_code=400, detail="无效的题组分类")
+
+    question = Question(
+        question_type=body.question_type,
+        content=body.content,
+        options=body.options,
+        answer=body.answer,
+        explanation=body.explanation,
+        difficulty=body.difficulty,
+        category=body.category,
+        is_active=body.is_active,
+    )
+    db.add(question)
+    await db.commit()
+    await db.refresh(question)
+    return {"code": 0, "data": question.to_dict(hide_answer=False)}
+
+
+@router.put("/conference/questions/{question_id}")
+async def update_conference_question(
+    question_id: int,
+    body: ConferenceQuestionUpdatePayload,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> dict:
+    question = await db.get(Question, question_id)
+    if not question or question.category not in CONFERENCE_QUESTION_CATEGORIES:
+        raise HTTPException(status_code=404, detail="题目不存在")
+
+    if body.question_type is not None:
+        question.question_type = body.question_type
+    if body.content is not None:
+        question.content = body.content
+    if body.options is not None:
+        question.options = body.options
+    if body.answer is not None:
+        question.answer = body.answer
+    if body.explanation is not None:
+        question.explanation = body.explanation
+    if body.difficulty is not None:
+        question.difficulty = body.difficulty
+    if body.is_active is not None:
+        question.is_active = body.is_active
+
+    await db.commit()
+    await db.refresh(question)
+    return {"code": 0, "data": question.to_dict(hide_answer=False)}
+
+
+@router.delete("/conference/questions/{question_id}")
+async def delete_conference_question(
+    question_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> dict:
+    question = await db.get(Question, question_id)
+    if not question or question.category not in CONFERENCE_QUESTION_CATEGORIES:
+        raise HTTPException(status_code=404, detail="题目不存在")
+
+    await db.delete(question)
+    await db.commit()
+    return {"code": 0, "data": {"deleted": True}}
+
+
+# ── 实时看板 ──────────────────────────────────────────────────────────────
+
+@router.get("/conference/dashboard")
+async def conference_dashboard(
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> dict:
+    """每展区已领取印记人数 / 参与率；勋章发放数；渠道展区三步漏斗。"""
+    from app.services.conference import today_str, weekly_quiz_date
+
+    today = today_str()
+    quiz_date = weekly_quiz_date()
+
+    # 白名单用户池（参与率分母）
+    whitelisted_count = int(
+        await db.scalar(
+            select(func.count(User.id)).where(User.conference_whitelisted.is_(True))
+        )
+        or 0
+    )
+
+    # 每展区已领取印记人数
+    zones_result = await db.execute(
+        select(ConferenceZone).order_by(ConferenceZone.sort_order, ConferenceZone.id)
+    )
+    zones = zones_result.scalars().all()
+
+    zone_stats = []
+    for zone in zones:
+        claimed_count = int(
+            await db.scalar(
+                select(func.count(ConferenceZoneMark.id)).where(
+                    ConferenceZoneMark.zone_id == zone.id
+                )
+            )
+            or 0
+        )
+        zone_stats.append(
+            {
+                **_zone_admin_dict(zone),
+                "claimed_count": claimed_count,
+                "participation_rate": round(claimed_count / whitelisted_count, 4)
+                if whitelisted_count
+                else 0.0,
+            }
+        )
+
+    # 勋章
+    medal_count = int(
+        await db.scalar(select(func.count(ConferenceMedal.id))) or 0
+    )
+
+    # 渠道展区三步漏斗（今日达成人数）
+    funnel = {
+        "daily_quiz": 0,
+        "ai_chat": 0,
+        "energy_view": 0,
+    }
+
+    channel_zone = next((z for z in zones if z.task_type == "channel"), None)
+    if channel_zone:
+        daily_req = channel_zone.required_daily_quiz_count
+        ai_req = channel_zone.required_ai_chat_count
+
+        # 今日周答题达成人数：source='daily' 且 quiz_date=本周，按用户去重题目数 >= required
+        daily_rows = await db.execute(
+            select(AnswerRecord.user_id, func.count(func.distinct(AnswerRecord.question_id)))
+            .where(
+                AnswerRecord.source == "daily",
+                AnswerRecord.quiz_date == quiz_date,
+            )
+            .group_by(AnswerRecord.user_id)
+            .having(func.count(func.distinct(AnswerRecord.question_id)) >= daily_req)
+        )
+        funnel["daily_quiz"] = len(daily_rows.all())
+
+        # ai_chat / energy_view 达成人数：conference_activity 今日 count >= required
+        for action, required, key in (
+            ("ai_chat", ai_req, "ai_chat"),
+            ("energy_view", 1, "energy_view"),
+        ):
+            action_rows = await db.execute(
+                select(ConferenceActivity.user_id)
+                .where(
+                    ConferenceActivity.action_key == action,
+                    ConferenceActivity.activity_date == today,
+                    ConferenceActivity.count >= required,
+                )
+                .distinct()
+            )
+            funnel[key] = len(action_rows.scalars().all())
+
+    return {
+        "code": 0,
+        "data": {
+            "zones": zone_stats,
+            "medal_count": medal_count,
+            "whitelisted_count": whitelisted_count,
+            "channel_funnel": funnel,
+        },
+    }
+
+
+# ── 参与名单导出（按展区） ────────────────────────────────────────────────
+
+@router.get("/conference/zones/{zone_id}/export")
+async def export_conference_zone_users(
+    zone_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> StreamingResponse:
+    zone = await db.get(ConferenceZone, zone_id)
+    if not zone:
+        raise HTTPException(status_code=404, detail="展区不存在")
+
+    marks_result = await db.execute(
+        select(User, ConferenceZoneMark.created_at)
+        .join(ConferenceZoneMark, ConferenceZoneMark.user_id == User.id)
+        .where(ConferenceZoneMark.zone_id == zone_id)
+        .order_by(ConferenceZoneMark.created_at.asc())
+    )
+    rows = marks_result.all()
+
+    headers = ["姓名", "昵称", "手机号", "公司", "省份", "领取时间"]
+    xlsx_rows = [
+        [
+            user.real_name or "",
+            user.nickname or "",
+            user.phone or "",
+            user.company or "",
+            user.province or "",
+            created_at.strftime("%Y-%m-%d %H:%M") if created_at else "",
+        ]
+        for user, created_at in rows
+    ]
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = f"{zone.name}印记名单"
+    _append_xlsx_rows(sheet, headers, xlsx_rows)
+    sheet.auto_filter.ref = f"A1:F{max(1, sheet.max_row)}"
+
+    stream = BytesIO()
+    workbook.save(stream)
+    stream.seek(0)
+    filename = f"{zone.name}-已领印记名单-{datetime.now():%Y%m%d}.xlsx"
     return StreamingResponse(
         stream,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

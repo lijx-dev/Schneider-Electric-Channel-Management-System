@@ -3,10 +3,12 @@ import json
 
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import enforce_rate_limit, get_current_user_id
 from app.core.logging import get_logger
 from app.core.security import verify_token
+from app.db.session import get_db
 from app.schemas.chat import ChatFeedback, ChatMessage
 from app.services.agent import AgentService
 
@@ -21,6 +23,7 @@ async def chat(
     request: Request,
     msg: ChatMessage,
     current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
 ):
     """Blocking chat endpoint."""
     enforce_rate_limit("chat", current_user_id, limit=20, window_seconds=60)
@@ -29,6 +32,10 @@ async def chat(
         user_message=msg.message,
         user_id=current_user_id,
     )
+    # 大会渠道展区步骤2：成功提问后为白名单用户计数（异常仅记日志，不阻塞）
+    from app.services.conference import maybe_record_ai_chat
+
+    await maybe_record_ai_chat(current_user_id, db)
     return {"code": 0, "data": result}
 
 
@@ -37,6 +44,7 @@ async def chat_stream(
     request: Request,
     msg: ChatMessage,
     current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
 ):
     """Streaming chat endpoint (SSE)."""
     enforce_rate_limit("chat_stream", current_user_id, limit=10, window_seconds=60)
@@ -81,6 +89,11 @@ async def chat_stream(
                     continue
 
                 yield f"data: {json.dumps({'chunk': chunk}, ensure_ascii=False)}\n\n"
+
+            # 大会渠道展区步骤2：一次成功的流式提问完成后为白名单用户计数
+            from app.services.conference import maybe_record_ai_chat
+
+            await maybe_record_ai_chat(current_user_id, db)
 
             yield f"data: {json.dumps({'chunk': '[DONE]'})}\n\n"
         finally:
@@ -198,6 +211,11 @@ async def chat_websocket(websocket: WebSocket):
                     await websocket.send_text(
                         json.dumps({"type": "chunk", "chunk": chunk}, ensure_ascii=False)
                     )
+
+            # 大会渠道展区步骤2：一次成功的流式提问完成后为白名单用户计数
+            from app.services.conference import maybe_record_ai_chat
+
+            await maybe_record_ai_chat(current_user_id)
 
             await websocket.send_text(json.dumps({"type": "done"}))
         finally:

@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import enforce_rate_limit, get_client_ip, get_current_user_id
+from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.security import create_access_token
 from app.db.session import get_db
@@ -65,6 +66,7 @@ def build_login_user_payload(request: Request, user: User) -> dict:
         "company": user.company,
         "profile_verified": bool(user.profile_verified),
         "bidding_whitelisted": bool(user.bidding_whitelisted),
+        "conference_whitelisted": bool(user.conference_whitelisted),
         "recognition_role": user.recognition_role,
         "recognition_score": user.recognition_score or 0,
         "disclaimer_agreed": bool(user.disclaimer_agreed),
@@ -89,7 +91,7 @@ async def wechat_login(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     try:
-        enforce_rate_limit("auth_login", get_client_ip(request), limit=20, window_seconds=300)
+        enforce_rate_limit("auth_login", get_client_ip(request), limit=settings.RATE_LIMIT_LOGIN, window_seconds=300)
 
         wechat_result = await get_wechat_session(login_data.code)
         openid = wechat_result.openid
@@ -124,6 +126,7 @@ async def wechat_login(
                     "company": user.company,
                     "profile_verified": bool(user.profile_verified),
                     "bidding_whitelisted": bool(user.bidding_whitelisted),
+                    "conference_whitelisted": bool(user.conference_whitelisted),
                     "recognition_role": user.recognition_role,
                     "recognition_score": user.recognition_score or 0,
                     "disclaimer_agreed": bool(user.disclaimer_agreed),
@@ -144,7 +147,7 @@ async def wechat_login_phone(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     try:
-        enforce_rate_limit("auth_login_phone", get_client_ip(request), limit=12, window_seconds=300)
+        enforce_rate_limit("auth_login_phone", get_client_ip(request), limit=settings.RATE_LIMIT_LOGIN_PHONE, window_seconds=300)
 
         wechat_result = await get_wechat_session(login_data.login_code)
         openid = wechat_result.openid
@@ -205,6 +208,7 @@ async def wechat_login_phone(
                     "company": user.company,
                     "profile_verified": bool(user.profile_verified),
                     "bidding_whitelisted": bool(user.bidding_whitelisted),
+                    "conference_whitelisted": bool(user.conference_whitelisted),
                     "recognition_role": user.recognition_role,
                     "recognition_score": user.recognition_score or 0,
                     "disclaimer_agreed": bool(user.disclaimer_agreed),

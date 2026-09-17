@@ -57,6 +57,9 @@ class User(Base, TimestampMixin):
     # 标书功能白名单（仅白名单用户可使用招标文件分析功能）
     bidding_whitelisted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
+    # 分销商大会模块白名单（仅白名单用户可见「能量印记·集章」入口）
+    conference_whitelisted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, comment="是否允许访问分销商大会模块")
+
     # 认可计划角色：distributor(默认)/sales(销售)/specialist(专员)/manager(经理)
     recognition_role: Mapped[str] = mapped_column(String(20), default='distributor', nullable=False)
     # 认可计划累计积分

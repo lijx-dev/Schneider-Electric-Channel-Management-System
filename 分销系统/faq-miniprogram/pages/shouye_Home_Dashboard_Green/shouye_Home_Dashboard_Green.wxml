@@ -67,6 +67,19 @@
       <text class="lottery-notice-text">{{lotteryNotice.text}}</text>
     </view>
 
+    <!-- 分销商大会入口（仅白名单用户可见） -->
+    <view
+      wx:if="{{showConferenceEntry}}"
+      class="conference-entry"
+      bindtap="goToConference"
+    >
+      <image class="conference-entry-img" src="../../images/conference/theme.jpg" mode="widthFix" />
+      <view class="conference-entry-overlay">
+        <text class="conference-entry-title">能量印记·集章</text>
+        <text class="conference-entry-sub">探索展区 · 集齐印记 · 领取能量勋章</text>
+      </view>
+    </view>
+
     <!-- 销售评分提醒 -->
     <view wx:if="{{recognitionRole === 'sales' && showRatingReminder}}" class="recognition-card rating-reminder-card" bindtap="goToSalesRating">
       <view class="recognition-card-icon rating-icon">📋</view>

@@ -1,0 +1,47 @@
+<view class="page">
+  <!-- 顶部 banner：主题图 + 宣传语 -->
+  <view class="banner">
+    <image class="banner-img" src="/images/conference/theme.jpg" mode="widthFix" />
+    <view class="slogan">
+      <text class="slogan-text">{{slogan}}</text>
+    </view>
+  </view>
+
+  <!-- 勋章入口（已集齐时展示） -->
+  <view wx:if="{{medal.granted}}" class="medal-entry" bindtap="goToMedal">
+    <view class="medal-entry-icon">🎖️</view>
+    <view class="medal-entry-info">
+      <text class="medal-entry-title">能量勋章</text>
+      <text class="medal-entry-code">编号 {{medal.medal_code}}</text>
+    </view>
+    <text class="medal-entry-arrow">›</text>
+  </view>
+
+  <!-- 展区卡片 -->
+  <view class="zone-list">
+    <view
+      wx:for="{{zones}}"
+      wx:key="id"
+      class="zone-card"
+      data-zone="{{item}}"
+      bindtap="goToZone"
+    >
+      <view class="zone-index">{{index + 1}}</view>
+      <view class="zone-info">
+        <view class="zone-name-row">
+          <text class="zone-name">{{item.name}}</text>
+          <view class="zone-claim-badge {{item.claimed ? 'claimed' : ''}}">
+            {{item.claimed ? '已获得印记' : '未打卡'}}
+          </view>
+        </view>
+        <text wx:if="{{item.slogan}}" class="zone-slogan">{{item.slogan}}</text>
+        <view class="zone-meta">
+          <text class="zone-meta-text">{{item.task_type === 'channel' ? '渠道联动任务' : '答题闯关'}}</text>
+        </view>
+      </view>
+      <text class="zone-arrow">›</text>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
+</view>

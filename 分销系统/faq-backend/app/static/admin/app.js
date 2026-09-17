@@ -987,6 +987,7 @@ $("loginForm").addEventListener("submit", async (event) => {
 });
 
 let recLoaded = false;
+let confLoaded = false;
 
 document.querySelectorAll(".tab-btn").forEach((button) => {
   button.addEventListener("click", async () => {
@@ -1017,6 +1018,29 @@ document.querySelectorAll(".tab-btn").forEach((button) => {
           recLoaded = true;
         } catch (e) {
           $("recognitionContent").innerHTML = `<p style="color:var(--danger);">加载认可计划管理失败：${escapeHtml(e.message)}</p>`;
+        }
+      }
+    }
+    if (button.dataset.tab === "conference") {
+      if (!confLoaded) {
+        try {
+          const resp = await fetch("/static/admin/conference.html");
+          const html = await resp.text();
+          $("conferenceContent").innerHTML = html;
+          // 执行 conference.html 中的 <script> 标签
+          const scripts = $("conferenceContent").querySelectorAll("script");
+          scripts.forEach((script) => {
+            const newScript = document.createElement("script");
+            Array.from(script.attributes).forEach((attr) => {
+              newScript.setAttribute(attr.name, attr.value);
+            });
+            newScript.textContent = script.textContent;
+            document.body.appendChild(newScript);
+            document.body.removeChild(newScript);
+          });
+          confLoaded = true;
+        } catch (e) {
+          $("conferenceContent").innerHTML = `<p style="color:var(--danger);">加载分销商大会管理失败：${escapeHtml(e.message)}</p>`;
         }
       }
     }

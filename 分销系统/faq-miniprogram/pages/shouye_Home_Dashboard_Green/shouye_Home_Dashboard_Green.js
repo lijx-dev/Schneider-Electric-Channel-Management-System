@@ -57,6 +57,8 @@ Page({
     showWeeklyQuizBadge: false,
     showSubscriptionGuide: false,
     lotteryNotice: null,
+    // 分销商大会入口（仅白名单用户可见）
+    showConferenceEntry: false,
     // 认可计划
     recognitionRole: '',
     recognitionScore: 0,
@@ -126,6 +128,7 @@ Page({
       },
       answeredProgress: 0,
       showWeeklyQuizBadge: false,
+      showConferenceEntry: false,
       lotteryNotice: null
     });
   },
@@ -206,6 +209,9 @@ Page({
         recognitionScore,
         recognitionLevel
       });
+
+      // 分销商大会入口：仅白名单用户可见（字段随登录返回体下发，onShow 时刷新）
+      this.refreshConferenceEntry();
 
       const lbRes = await app.request({
         url: '/api/leaderboard?limit=3'
@@ -394,6 +400,20 @@ Page({
     this.markWeeklyQuizSeen(this.data.quizRes && this.data.quizRes.quiz_date);
     this.setData({ showWeeklyQuizBadge: false });
     wx.navigateTo({ url: '/pages/quiz/quiz' });
+  },
+
+  // ── 分销商大会入口（仅白名单用户可见）────────────────────────────────
+  refreshConferenceEntry() {
+    const userInfo = app.globalData.userInfo || this.data.userInfo || {};
+    const whitelisted = !!userInfo.conference_whitelisted;
+    if (this.data.showConferenceEntry !== whitelisted) {
+      this.setData({ showConferenceEntry: whitelisted });
+    }
+  },
+
+  goToConference() {
+    if (!app.requireLogin()) return;
+    wx.navigateTo({ url: '/pages/conference/hall/index' });
   },
 
   goToLeaderboard() {

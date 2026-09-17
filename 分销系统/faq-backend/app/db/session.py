@@ -147,7 +147,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def init_db() -> None:
     if _should_auto_initialize_schema():
         from app.db.base import Base
-        from app.models import certificate, energy, energy_product, guide, knowledge, lottery, monthly, question, recognition, record, user  # noqa: F401
+        from app.models import certificate, conference, energy, energy_product, guide, knowledge, lottery, monthly, question, recognition, record, user  # noqa: F401
 
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)

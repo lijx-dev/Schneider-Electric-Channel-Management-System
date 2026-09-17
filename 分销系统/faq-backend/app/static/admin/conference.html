@@ -1,0 +1,388 @@
+<!-- 分销商大会管理 - 内容片段（由 index.html 动态加载） -->
+<div class="recognition-tabs">
+  <button class="rec-tab active" data-conf-tab="dashboard">实时看板</button>
+  <button class="rec-tab" data-conf-tab="zones">展区配置</button>
+  <button class="rec-tab" data-conf-tab="questions">题目管理</button>
+</div>
+
+<!-- ==================== Tab 1: 实时看板 ==================== -->
+<div class="rec-panel active" id="confDashboardPanel">
+  <div class="rec-section-head">
+    <h3>实时看板</h3>
+    <button class="ghost-btn" id="confRefreshDashboardBtn">刷新</button>
+  </div>
+
+  <div class="rec-section">
+    <h3>总体</h3>
+    <div class="summary-line" id="confDashboardSummary">加载中...</div>
+  </div>
+
+  <div class="rec-section">
+    <h3>展区印记参与情况</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>展区</th>
+            <th>code</th>
+            <th>类型</th>
+            <th>状态</th>
+            <th>已领印记人数</th>
+            <th>参与率</th>
+            <th>导出名单</th>
+          </tr>
+        </thead>
+        <tbody id="confZoneStatsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="rec-section">
+    <h3>渠道展区今日三步漏斗</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>步骤</th>
+            <th>说明</th>
+            <th>今日达成人数</th>
+          </tr>
+        </thead>
+        <tbody id="confFunnelBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Tab 2: 展区配置 ==================== -->
+<div class="rec-panel" id="confZonesPanel">
+  <div class="rec-section-head">
+    <h3>展区配置</h3>
+    <button class="primary-btn" id="confCreateZoneBtn">新增展区</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>code</th>
+          <th>名称</th>
+          <th>排序</th>
+          <th>任务类型</th>
+          <th>题组分类</th>
+          <th>周答题数</th>
+          <th>提问数</th>
+          <th>开放窗口</th>
+          <th>启用</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="confZonesBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ==================== Tab 3: 题目管理 ==================== -->
+<div class="rec-panel" id="confQuestionsPanel">
+  <div class="filters">
+    <label><span>题组</span>
+      <select id="confQuestionCategory">
+        <option value="conference_business">商务展区（conference_business）</option>
+        <option value="conference_new_v">New V 展区（conference_new_v）</option>
+        <option value="conference_digital">数字化展区（conference_digital）</option>
+      </select>
+    </label>
+    <button class="ghost-btn" id="confLoadQuestionsBtn">查询</button>
+    <button class="primary-btn" id="confCreateQuestionBtn">新增题目</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>题型</th>
+          <th>题干</th>
+          <th>选项</th>
+          <th>答案</th>
+          <th>难度</th>
+          <th>启用</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="confQuestionsBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ── Tab 切换 ──────────────────────────────────────────────
+  document.querySelectorAll(".rec-tab[data-conf-tab]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      document.querySelectorAll(".rec-tab[data-conf-tab]").forEach(function (b) {
+        b.classList.remove("active");
+      });
+      document.querySelectorAll(".rec-panel").forEach(function (p) {
+        p.classList.remove("active");
+      });
+      btn.classList.add("active");
+      var panel = document.getElementById("conf" + btn.getAttribute("data-conf-tab").charAt(0).toUpperCase() + btn.getAttribute("data-conf-tab").slice(1) + "Panel");
+      if (panel) panel.classList.add("active");
+      if (btn.getAttribute("data-conf-tab") === "zones") loadZones();
+      if (btn.getAttribute("data-conf-tab") === "questions") loadQuestions();
+    });
+  });
+
+  function fmtRate(rate) {
+    return (Number(rate) * 100).toFixed(1) + "%";
+  }
+
+  // ── Tab 1: 实时看板 ───────────────────────────────────────
+  async function loadDashboard() {
+    var box = document.getElementById("confDashboardSummary");
+    box.textContent = "加载中...";
+    try {
+      var data = await request("/api/admin/conference/dashboard");
+      var zones = data.zones || [];
+      var body = document.getElementById("confZoneStatsBody");
+      body.innerHTML = zones.map(function (z) {
+        return "<tr>" +
+          "<td>" + escapeHtml(z.name) + "</td>" +
+          "<td>" + escapeHtml(z.code) + "</td>" +
+          "<td>" + escapeHtml(z.task_type === "channel" ? "渠道联动" : "答题") + "</td>" +
+          "<td>" + (z.is_active ? "启用" : "停用") + "</td>" +
+          "<td>" + z.claimed_count + "</td>" +
+          "<td>" + fmtRate(z.participation_rate) + "</td>" +
+          "<td><button class='ghost-btn' data-export-zone='" + z.id + "'>导出</button></td>" +
+          "</tr>";
+      }).join("") || "<tr><td colspan='7'>暂无展区</td></tr>";
+
+      body.querySelectorAll("[data-export-zone]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          downloadFile("/api/admin/conference/zones/" + btn.getAttribute("data-export-zone") + "/export", "");
+        });
+      });
+
+      var funnel = data.channel_funnel || {};
+      var funnelRows = [
+        { name: "每周答题", desc: "今日完成周答题（去重题目数≥要求）", count: funnel.daily_quiz || 0 },
+        { name: "母线豆包提问", desc: "今日提问次数≥要求", count: funnel.ai_chat || 0 },
+        { name: "施能量页浏览", desc: "今日浏览次数≥1", count: funnel.energy_view || 0 },
+      ];
+      document.getElementById("confFunnelBody").innerHTML = funnelRows.map(function (r) {
+        return "<tr><td>" + r.name + "</td><td>" + r.desc + "</td><td>" + r.count + "</td></tr>";
+      }).join("");
+
+      box.textContent = "白名单用户：" + data.whitelisted_count + " 人；已发放勋章：" + data.medal_count + " 枚；勋章完成率：" + fmtRate(data.whitelisted_count ? data.medal_count / data.whitelisted_count : 0);
+    } catch (e) {
+      box.textContent = "加载看板失败：" + e.message;
+    }
+  }
+
+  document.getElementById("confRefreshDashboardBtn").addEventListener("click", loadDashboard);
+
+  // ── Tab 2: 展区配置 ───────────────────────────────────────
+  async function loadZones() {
+    var body = document.getElementById("confZonesBody");
+    body.innerHTML = "<tr><td colspan='11'>加载中...</td></tr>";
+    try {
+      var data = await request("/api/admin/conference/zones");
+      var zones = data.zones || [];
+      body.innerHTML = zones.map(function (z) {
+        var windowText = "";
+        if (z.active_from) windowText += z.active_from.replace("T", " ").slice(0, 16);
+        if (z.active_to) windowText += " ~ " + z.active_to.replace("T", " ").slice(0, 16);
+        if (!windowText) windowText = "不限";
+        return "<tr data-zone-id='" + z.id + "'>" +
+          "<td>" + z.id + "</td>" +
+          "<td>" + escapeHtml(z.code) + "</td>" +
+          "<td><input data-field='name' value='" + escapeHtml(z.name) + "'></td>" +
+          "<td><input data-field='sort_order' type='number' value='" + z.sort_order + "' style='width:70px;'></td>" +
+          "<td><select data-field='task_type'>" +
+            "<option value='quiz'" + (z.task_type === "quiz" ? " selected" : "") + ">答题</option>" +
+            "<option value='channel'" + (z.task_type === "channel" ? " selected" : "") + ">渠道联动</option>" +
+          "</select></td>" +
+          "<td><input data-field='question_category' value='" + escapeHtml(z.question_category || "") + "'></td>" +
+          "<td><input data-field='required_daily_quiz_count' type='number' value='" + z.required_daily_quiz_count + "' style='width:60px;'></td>" +
+          "<td><input data-field='required_ai_chat_count' type='number' value='" + z.required_ai_chat_count + "' style='width:60px;'></td>" +
+          "<td><input data-field='active_from' type='datetime-local' value='" + (z.active_from ? z.active_from.slice(0, 16) : "") + "'><br>" +
+            "<input data-field='active_to' type='datetime-local' value='" + (z.active_to ? z.active_to.slice(0, 16) : "") + "'></td>" +
+          "<td><input data-field='is_active' type='checkbox'" + (z.is_active ? " checked" : "") + "></td>" +
+          "<td><button class='ghost-btn' data-save-zone='" + z.id + "'>保存</button></td>" +
+          "</tr>";
+      }).join("") || "<tr><td colspan='11'>暂无展区</td></tr>";
+
+      body.querySelectorAll("[data-save-zone]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          saveZone(btn.getAttribute("data-save-zone"), btn.closest("tr"));
+        });
+      });
+    } catch (e) {
+      body.innerHTML = "<tr><td colspan='11'>加载失败：" + escapeHtml(e.message) + "</td></tr>";
+    }
+  }
+
+  async function saveZone(zoneId, tr) {
+    var payload = { name: "", slogan: null, icon_url: null };
+    tr.querySelectorAll("[data-field]").forEach(function (input) {
+      var field = input.getAttribute("data-field");
+      if (field === "is_active") {
+        payload[field] = input.checked;
+      } else if (field === "active_from" || field === "active_to") {
+        payload[field] = input.value ? input.value + ":00" : "";
+      } else if (field === "sort_order" || field === "required_daily_quiz_count" || field === "required_ai_chat_count") {
+        payload[field] = Number(input.value) || 0;
+      } else {
+        payload[field] = input.value;
+      }
+    });
+    try {
+      await request("/api/admin/conference/zones/" + zoneId, { method: "PUT", body: payload });
+      alert("保存成功");
+      loadZones();
+    } catch (e) {
+      alert("保存失败：" + e.message);
+    }
+  }
+
+  document.getElementById("confCreateZoneBtn").addEventListener("click", async function () {
+    var code = prompt("展区 code（唯一，如 new_v）:");
+    if (!code) return;
+    var name = prompt("展区名称:");
+    if (!name) return;
+    try {
+      await request("/api/admin/conference/zones", {
+        method: "POST",
+        body: { code: code.trim(), name: name.trim(), sort_order: 99, task_type: "quiz", is_active: true },
+      });
+      alert("创建成功");
+      loadZones();
+    } catch (e) {
+      alert("创建失败：" + e.message);
+    }
+  });
+
+  // ── Tab 3: 题目管理 ───────────────────────────────────────
+  function questionTypeLabel(t) {
+    var map = { single_choice: "单选", multiple_choice: "多选", fill_blank: "填空", short_answer: "问答", true_false: "判断" };
+    return map[t] || t;
+  }
+
+  async function loadQuestions() {
+    var category = document.getElementById("confQuestionCategory").value;
+    var body = document.getElementById("confQuestionsBody");
+    body.innerHTML = "<tr><td colspan='8'>加载中...</td></tr>";
+    try {
+      var data = await request("/api/admin/conference/questions?category=" + encodeURIComponent(category));
+      var questions = data.questions || [];
+      body.innerHTML = questions.map(function (q) {
+        var optionsText = (q.options || []).map(function (opt, i) {
+          return String.fromCharCode(65 + i) + ". " + opt;
+        }).join(" | ");
+        return "<tr data-question-id='" + q.id + "'>" +
+          "<td>" + q.id + "</td>" +
+          "<td>" + questionTypeLabel(q.question_type) + "</td>" +
+          "<td>" + escapeHtml(q.content) + "</td>" +
+          "<td>" + escapeHtml(optionsText) + "</td>" +
+          "<td>" + escapeHtml(q.answer || "") + "</td>" +
+          "<td>" + (q.difficulty || 1) + "</td>" +
+          "<td>" + (q.is_active ? "是" : "否") + "</td>" +
+          "<td>" +
+            "<button class='ghost-btn' data-edit-question='" + q.id + "'>编辑</button> " +
+            "<button class='ghost-btn danger-text' data-del-question='" + q.id + "'>删除</button>" +
+          "</td>" +
+          "</tr>";
+      }).join("") || "<tr><td colspan='8'>该题组暂无题目</td></tr>";
+
+      body.querySelectorAll("[data-edit-question]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          editQuestion(btn.getAttribute("data-edit-question"));
+        });
+      });
+      body.querySelectorAll("[data-del-question]").forEach(function (btn) {
+        btn.addEventListener("click", async function () {
+          if (!confirm("确定删除该题目？")) return;
+          try {
+            await request("/api/admin/conference/questions/" + btn.getAttribute("data-del-question"), { method: "DELETE" });
+            loadQuestions();
+          } catch (e) {
+            alert("删除失败：" + e.message);
+          }
+        });
+      });
+    } catch (e) {
+      body.innerHTML = "<tr><td colspan='8'>加载失败：" + escapeHtml(e.message) + "</td></tr>";
+    }
+  }
+
+  function buildQuestionForm(category, question) {
+    var q = question || {};
+    return {
+      category: category,
+      question_type: q.question_type || "single_choice",
+      content: q.content || "",
+      options: (q.options || []).join("\n"),
+      answer: q.answer || "",
+      explanation: q.explanation || "",
+      difficulty: q.difficulty || 1,
+      is_active: q.is_active === undefined ? true : q.is_active,
+    };
+  }
+
+  function promptQuestion(category, question) {
+    var f = buildQuestionForm(category, question);
+    var type = prompt("题型（single_choice / multiple_choice / fill_blank / true_false / short_answer）:", f.question_type) || "single_choice";
+    var content = prompt("题干:", f.content);
+    if (!content) return null;
+    var optionsText = prompt("选项（每行一个，填空/问答留空）:", f.options);
+    var answer = prompt("答案（单选填 A；多选填 ABD）：", f.answer);
+    if (!answer) return null;
+    var difficulty = Number(prompt("难度（1-3）:", f.difficulty)) || 1;
+    var options = optionsText ? optionsText.split("\n").map(function (s) { return s.trim(); }).filter(Boolean) : null;
+    return {
+      category: category,
+      question_type: type,
+      content: content,
+      options: options,
+      answer: answer,
+      explanation: f.explanation,
+      difficulty: difficulty,
+      is_active: f.is_active,
+    };
+  }
+
+  async function editQuestion(questionId) {
+    var category = document.getElementById("confQuestionCategory").value;
+    var data = await request("/api/admin/conference/questions?category=" + encodeURIComponent(category));
+    var q = (data.questions || []).find(function (item) { return String(item.id) === String(questionId); });
+    if (!q) { alert("题目不存在"); return; }
+    var payload = promptQuestion(category, q);
+    if (!payload) return;
+    try {
+      await request("/api/admin/conference/questions/" + questionId, { method: "PUT", body: payload });
+      alert("保存成功");
+      loadQuestions();
+    } catch (e) {
+      alert("保存失败：" + e.message);
+    }
+  }
+
+  document.getElementById("confLoadQuestionsBtn").addEventListener("click", loadQuestions);
+
+  document.getElementById("confCreateQuestionBtn").addEventListener("click", async function () {
+    var category = document.getElementById("confQuestionCategory").value;
+    var payload = promptQuestion(category, null);
+    if (!payload) return;
+    try {
+      await request("/api/admin/conference/questions", { method: "POST", body: payload });
+      alert("创建成功");
+      loadQuestions();
+    } catch (e) {
+      alert("创建失败：" + e.message);
+    }
+  });
+
+  // ── 初始化 ────────────────────────────────────────────────
+  loadDashboard();
+})();
+</script>
