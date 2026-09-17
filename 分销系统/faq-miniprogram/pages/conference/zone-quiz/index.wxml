@@ -10,26 +10,26 @@
     <view class="question-head">
       <text class="question-index">{{index + 1}}</text>
       <text class="question-type">
-        {{item.question_type === 'multiple_choice' ? '多选题' : (item.question_type === 'true_false' ? '判断题' : (item.question_type === 'fill_blank' ? '填空题' : '单选题'))}}
+        {{item.question_type == 'multiple_choice' ? '多选题' : (item.question_type == 'true_false' ? '判断题' : (item.question_type == 'fill_blank' ? '填空题' : '单选题'))}}
       </text>
     </view>
     <text class="question-content">{{item.content}}</text>
 
     <!-- 单选 / 判断题：单选按钮，点选不自动提交 -->
     <view
-      wx:if="{{item.question_type !== 'multiple_choice' && item.question_type !== 'fill_blank'}}"
+      wx:if="{{item.question_type != 'multiple_choice' && item.question_type != 'fill_blank'}}"
       class="option-list"
     >
       <view
         wx:for="{{item.options}}"
         wx:for-item="opt"
         wx:key="label"
-        class="option {{answers[item.id] && answers[item.id].value === opt.label ? 'option-active' : ''}}"
+        class="option {{opt.selected ? 'option-active' : ''}}"
         data-qid="{{item.id}}"
         data-label="{{opt.label}}"
         bindtap="onSelectOption"
       >
-        <view class="option-radio {{answers[item.id] && answers[item.id].value === opt.label ? 'radio-active' : ''}}"></view>
+        <view class="option-radio {{opt.selected ? 'radio-active' : ''}}"></view>
         <text class="option-label">{{opt.label}}</text>
         <text class="option-text">{{opt.text}}</text>
       </view>
@@ -37,20 +37,20 @@
 
     <!-- 多选题：复选框多选，提供独立提交按钮，绝不点选项即提交 -->
     <view
-      wx:if="{{item.question_type === 'multiple_choice'}}"
+      wx:if="{{item.question_type == 'multiple_choice'}}"
       class="option-list"
     >
       <view
         wx:for="{{item.options}}"
         wx:for-item="opt"
         wx:key="label"
-        class="option multi {{answers[item.id] && answers[item.id].value.indexOf(opt.label) > -1 ? 'option-active' : ''}}"
+        class="option multi {{opt.selected ? 'option-active' : ''}}"
         data-qid="{{item.id}}"
         data-label="{{opt.label}}"
         bindtap="onToggleMultiOption"
       >
-        <view class="option-check {{answers[item.id] && answers[item.id].value.indexOf(opt.label) > -1 ? 'check-active' : ''}}">
-          <text wx:if="{{answers[item.id] && answers[item.id].value.indexOf(opt.label) > -1}}" class="check-mark">✓</text>
+        <view class="option-check {{opt.selected ? 'check-active' : ''}}">
+          <text wx:if="{{opt.selected}}" class="check-mark">✓</text>
         </view>
         <text class="option-label">{{opt.label}}</text>
         <text class="option-text">{{opt.text}}</text>
@@ -58,7 +58,7 @@
     </view>
 
     <!-- 填空题 -->
-    <view wx:if="{{item.question_type === 'fill_blank'}}" class="fill-wrap">
+    <view wx:if="{{item.question_type == 'fill_blank'}}" class="fill-wrap">
       <input
         class="fill-input"
         placeholder="请输入答案"

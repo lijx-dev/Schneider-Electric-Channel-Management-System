@@ -36,7 +36,7 @@
         </view>
         <text wx:if="{{item.slogan}}" class="zone-slogan">{{item.slogan}}</text>
         <view class="zone-meta">
-          <text class="zone-meta-text">{{item.task_type === 'channel' ? '渠道联动任务' : '答题闯关'}}</text>
+          <text class="zone-meta-text">{{item.task_type == 'channel' ? '渠道联动任务' : '答题闯关'}}</text>
         </view>
       </view>
       <text class="zone-arrow">›</text>

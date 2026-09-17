@@ -30,7 +30,8 @@ Page({
         ...q,
         options: (q.options || []).map((text, idx) => ({
           label: OPTION_LETTERS[idx] || String(idx + 1),
-          text
+          text,
+          selected: false
         }))
       }));
       this.setData({ zone: data, questions });
@@ -40,12 +41,36 @@ Page({
     }
   },
 
+  // 根据 answers 重算每道题每个选项的 selected 标记（避免在 WXML 中做方法调用）
+  syncSelectedFlags(questions, answers) {
+    return (questions || []).map((q) => {
+      const entry = answers[q.id];
+      return {
+        ...q,
+        options: (q.options || []).map((opt) => {
+          let selected = false;
+          if (entry) {
+            if (entry.type === 'multi') {
+              selected = (entry.value || []).indexOf(opt.label) > -1;
+            } else {
+              selected = entry.value === opt.label;
+            }
+          }
+          return { ...opt, selected };
+        })
+      };
+    });
+  },
+
   // ── 单选 / 判断题：点选即记录，不自动提交 ──
   onSelectOption(e) {
     const { qid, label } = e.currentTarget.dataset;
     const answers = { ...this.data.answers };
     answers[qid] = { value: label, type: 'single' };
-    this.setData({ answers });
+    this.setData({
+      answers,
+      questions: this.syncSelectedFlags(this.data.questions, answers)
+    });
   },
 
   // ── 多选题：点选切换（支持多选），绝不自动提交 ──
@@ -53,11 +78,14 @@ Page({
     const { qid, label } = e.currentTarget.dataset;
     const answers = { ...this.data.answers };
     const current = answers[qid] ? answers[qid].value || [] : [];
-    const next = current.includes(label)
+    const next = current.indexOf(label) > -1
       ? current.filter((item) => item !== label)
       : [...current, label];
     answers[qid] = { value: next, type: 'multi' };
-    this.setData({ answers });
+    this.setData({
+      answers,
+      questions: this.syncSelectedFlags(this.data.questions, answers)
+    });
   },
 
   // ── 填空题：输入 ──
@@ -66,15 +94,6 @@ Page({
     const answers = { ...this.data.answers };
     answers[qid] = { value: e.detail.value, type: 'fill' };
     this.setData({ answers });
-  },
-
-  isOptionSelected(qid, label) {
-    const entry = this.data.answers[qid];
-    if (!entry) return false;
-    if (entry.type === 'multi') {
-      return (entry.value || []).includes(label);
-    }
-    return entry.value === label;
   },
 
   // ── 提交答案（独立按钮，多选也不会点选项即提交） ──
