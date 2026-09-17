@@ -40,7 +40,8 @@ Page({
   },
 
   goToAiChat() {
-    wx.navigateTo({
+    // AI 助手是 tabBar 页面，必须用 switchTab（navigateTo 无法跳转 tabBar 页）
+    wx.switchTab({
       url: '/pages/zhinengwenda_AI_Assistant_Green/zhinengwenda_AI_Assistant_Green'
     });
   },

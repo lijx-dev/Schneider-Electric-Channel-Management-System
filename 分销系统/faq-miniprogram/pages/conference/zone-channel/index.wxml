@@ -16,7 +16,7 @@
   <view class="step-card {{progress && progress.ai_chat.done >= progress.ai_chat.required ? 'step-done' : ''}}">
     <view class="step-status">{{progress && progress.ai_chat.done >= progress.ai_chat.required ? '✓' : '2'}}</view>
     <view class="step-info">
-      <text class="step-title">到母线豆包提问</text>
+      <text class="step-title">到赋能助手提问</text>
       <text class="step-desc">今日已提问 {{progress ? progress.ai_chat.done : 0}}/{{progress ? progress.ai_chat.required : 2}} 次</text>
     </view>
     <button class="step-btn" bindtap="goToAiChat">去完成</button>
