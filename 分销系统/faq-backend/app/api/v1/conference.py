@@ -130,6 +130,15 @@ async def zone_detail(
     check_zone_window(zone)
 
     progress = await get_zone_progress(db, current_user_id, zone)
+
+    # 结算：任务全部完成 → 自动发放印记 + 尝试发放勋章（幂等，grant_zone_mark 唯一约束兜底）。
+    # 覆盖 channel 展区（三任务完成）与 quiz 展区（题目完成）进入页面时的补发场景。
+    if progress.get("completed"):
+        if await grant_zone_mark(db, current_user_id, zone.id):
+            await try_grant_medal(db, current_user_id)
+            await db.commit()
+
+    claimed = zone.id in await _claimed_zone_ids(db, current_user_id)
     data = {
         "id": zone.id,
         "code": zone.code,
@@ -141,6 +150,7 @@ async def zone_detail(
         "question_category": zone.question_category,
         "required_daily_quiz_count": zone.required_daily_quiz_count,
         "required_ai_chat_count": zone.required_ai_chat_count,
+        "claimed": claimed,
         "progress": progress,
     }
 
@@ -269,6 +279,21 @@ async def report_activity(
         raise HTTPException(status_code=400, detail="不支持的 activity 动作")
 
     await record_activity(db, current_user_id, action)
+
+    # 结算：施能量页是 channel 展区最后一步，三任务全部完成 → 自动发放印记 + 勋章（幂等）
+    if action == "energy_view":
+        channel_zone = await db.scalar(
+            select(ConferenceZone).where(
+                ConferenceZone.task_type == "channel",
+                ConferenceZone.is_active.is_(True),
+            )
+        )
+        if channel_zone:
+            progress = await get_zone_progress(db, current_user_id, channel_zone)
+            if progress.get("completed"):
+                if await grant_zone_mark(db, current_user_id, channel_zone.id):
+                    await try_grant_medal(db, current_user_id)
+
     await db.commit()
 
     from app.services.conference import get_activity_count

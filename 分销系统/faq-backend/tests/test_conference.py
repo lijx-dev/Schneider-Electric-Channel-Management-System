@@ -282,6 +282,140 @@ async def test_zone_window_expired_returns_403(test_db, conf_client):
     assert "未开放" in resp.json()["detail"]
 
 
+# ── g) channel 展区三任务完成 → 进入详情页自动发放印记（回归）────────────────
+
+@pytest.mark.asyncio
+async def test_channel_completed_auto_grant_mark_on_detail(test_db, conf_client):
+    async with test_db() as session:
+        user = await _create_user(session, "conf_auto_mark", whitelisted=True)
+        user_id = user.id
+        zone = _make_zone(
+            session,
+            "channel_auto",
+            task_type="channel",
+            required_daily_quiz_count=2,
+            required_ai_chat_count=2,
+            is_active=True,
+        )
+        await session.commit()
+        zone_code = zone.code
+        zone_id = zone.id
+
+        # 完成三任务：2 条本周 daily 答题 + ai_chat×2 + energy_view×1
+        from app.services.conference import weekly_quiz_date
+
+        quiz_date = weekly_quiz_date()
+        for i in range(2):
+            q = Question(
+                question_type="single_choice",
+                content=f"channel auto daily {i}",
+                options=["A", "B"],
+                answer="A",
+                category="daily_auto",
+                is_active=True,
+            )
+            session.add(q)
+            await session.flush()
+            session.add(
+                AnswerRecord(
+                    user_id=user_id,
+                    question_id=q.id,
+                    selected_answer="A",
+                    is_correct=True,
+                    score=1,
+                    source="daily",
+                    quiz_date=quiz_date,
+                )
+            )
+        await record_activity(session, user_id, "ai_chat")
+        await record_activity(session, user_id, "ai_chat")
+        await record_activity(session, user_id, "energy_view")
+        await session.commit()
+
+    headers = {"Authorization": f"Bearer {create_access_token(user_id, expires_delta=timedelta(hours=1))}"}
+    resp = await conf_client.get(f"/api/conference/zones/{zone_code}", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["claimed"] is True
+
+    async with test_db() as session:
+        mark_count = await session.scalar(
+            select(func.count(ConferenceZoneMark.id)).where(
+                ConferenceZoneMark.user_id == user_id,
+                ConferenceZoneMark.zone_id == zone_id,
+            )
+        )
+        assert mark_count == 1
+
+
+# ── h) channel 展区最后一步 energy_view 上报后自动发放印记（回归）────────────
+
+@pytest.mark.asyncio
+async def test_channel_completed_auto_grant_mark_on_energy_report(test_db, conf_client):
+    async with test_db() as session:
+        user = await _create_user(session, "conf_auto_report", whitelisted=True)
+        user_id = user.id
+        zone = _make_zone(
+            session,
+            "channel_report",
+            task_type="channel",
+            required_daily_quiz_count=2,
+            required_ai_chat_count=2,
+            is_active=True,
+        )
+        await session.commit()
+        zone_id = zone.id
+
+        # 先完成 daily + ai_chat（尚缺 energy_view 一步）
+        from app.services.conference import weekly_quiz_date
+
+        quiz_date = weekly_quiz_date()
+        for i in range(2):
+            q = Question(
+                question_type="single_choice",
+                content=f"channel report daily {i}",
+                options=["A", "B"],
+                answer="A",
+                category="daily_report",
+                is_active=True,
+            )
+            session.add(q)
+            await session.flush()
+            session.add(
+                AnswerRecord(
+                    user_id=user_id,
+                    question_id=q.id,
+                    selected_answer="A",
+                    is_correct=True,
+                    score=1,
+                    source="daily",
+                    quiz_date=quiz_date,
+                )
+            )
+        await record_activity(session, user_id, "ai_chat")
+        await record_activity(session, user_id, "ai_chat")
+        await session.commit()
+
+    headers = {"Authorization": f"Bearer {create_access_token(user_id, expires_delta=timedelta(hours=1))}"}
+    # 上报施能量页浏览（最后一步）→ 应立即结算发放印记
+    resp = await conf_client.post(
+        "/api/conference/activity",
+        json={"action": "energy_view"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["data"]["count"] == 1
+
+    async with test_db() as session:
+        mark_count = await session.scalar(
+            select(func.count(ConferenceZoneMark.id)).where(
+                ConferenceZoneMark.user_id == user_id,
+                ConferenceZoneMark.zone_id == zone_id,
+            )
+        )
+        assert mark_count == 1
+
+
 # ── f) 集齐全部印记后 GET /api/conference/medal 返回 granted=true ─────────
 
 @pytest.mark.asyncio

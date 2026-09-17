@@ -31,8 +31,8 @@
     <button class="step-btn" bindtap="goToEnergyMall">去完成</button>
   </view>
 
-  <view class="done-banner" wx:if="{{progress && progress.completed}}">
-    <text class="done-text">🎉 三步全部完成，能量印记已自动发放</text>
+  <view class="done-banner" wx:if="{{claimed}}">
+    <text class="done-text">🎉 三步全部完成，能量印记已点亮</text>
   </view>
 
   <view wx:if="{{loading}}" class="loading">加载中...</view>
