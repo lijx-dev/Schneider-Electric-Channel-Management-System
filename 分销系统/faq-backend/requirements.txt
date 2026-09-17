@@ -13,7 +13,8 @@ xlrd>=2.0.1              # 导入 .xls 题库
 # Database
 sqlalchemy[asyncio]>=2.0.0
 aiosqlite>=0.19.0        # 本地开发用（SQLite）
-aiomysql>=0.2.0          # 生产环境用（微信云托管 MySQL）
+aiomysql>=0.3.0          # 生产环境用（微信云托管 MySQL）；0.3.x 才兼容新版 pymysql
+pymysql==1.2.0           # 锁 1.2.0：1.2.1+ 移除了 aiomysql 依赖的 escape_bytes_prefixed
 
 # Authentication
 python-jose[cryptography]>=3.3.0
