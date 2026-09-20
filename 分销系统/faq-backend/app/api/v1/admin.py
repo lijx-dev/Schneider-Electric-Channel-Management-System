@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
+from pathlib import Path
 import uuid
 from typing import Optional
 from urllib.parse import quote
@@ -35,6 +36,7 @@ from app.models.record import AnswerRecord
 from app.models.user import User
 from app.services.admin_auth import create_admin_token, verify_admin_token
 from app.services.energy import VALID_REDEMPTION_STATUSES
+from app.services.wechat import get_unlimited_qrcode
 from app.services.monthly_leaderboard import (
     fetch_live_month_entries,
     fetch_month_snapshots,
@@ -3032,5 +3034,61 @@ async def export_conference_zone_attendees(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
     )
+
+
+# ── 打卡点小程序码生成（getwxacodeunlimit，scene=conference_<code>）────────
+
+QRCODE_STATIC_DIR = Path(__file__).resolve().parents[2] / "static" / "conference-qrcodes"
+CONFERENCE_QR_PAGE = "pages/conference/zone-quiz/index"
+
+
+async def _generate_zone_qrcode(zone: ConferenceZone) -> dict:
+    """生成单个打卡点小程序码并落盘到 static/conference-qrcodes/。"""
+    scene = f"conference_{zone.code}"
+    image = await get_unlimited_qrcode(scene=scene, page=CONFERENCE_QR_PAGE)
+    if not image:
+        raise HTTPException(
+            status_code=503,
+            detail="未配置 WECHAT_APPID/WECHAT_SECRET（或调试环境），无法生成小程序码",
+        )
+    QRCODE_STATIC_DIR.mkdir(parents=True, exist_ok=True)
+    filename = f"{zone.code}.png"
+    (QRCODE_STATIC_DIR / filename).write_bytes(image)
+    return {
+        "zone_id": zone.id,
+        "code": zone.code,
+        "name": zone.name,
+        "scene": scene,
+        "url": f"/static/conference-qrcodes/{filename}",
+        "filename": f"{zone.name}-打卡码.png",
+    }
+
+
+@router.post("/conference/zones/{zone_id}/qrcode")
+async def generate_conference_zone_qrcode(
+    zone_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> dict:
+    zone = await db.get(ConferenceZone, zone_id)
+    if not zone:
+        raise HTTPException(status_code=404, detail="打卡点不存在")
+    return {"code": 0, "data": await _generate_zone_qrcode(zone)}
+
+
+@router.post("/conference/qrcodes")
+async def generate_all_conference_qrcodes(
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+) -> dict:
+    zones = await db.execute(
+        select(ConferenceZone)
+        .where(ConferenceZone.is_active.is_(True))
+        .order_by(ConferenceZone.sort_order, ConferenceZone.id)
+    )
+    results = [await _generate_zone_qrcode(z) for z in zones.scalars().all()]
+    if not results:
+        raise HTTPException(status_code=400, detail="当前没有启用的打卡点")
+    return {"code": 0, "data": results}
 
 

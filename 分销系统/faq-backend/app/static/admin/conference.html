@@ -45,6 +45,7 @@
   <div class="rec-section-head">
     <h3>打卡点配置</h3>
     <button class="primary-btn" id="confCreateZoneBtn">新增打卡点</button>
+    <button class="primary-btn" id="confBatchQrcodeBtn">生成全部小程序码</button>
   </div>
   <div class="table-wrap">
     <table>
@@ -178,7 +179,10 @@
           "<td><input data-field='active_from' type='datetime-local' value='" + (z.active_from ? z.active_from.slice(0, 16) : "") + "'><br>" +
             "<input data-field='active_to' type='datetime-local' value='" + (z.active_to ? z.active_to.slice(0, 16) : "") + "'></td>" +
           "<td><input data-field='is_active' type='checkbox'" + (z.is_active ? " checked" : "") + "></td>" +
-          "<td><button class='ghost-btn' data-save-zone='" + z.id + "'>保存</button></td>" +
+          "<td>" +
+            "<button class='ghost-btn' data-save-zone='" + z.id + "'>保存</button> " +
+            "<button class='ghost-btn' data-qrcode-zone='" + z.id + "'>生成小程序码</button>" +
+          "</td>" +
           "</tr>";
       }).join("") || "<tr><td colspan='8'>暂无打卡点</td></tr>";
 
@@ -187,8 +191,32 @@
           saveZone(btn.getAttribute("data-save-zone"), btn.closest("tr"));
         });
       });
+      body.querySelectorAll("[data-qrcode-zone]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          generateQrcode(btn.getAttribute("data-qrcode-zone"));
+        });
+      });
     } catch (e) {
       body.innerHTML = "<tr><td colspan='8'>加载失败：" + escapeHtml(e.message) + "</td></tr>";
+    }
+  }
+
+  function downloadQrcode(info) {
+    var a = document.createElement("a");
+    a.href = API_BASE + info.url;
+    a.download = info.filename || "qrcode.png";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  async function generateQrcode(zoneId) {
+    try {
+      var info = await request("/api/admin/conference/zones/" + zoneId + "/qrcode", { method: "POST" });
+      downloadQrcode(info);
+      alert("已生成：" + info.name + "（scene=" + info.scene + "），已开始下载。");
+    } catch (e) {
+      alert("生成失败：" + e.message);
     }
   }
 
@@ -231,6 +259,16 @@
       loadZones();
     } catch (e) {
       alert("创建失败：" + e.message);
+    }
+  });
+
+  document.getElementById("confBatchQrcodeBtn").addEventListener("click", async function () {
+    try {
+      var list = await request("/api/admin/conference/qrcodes", { method: "POST" });
+      (list || []).forEach(downloadQrcode);
+      alert("已生成 " + (list ? list.length : 0) + " 张小程序码，已开始下载。");
+    } catch (e) {
+      alert("生成失败：" + e.message);
     }
   });
 

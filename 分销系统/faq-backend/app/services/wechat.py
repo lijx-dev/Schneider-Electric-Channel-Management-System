@@ -14,6 +14,7 @@ WECHAT_JSCODE2SESSION_URL = "https://api.weixin.qq.com/sns/jscode2session"
 WECHAT_TOKEN_URL = "https://api.weixin.qq.com/cgi-bin/token"
 WECHAT_GET_PHONE_URL = "https://api.weixin.qq.com/wxa/business/getuserphonenumber"
 WECHAT_SUBSCRIBE_SEND_URL = "https://api.weixin.qq.com/cgi-bin/message/subscribe/send"
+WECHAT_WXACODE_UNLIMIT_URL = "https://api.weixin.qq.com/wxa/getwxacodeunlimit"
 
 _access_token_cache = {
     "token": None,
@@ -155,6 +156,44 @@ async def get_user_phone_number(code: str) -> str:
 
     logger.info("wechat_get_phone_success", phone=f"{phone_number[:3]}****{phone_number[-4:]}")
     return phone_number
+
+
+async def get_unlimited_qrcode(scene: str, page: str, env_version: str = "release") -> bytes:
+    """生成小程序码（getwxacodeunlimit，不限制数量，scene 最大 32 字符）。
+
+    返回 PNG 图片字节；微信接口返回 JSON 错误时抛 ValueError。
+    """
+    if settings.DEBUG and not settings.WECHAT_APPID:
+        logger.warning("wechat_qrcode_mock", scene=scene, page=page)
+        return b""
+
+    if not settings.WECHAT_APPID or not settings.WECHAT_SECRET:
+        raise ValueError("Missing WeChat config: WECHAT_APPID and WECHAT_SECRET are required")
+
+    access_token = await get_access_token()
+    url = f"{WECHAT_WXACODE_UNLIMIT_URL}?access_token={access_token}"
+    payload = {
+        "scene": scene,
+        "page": page,
+        "check_path": False,
+        "env_version": env_version,
+    }
+
+    async with _build_wechat_http_client() as client:
+        response = await client.post(url, json=payload)
+        content_type = response.headers.get("content-type", "")
+        if "application/json" in content_type or response.text.lstrip().startswith("{"):
+            data = response.json()
+            if data.get("errcode", 0) != 0:
+                logger.error(
+                    "wechat_qrcode_error",
+                    errcode=data.get("errcode"),
+                    errmsg=data.get("errmsg"),
+                )
+                raise ValueError(f"getwxacodeunlimit failed: {data.get('errmsg')}")
+
+    logger.info("wechat_qrcode_success", scene=scene, page=page)
+    return response.content
 
 
 async def send_subscribe_message(
