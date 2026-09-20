@@ -1,12 +1,13 @@
 """
-分销商大会种子数据导入脚本
+分销商大会种子数据导入脚本（手机号自助签到版）
 
 幂等执行（可重复运行）：
-a) 向 questions 表导入 3 个题组题目：
-   - conference_business（商务展区，docx 原文 Q1-Q5）
+a) 向 questions 表导入 4 个题组题目：
+   - conference_business（商务展区，docx 原文 Q1-Q5，Q2 为多选题）
    - conference_new_v   （New V 展区，3 道占位题）
    - conference_digital （数字化展区，3 道占位题）
-b) 向 conference_zones 插入 4 条展区配置（code 唯一冲突时跳过）
+   - conference_channel （渠道智能赋能展区，3 道占位题）
+b) 向 conference_zones 插入 4 条打卡点配置（code 唯一冲突时跳过）
 c) 打印导入结果统计
 
 用法:
@@ -16,9 +17,8 @@ c) 打印导入结果统计
 from __future__ import annotations
 
 import asyncio
-import sys
 import os
-from typing import Optional
+import sys
 
 # 把项目根目录加入 sys.path，以便 import app 模块
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -84,7 +84,7 @@ BUSINESS_QUESTIONS = [
     },
 ]
 
-# ── 占位题组（conference_new_v / conference_digital）──────────────────────
+# ── 占位题组（conference_new_v / conference_digital / conference_channel）──
 def _placeholder_questions(category: str, zone_name: str, count: int) -> list[dict]:
     """生成占位单选题，题干注明占位，后补真实题。"""
     questions = []
@@ -106,9 +106,10 @@ def _placeholder_questions(category: str, zone_name: str, count: int) -> list[di
 PLACEHOLDER_QUESTIONS = (
     _placeholder_questions("conference_new_v", "New V 展区", 3)
     + _placeholder_questions("conference_digital", "数字化展区", 3)
+    + _placeholder_questions("conference_channel", "渠道智能赋能展区", 3)
 )
 
-# ── 展区配置（code 唯一冲突时跳过）─────────────────────────────────────────
+# ── 打卡点配置（code 唯一冲突时跳过）──────────────────────────────────────
 ZONES = [
     {
         "code": "new_v",
@@ -116,10 +117,7 @@ ZONES = [
         "slogan": None,
         "icon_url": None,
         "sort_order": 1,
-        "task_type": "quiz",
         "question_category": "conference_new_v",
-        "required_daily_quiz_count": 2,
-        "required_ai_chat_count": 2,
         "is_active": True,
     },
     {
@@ -128,10 +126,7 @@ ZONES = [
         "slogan": None,
         "icon_url": None,
         "sort_order": 2,
-        "task_type": "quiz",
         "question_category": "conference_digital",
-        "required_daily_quiz_count": 2,
-        "required_ai_chat_count": 2,
         "is_active": True,
     },
     {
@@ -140,10 +135,7 @@ ZONES = [
         "slogan": None,
         "icon_url": None,
         "sort_order": 3,
-        "task_type": "channel",
-        "question_category": None,
-        "required_daily_quiz_count": 2,
-        "required_ai_chat_count": 2,
+        "question_category": "conference_channel",
         "is_active": True,
     },
     {
@@ -152,10 +144,7 @@ ZONES = [
         "slogan": None,
         "icon_url": None,
         "sort_order": 4,
-        "task_type": "quiz",
         "question_category": "conference_business",
-        "required_daily_quiz_count": 2,
-        "required_ai_chat_count": 2,
         "is_active": True,
     },
 ]
@@ -176,7 +165,7 @@ async def _import_question(session, question_data: dict) -> bool:
 
 
 async def _import_zone(session, zone_data: dict) -> bool:
-    """按 code 幂等导入展区，已存在返回 False。"""
+    """按 code 幂等导入打卡点，已存在返回 False。"""
     existing = await session.scalar(
         select(ConferenceZone.id).where(ConferenceZone.code == zone_data["code"])
     )
@@ -208,15 +197,16 @@ async def main() -> None:
             ("conference_business", "商务展区题组"),
             ("conference_new_v", "New V 展区题组"),
             ("conference_digital", "数字化展区题组"),
+            ("conference_channel", "渠道智能赋能展区题组"),
         ]:
             count = await session.scalar(
                 select(func.count(Question.id)).where(Question.category == category)
             )
             print(f"  {label} ({category}): {count} 题")
         zone_count = await session.scalar(select(func.count(ConferenceZone.id)))
-        print(f"  展区配置: {zone_count} 条")
+        print(f"  打卡点配置: {zone_count} 条")
 
-    print(f"导入完成：新增题目 {inserted_questions}/{len(all_questions)}，新增展区 {inserted_zones}/{len(ZONES)}")
+    print(f"导入完成：新增题目 {inserted_questions}/{len(all_questions)}，新增打卡点 {inserted_zones}/{len(ZONES)}")
 
 
 if __name__ == "__main__":

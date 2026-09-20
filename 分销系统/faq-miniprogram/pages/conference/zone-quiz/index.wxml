@@ -1,79 +1,54 @@
 <view class="page">
-  <view class="quiz-header">
-    <text class="quiz-header-title">{{zoneName}}</text>
-    <text wx:if="{{zone && zone.progress}}" class="quiz-header-progress">
-      已完成 {{zone.progress.done}}/{{zone.progress.total}}
-    </text>
+  <!-- 顶部主题图 + 宣传语 -->
+  <image class="theme" src="/images/conference/theme.jpg" mode="widthFix"></image>
+  <view class="slogan">{{slogan}}</view>
+  <view class="zone-name" wx:if="{{zoneName}}">{{zoneName}}</view>
+
+  <!-- 未签到：姓名＋手机号自助签到 -->
+  <view class="card" wx:if="{{!signedIn}}">
+    <view class="card-title">自助签到</view>
+    <view class="field">
+      <text class="field-label">姓名</text>
+      <input class="field-input" placeholder="请输入姓名" value="{{name}}" bindinput="onInputName" />
+    </view>
+    <view class="field">
+      <text class="field-label">手机号</text>
+      <input class="field-input" type="number" maxlength="11" placeholder="请输入手机号" value="{{phone}}" bindinput="onInputPhone" />
+    </view>
+    <button class="primary-btn" bindtap="onSignIn">签到并开始答题</button>
   </view>
 
-  <view class="question-card" wx:for="{{questions}}" wx:key="id">
-    <view class="question-head">
-      <text class="question-index">{{index + 1}}</text>
-      <text class="question-type">
-        {{item.question_type == 'multiple_choice' ? '多选题' : (item.question_type == 'true_false' ? '判断题' : (item.question_type == 'fill_blank' ? '填空题' : '单选题'))}}
-      </text>
-    </view>
-    <text class="question-content">{{item.content}}</text>
+  <!-- 已签到：题目 -->
+  <view class="card" wx:if="{{signedIn && !loading}}">
+    <view class="card-title">完成以下题目，点亮本展区印章</view>
 
-    <!-- 单选 / 判断题：单选按钮，点选不自动提交 -->
-    <view
-      wx:if="{{item.question_type != 'multiple_choice' && item.question_type != 'fill_blank'}}"
-      class="option-list"
-    >
-      <view
-        wx:for="{{item.options}}"
-        wx:for-item="opt"
-        wx:key="label"
-        class="option {{opt.selected ? 'option-active' : ''}}"
-        data-qid="{{item.id}}"
-        data-label="{{opt.label}}"
+    <view class="question" wx:for="{{questions}}" wx:key="id" wx:for-item="q">
+      <view class="q-head">
+        <text class="q-seq">{{index + 1}}</text>
+        <text class="q-type" wx:if="{{q.question_type === 'multiple_choice'}}">多选题</text>
+        <text class="q-type" wx:elif="{{q.question_type === 'true_false'}}">判断题</text>
+        <text class="q-type" wx:elif="{{q.question_type === 'fill_blank'}}">填空题</text>
+      </view>
+      <view class="q-content">{{q.content}}</view>
+
+      <!-- 单选/多选/判断：选项 -->
+      <view class="option" wx:for="{{q.options}}" wx:key="label" wx:for-item="opt"
+        wx:if="{{q.question_type === 'single_choice' || q.question_type === 'multiple_choice' || q.question_type === 'true_false'}}"
         bindtap="onSelectOption"
-      >
-        <view class="option-radio {{opt.selected ? 'radio-active' : ''}}"></view>
-        <text class="option-label">{{opt.label}}</text>
+        data-qid="{{q.id}}" data-label="{{opt.label}}" data-qtype="{{q.question_type}}">
+        <view class="option-check {{opt.selected ? 'checked' : ''}}">{{opt.label}}</view>
         <text class="option-text">{{opt.text}}</text>
       </view>
+
+      <!-- 填空题 -->
+      <input class="fill-input" wx:if="{{q.question_type === 'fill_blank'}}" placeholder="请输入答案"
+        data-qid="{{q.id}}" bindinput="onFillInput" />
     </view>
 
-    <!-- 多选题：复选框多选，提供独立提交按钮，绝不点选项即提交 -->
-    <view
-      wx:if="{{item.question_type == 'multiple_choice'}}"
-      class="option-list"
-    >
-      <view
-        wx:for="{{item.options}}"
-        wx:for-item="opt"
-        wx:key="label"
-        class="option multi {{opt.selected ? 'option-active' : ''}}"
-        data-qid="{{item.id}}"
-        data-label="{{opt.label}}"
-        bindtap="onToggleMultiOption"
-      >
-        <view class="option-check {{opt.selected ? 'check-active' : ''}}">
-          <text wx:if="{{opt.selected}}" class="check-mark">✓</text>
-        </view>
-        <text class="option-label">{{opt.label}}</text>
-        <text class="option-text">{{opt.text}}</text>
-      </view>
-    </view>
-
-    <!-- 填空题 -->
-    <view wx:if="{{item.question_type == 'fill_blank'}}" class="fill-wrap">
-      <input
-        class="fill-input"
-        placeholder="请输入答案"
-        data-qid="{{item.id}}"
-        bindinput="onFillInput"
-        value="{{answers[item.id] ? answers[item.id].value : ''}}"
-      />
-    </view>
+    <button class="primary-btn submit-btn" bindtap="onSubmit" disabled="{{submitting}}">
+      {{submitting ? '提交中...' : '提交答案'}}
+    </button>
   </view>
 
-  <button
-    class="submit-btn"
-    bindtap="onSubmit"
-    disabled="{{submitting}}"
-  >{{submitting ? '提交中...' : '提交答案'}}</button>
-
-  <view class="submit-tip">完成全部题目即获得该展区能量印记（不校验对错）</view>
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
 </view>

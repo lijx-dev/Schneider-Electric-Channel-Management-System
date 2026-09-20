@@ -1,57 +1,44 @@
 """
-分销商大会「能量印记·集章」模块单元测试
+分销商大会「能量印章·集章」模块单元测试（手机号自助签到版）
 
 覆盖：
-- submit-quiz 重复提交幂等（不产生重复印记）
-- grant_zone_mark / try_grant_medal 重复调用不重复发勋章
-- 渠道展区三步计数（record_activity upsert / get_zone_progress.completed）
-- 白名单依赖（非白名单用户访问 overview 返回 403）
-- 展区窗口校验（active_to 过期后 submit-quiz 返回 403）
-- 集齐 4 印记后 GET /api/conference/medal 返回 granted=true
+a) join 同一手机号重复提交幂等，只产生一条参会人且返回成功
+b) submit-quiz 同一题重复提交幂等，不产生重复印章
+c) grant_zone_mark / try_grant_medal 重复调用不重复发勋章
+d) 过期打卡点窗口：active_to 过期后 submit-quiz 返回 403
+e) 集齐 4 个印章后 GET /api/conference/medal 返回 granted=true，且 medal_code 唯一
 """
-import asyncio
 from datetime import datetime, timedelta, timezone
-from datetime import time as dtime
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
 
-from app.core.security import create_access_token
 from app.db.session import get_db
 from app.main import app
 from app.models.conference import (
-    ConferenceActivity,
+    ConferenceAttendee,
     ConferenceMedal,
     ConferenceZone,
     ConferenceZoneMark,
 )
 from app.models.question import Question
-from app.models.record import AnswerRecord
-from app.models.user import User
 from app.services.conference import (
-    ENERGY_VIEW_REQUIRED,
     get_zone_progress,
     grant_zone_mark,
-    record_activity,
     try_grant_medal,
 )
 
 TZ = timezone(timedelta(hours=8))
 
 
-def _make_token(user: User) -> str:
-    return create_access_token(user.id, expires_delta=timedelta(hours=1))
-
-
-def _make_zone(session, code: str, task_type: str = "quiz", category: str | None = None, **kw) -> ConferenceZone:
+def _make_zone(session, code: str, category: str | None = None, **kw) -> ConferenceZone:
     zone = ConferenceZone(
         code=code,
-        name=f"{code} 展区",
+        name=f"{code} 打卡点",
         sort_order=0,
-        task_type=task_type,
-        question_category=category,
+        question_category=category or f"conf_test_{code}",
         **kw,
     )
     session.add(zone)
@@ -59,8 +46,7 @@ def _make_zone(session, code: str, task_type: str = "quiz", category: str | None
 
 
 async def _create_quiz_zone(session, code: str, question_count: int = 2, **zone_kw) -> ConferenceZone:
-    category = f"conf_test_{code}"
-    zone = _make_zone(session, code, task_type="quiz", category=category, **zone_kw)
+    zone = _make_zone(session, code, **zone_kw)
     session.add(zone)
     await session.flush()
     for i in range(question_count):
@@ -70,25 +56,12 @@ async def _create_quiz_zone(session, code: str, question_count: int = 2, **zone_
                 content=f"{code} test question {i + 1}",
                 options=["A", "B", "C"],
                 answer="A",
-                category=category,
+                category=zone.question_category,
                 is_active=True,
             )
         )
     await session.flush()
     return zone
-
-
-async def _create_user(session, openid: str, whitelisted: bool) -> User:
-    user = User(
-        openid=openid,
-        nickname=f"user-{openid}",
-        phone=f"13966{openid[-6:]}",
-        conference_whitelisted=whitelisted,
-    )
-    session.add(user)
-    await session.commit()
-    await session.refresh(user)
-    return user
 
 
 async def _zone_questions(session, zone: ConferenceZone):
@@ -105,350 +78,173 @@ async def conf_client(test_db):
         yield ac
 
 
-# ── a) submit-quiz 重复提交幂等，不产生重复印记 ────────────────────────────
+# ── a) join 同一手机号重复提交幂等 ────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_join_idempotent_single_attendee(test_db, conf_client):
+    resp = await conf_client.post(
+        "/api/conference/join",
+        json={"name": "张三", "phone": "13900001001"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["phone"] == "13900001001"
+    attendee_id = data["attendee_id"]
+
+    resp2 = await conf_client.post(
+        "/api/conference/join",
+        json={"name": "张三改", "phone": "13900001001"},
+    )
+    assert resp2.status_code == 200
+    assert resp2.json()["data"]["attendee_id"] == attendee_id
+
+    async with test_db() as session:
+        count = await session.scalar(
+            select(func.count(ConferenceAttendee.id)).where(
+                ConferenceAttendee.phone == "13900001001"
+            )
+        )
+        assert count == 1
+
+    # 手机号格式校验
+    bad = await conf_client.post(
+        "/api/conference/join",
+        json={"name": "张三", "phone": "123"},
+    )
+    assert bad.status_code == 400
+
+
+# ── b) submit-quiz 同一题重复提交幂等，不产生重复印章 ────────────────────
 
 @pytest.mark.asyncio
 async def test_submit_quiz_idempotent_no_duplicate_mark(test_db, conf_client):
+    phone = "13900001002"
     async with test_db() as session:
-        user = await _create_user(session, "conf_idem_001", whitelisted=True)
-        zone = await _create_quiz_zone(session, "idem")
+        zone = await _create_quiz_zone(session, "idem", question_count=2)
         questions = await _zone_questions(session, zone)
         await session.commit()
-    token = _make_token(user)
-    headers = {"Authorization": f"Bearer {token}"}
-    answers = [{"question_id": q.id, "selected_answer": "A"} for q in questions]
+        zone_code = zone.code
+        question_ids = [q.id for q in questions]
 
+    answers = [{"question_id": qid, "selected_answer": "A"} for qid in question_ids]
     first = await conf_client.post(
-        f"/api/conference/zones/{zone.code}/submit-quiz", json={"answers": answers}, headers=headers
+        f"/api/conference/zones/{zone_code}/submit-quiz",
+        json={"phone": phone, "name": "李四", "answers": answers},
     )
-    assert first.json()["code"] == 0
-    assert first.json()["data"]["mark_earned"] is True
+    assert first.status_code == 200
+    assert first.json()["data"]["stamp_earned"] is True
 
-    # 重复提交同一题（覆盖式幂等）
     second = await conf_client.post(
-        f"/api/conference/zones/{zone.code}/submit-quiz", json={"answers": answers}, headers=headers
+        f"/api/conference/zones/{zone_code}/submit-quiz",
+        json={"phone": phone, "name": "李四", "answers": answers},
     )
-    assert second.json()["code"] == 0
-    assert second.json()["data"]["mark_earned"] is False
+    assert second.status_code == 200
+    assert second.json()["data"]["stamp_earned"] is False
 
     async with test_db() as session:
+        zone_id = await session.scalar(
+            select(ConferenceZone.id).where(ConferenceZone.code == zone_code)
+        )
         mark_count = await session.scalar(
             select(func.count(ConferenceZoneMark.id)).where(
-                ConferenceZoneMark.user_id == user.id,
-                ConferenceZoneMark.zone_id == zone.id,
+                ConferenceZoneMark.phone == phone,
+                ConferenceZoneMark.zone_id == zone_id,
             )
         )
         assert mark_count == 1
 
 
-# ── b) grant_zone_mark / try_grant_medal 重复调用不重复发勋章 ──────────────
+# ── c) grant_zone_mark / try_grant_medal 重复调用不重复发勋章 ─────────────
 
 @pytest.mark.asyncio
 async def test_medal_granted_once(test_db):
+    phone = "13900001003"
     async with test_db() as session:
-        user = await _create_user(session, "conf_medal_001", whitelisted=True)
-        zone = await _create_quiz_zone(session, "medal_a")
-        zone2 = await _create_quiz_zone(session, "medal_b")
+        zone = await _create_quiz_zone(session, "medal_a", question_count=1)
+        zone2 = await _create_quiz_zone(session, "medal_b", question_count=1)
         await session.commit()
 
-        # 重复调用 grant_zone_mark 幂等
-        assert await grant_zone_mark(session, user.id, zone.id) is True
-        assert await grant_zone_mark(session, user.id, zone.id) is False
+        assert await grant_zone_mark(session, phone, zone.id) is True
+        assert await grant_zone_mark(session, phone, zone.id) is False
 
-        # 未集齐全部启用展区时不发勋章
-        assert await try_grant_medal(session, user.id) is None
+        # 未集齐全部启用打卡点时不发勋章
+        assert await try_grant_medal(session, phone, "王五") is None
 
-        # 集齐剩余展区后发放一枚
-        assert await grant_zone_mark(session, user.id, zone2.id) is True
-        medal = await try_grant_medal(session, user.id)
+        # 集齐剩余打卡点后发放一枚
+        assert await grant_zone_mark(session, phone, zone2.id) is True
+        medal = await try_grant_medal(session, phone, "王五")
         assert medal is not None
         assert medal.medal_code.startswith("DY-")
         await session.commit()
 
         # 重复调用不发第二枚
-        assert await try_grant_medal(session, user.id) is None
+        assert await try_grant_medal(session, phone, "王五") is None
 
 
-# ── c) 渠道展区三步计数：record_activity upsert + completed ───────────────
-
-@pytest.mark.asyncio
-async def test_channel_three_step_completed(test_db):
-    async with test_db() as session:
-        user = await _create_user(session, "conf_channel_001", whitelisted=True)
-        zone = _make_zone(
-            session,
-            "channel_test",
-            task_type="channel",
-            required_daily_quiz_count=2,
-            required_ai_chat_count=2,
-        )
-        await session.commit()
-
-        # 初始未完成
-        progress = await get_zone_progress(session, user.id, zone)
-        assert progress["completed"] is False
-        assert progress["daily_quiz"]["done"] == 0
-
-        # record_activity upsert 幂等累计
-        await record_activity(session, user.id, "ai_chat")
-        await record_activity(session, user.id, "ai_chat")
-        await record_activity(session, user.id, "energy_view")
-        await session.commit()
-
-        async with test_db() as session2:
-            from app.services.conference import get_activity_count
-
-            assert await get_activity_count(session2, user.id, "ai_chat") == 2
-            assert await get_activity_count(session2, user.id, "energy_view") == 1
-
-            # 插入 2 条今日周答题记录（用真实题目 id）
-            quiz_date = None
-            from app.services.conference import weekly_quiz_date
-
-            quiz_date = weekly_quiz_date()
-            daily_question_ids = []
-            for i in range(2):
-                q = Question(
-                    question_type="single_choice",
-                    content=f"daily helper q {i + 1}",
-                    options=["A", "B"],
-                    answer="A",
-                    category="daily_helper",
-                    is_active=True,
-                )
-                session2.add(q)
-                await session2.flush()
-                daily_question_ids.append(q.id)
-                session2.add(
-                    AnswerRecord(
-                        user_id=user.id,
-                        question_id=q.id,
-                        selected_answer="A",
-                        is_correct=True,
-                        score=1,
-                        source="daily",
-                        quiz_date=quiz_date,
-                    )
-                )
-            await session2.commit()
-
-            # 三步全部满足 → completed
-            progress2 = await get_zone_progress(session2, user.id, zone)
-            assert progress2["daily_quiz"]["done"] == 2
-            assert progress2["ai_chat"]["done"] == 2
-            assert progress2["energy_view"]["done"] == ENERGY_VIEW_REQUIRED
-            assert progress2["completed"] is True
-
-            # 印记发放
-            assert await grant_zone_mark(session2, user.id, zone.id) is True
-
-
-# ── d) 白名单依赖：非白名单用户访问 overview 返回 403 ─────────────────────
-
-@pytest.mark.asyncio
-async def test_overview_requires_whitelist(test_db, conf_client):
-    async with test_db() as session:
-        normal_user = await _create_user(session, "conf_no_whitelist", whitelisted=False)
-    headers = {"Authorization": f"Bearer {_make_token(normal_user)}"}
-    resp = await conf_client.get("/api/conference/overview", headers=headers)
-    assert resp.status_code == 403
-    assert "分销商大会" in resp.json()["detail"]
-
-
-# ── e) 展区窗口校验：active_to 过期后 submit-quiz 返回 403 ────────────────
+# ── d) 过期打卡点窗口：active_to 过期后 submit-quiz 返回 403 ──────────────
 
 @pytest.mark.asyncio
 async def test_zone_window_expired_returns_403(test_db, conf_client):
+    phone = "13900001004"
     async with test_db() as session:
-        user = await _create_user(session, "conf_window_001", whitelisted=True)
-        user_id = user.id
         zone = await _create_quiz_zone(
             session,
             "window_exp",
+            question_count=1,
             active_from=datetime.now(TZ) - timedelta(days=30),
             active_to=datetime.now(TZ) - timedelta(days=1),
         )
-        zone_code = zone.code
         questions = await _zone_questions(session, zone)
-        question_ids = [q.id for q in questions]
         await session.commit()
-    token = create_access_token(user_id, expires_delta=timedelta(hours=1))
-    headers = {"Authorization": f"Bearer {token}"}
-    answers = [{"question_id": qid, "selected_answer": "A"} for qid in question_ids]
+        zone_code = zone.code
+        answers = [{"question_id": q.id, "selected_answer": "A"} for q in questions]
+
     resp = await conf_client.post(
-        f"/api/conference/zones/{zone_code}/submit-quiz", json={"answers": answers}, headers=headers
+        f"/api/conference/zones/{zone_code}/submit-quiz",
+        json={"phone": phone, "name": "赵六", "answers": answers},
     )
     assert resp.status_code == 403
     assert "未开放" in resp.json()["detail"]
 
 
-# ── g) channel 展区三任务完成 → 进入详情页自动发放印记（回归）────────────────
-
-@pytest.mark.asyncio
-async def test_channel_completed_auto_grant_mark_on_detail(test_db, conf_client):
-    async with test_db() as session:
-        user = await _create_user(session, "conf_auto_mark", whitelisted=True)
-        user_id = user.id
-        zone = _make_zone(
-            session,
-            "channel_auto",
-            task_type="channel",
-            required_daily_quiz_count=2,
-            required_ai_chat_count=2,
-            is_active=True,
-        )
-        await session.commit()
-        zone_code = zone.code
-        zone_id = zone.id
-
-        # 完成三任务：2 条本周 daily 答题 + ai_chat×2 + energy_view×1
-        from app.services.conference import weekly_quiz_date
-
-        quiz_date = weekly_quiz_date()
-        for i in range(2):
-            q = Question(
-                question_type="single_choice",
-                content=f"channel auto daily {i}",
-                options=["A", "B"],
-                answer="A",
-                category="daily_auto",
-                is_active=True,
-            )
-            session.add(q)
-            await session.flush()
-            session.add(
-                AnswerRecord(
-                    user_id=user_id,
-                    question_id=q.id,
-                    selected_answer="A",
-                    is_correct=True,
-                    score=1,
-                    source="daily",
-                    quiz_date=quiz_date,
-                )
-            )
-        await record_activity(session, user_id, "ai_chat")
-        await record_activity(session, user_id, "ai_chat")
-        await record_activity(session, user_id, "energy_view")
-        await session.commit()
-
-    headers = {"Authorization": f"Bearer {create_access_token(user_id, expires_delta=timedelta(hours=1))}"}
-    resp = await conf_client.get(f"/api/conference/zones/{zone_code}", headers=headers)
-    assert resp.status_code == 200
-    data = resp.json()["data"]
-    assert data["claimed"] is True
-
-    async with test_db() as session:
-        mark_count = await session.scalar(
-            select(func.count(ConferenceZoneMark.id)).where(
-                ConferenceZoneMark.user_id == user_id,
-                ConferenceZoneMark.zone_id == zone_id,
-            )
-        )
-        assert mark_count == 1
-
-
-# ── h) channel 展区最后一步 energy_view 上报后自动发放印记（回归）────────────
-
-@pytest.mark.asyncio
-async def test_channel_completed_auto_grant_mark_on_energy_report(test_db, conf_client):
-    async with test_db() as session:
-        user = await _create_user(session, "conf_auto_report", whitelisted=True)
-        user_id = user.id
-        zone = _make_zone(
-            session,
-            "channel_report",
-            task_type="channel",
-            required_daily_quiz_count=2,
-            required_ai_chat_count=2,
-            is_active=True,
-        )
-        await session.commit()
-        zone_id = zone.id
-
-        # 先完成 daily + ai_chat（尚缺 energy_view 一步）
-        from app.services.conference import weekly_quiz_date
-
-        quiz_date = weekly_quiz_date()
-        for i in range(2):
-            q = Question(
-                question_type="single_choice",
-                content=f"channel report daily {i}",
-                options=["A", "B"],
-                answer="A",
-                category="daily_report",
-                is_active=True,
-            )
-            session.add(q)
-            await session.flush()
-            session.add(
-                AnswerRecord(
-                    user_id=user_id,
-                    question_id=q.id,
-                    selected_answer="A",
-                    is_correct=True,
-                    score=1,
-                    source="daily",
-                    quiz_date=quiz_date,
-                )
-            )
-        await record_activity(session, user_id, "ai_chat")
-        await record_activity(session, user_id, "ai_chat")
-        await session.commit()
-
-    headers = {"Authorization": f"Bearer {create_access_token(user_id, expires_delta=timedelta(hours=1))}"}
-    # 上报施能量页浏览（最后一步）→ 应立即结算发放印记
-    resp = await conf_client.post(
-        "/api/conference/activity",
-        json={"action": "energy_view"},
-        headers=headers,
-    )
-    assert resp.status_code == 200
-    assert resp.json()["data"]["count"] == 1
-
-    async with test_db() as session:
-        mark_count = await session.scalar(
-            select(func.count(ConferenceZoneMark.id)).where(
-                ConferenceZoneMark.user_id == user_id,
-                ConferenceZoneMark.zone_id == zone_id,
-            )
-        )
-        assert mark_count == 1
-
-
-# ── f) 集齐全部印记后 GET /api/conference/medal 返回 granted=true ─────────
+# ── e) 集齐 4 个印章后 medal 返回 granted=true，且 medal_code 唯一 ─────────
 
 @pytest.mark.asyncio
 async def test_medal_api_granted_after_all_marks(test_db, conf_client):
+    phone = "13900001005"
     async with test_db() as session:
-        user = await _create_user(session, "conf_full_001", whitelisted=True)
-        user_id = user.id
-        # 创建 4 个启用 quiz 展区
         zone_ids = []
         for code in ("full_a", "full_b", "full_c", "full_d"):
             zone = await _create_quiz_zone(session, code, question_count=1)
             zone_ids.append(zone.id)
         await session.commit()
 
-        # 逐区发印记
         for zid in zone_ids:
-            assert await grant_zone_mark(session, user_id, zid) is True
+            assert await grant_zone_mark(session, phone, zid) is True
         await session.commit()
 
-        medal = await try_grant_medal(session, user_id)
+        medal = await try_grant_medal(session, phone, "钱七")
         assert medal is not None
         assert medal.medal_code.startswith("DY-")
         medal_code = medal.medal_code
         await session.commit()
 
         # 重复调用不发第二枚
-        assert await try_grant_medal(session, user_id) is None
+        assert await try_grant_medal(session, phone, "钱七") is None
 
-    headers = {"Authorization": f"Bearer {create_access_token(user_id, expires_delta=timedelta(hours=1))}"}
-    resp = await conf_client.get("/api/conference/medal", headers=headers)
+    resp = await conf_client.get("/api/conference/medal", params={"phone": phone})
     assert resp.status_code == 200
     data = resp.json()["data"]
     assert data["granted"] is True
     assert data["medal_code"] == medal_code
     assert data["zone_count"] == 4
     assert len(data["earned_zones"]) == 4
+
+    # medal_code 全局唯一
+    async with test_db() as session:
+        code_count = await session.scalar(
+            select(func.count(ConferenceMedal.id)).where(
+                ConferenceMedal.medal_code == medal_code
+            )
+        )
+        assert code_count == 1

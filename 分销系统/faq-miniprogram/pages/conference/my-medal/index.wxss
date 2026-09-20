@@ -1,129 +1,163 @@
 .page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #f0fdf4 0%, #f5f7fa 100%);
-  padding: 24rpx;
+  background: #F5F7FA;
   padding-bottom: 60rpx;
 }
 
-.slogan {
-  background: #ffffff;
-  border-radius: 20rpx;
-  padding: 28rpx 32rpx;
-  margin-bottom: 32rpx;
-  border: 2rpx solid #e8f7ee;
+.theme {
+  width: 100%;
+  display: block;
 }
 
-.slogan-text {
+.slogan {
+  margin: 24rpx 32rpx 16rpx;
+  padding: 24rpx;
+  background: #fff;
+  border-radius: 16rpx;
   font-size: 26rpx;
-  color: #1f7a44;
+  color: #4b5563;
   line-height: 1.7;
 }
 
-.medal-card {
-  background: linear-gradient(160deg, #fff7e0 0%, #ffe8b3 100%);
-  border-radius: 28rpx;
-  padding: 48rpx 32rpx;
+.progress-bar-wrap {
+  margin: 8rpx 32rpx 24rpx;
+  padding: 24rpx;
+  background: #fff;
+  border-radius: 16rpx;
+}
+
+.progress-text {
+  font-size: 28rpx;
+  color: #111827;
+  font-weight: 600;
+}
+
+.progress-track {
+  margin-top: 16rpx;
+  height: 20rpx;
+  background: #E5E7EB;
+  border-radius: 10rpx;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00B050, #22c55e);
+  border-radius: 10rpx;
+  transition: width 0.3s;
+}
+
+.zone-card {
+  margin: 0 32rpx 16rpx;
+  padding: 24rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+}
+
+.zone-icon {
+  width: 72rpx;
+  height: 72rpx;
+  line-height: 68rpx;
+  text-align: center;
+  border-radius: 50%;
+  border: 3rpx solid #d1d5db;
+  color: #d1d5db;
+  font-size: 40rpx;
+  margin-right: 24rpx;
+}
+
+.zone-icon.claimed {
+  background: #00B050;
+  border-color: #00B050;
+  color: #fff;
+}
+
+.zone-info {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  box-shadow: 0 8rpx 24rpx rgba(255, 179, 0, 0.25);
-  border: 2rpx solid #ffd54a;
 }
 
-.medal-card.pending {
-  background: #ffffff;
-  border-color: #e5e7eb;
-  box-shadow: none;
+.zone-name {
+  font-size: 30rpx;
+  color: #111827;
+  font-weight: 600;
 }
 
-.medal-ring {
-  width: 200rpx;
-  height: 200rpx;
-  border-radius: 50%;
-  background: conic-gradient(#ffd54a, #ffb300, #ff8f00, #ffd54a);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 6rpx 20rpx rgba(255, 179, 0, 0.4);
-  margin-bottom: 28rpx;
+.zone-status {
+  font-size: 24rpx;
+  color: #9ca3af;
+  margin-top: 6rpx;
 }
 
-.medal-circle {
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 50%;
-  background: #fff8e6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 6rpx dashed #ffd54a;
+.medal-card {
+  margin: 24rpx 32rpx;
+  padding: 48rpx 32rpx;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  border-radius: 24rpx;
+  text-align: center;
+  box-shadow: 0 8rpx 24rpx rgba(245, 158, 11, 0.3);
 }
 
-.pending-ring {
-  background: #e5e7eb;
-  box-shadow: none;
-}
-
-.pending-circle {
-  background: #f9fafb;
-  border-color: #d1d5db;
-}
-
-.medal-emoji {
-  font-size: 72rpx;
+.medal-badge {
+  font-size: 88rpx;
 }
 
 .medal-title {
+  margin-top: 12rpx;
   font-size: 40rpx;
-  font-weight: 800;
-  color: #5d3a00;
-  margin-bottom: 12rpx;
+  font-weight: 700;
+  color: #78350f;
 }
 
 .medal-code {
-  font-size: 30rpx;
-  color: #7a5400;
-  font-family: monospace;
+  margin-top: 16rpx;
+  font-size: 32rpx;
+  font-weight: 600;
   letter-spacing: 2rpx;
-  margin-bottom: 24rpx;
+  color: #92400e;
 }
 
-.medal-progress {
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: 999rpx;
-  padding: 12rpx 28rpx;
-}
-
-.medal-progress-text {
+.medal-hint {
+  margin-top: 24rpx;
   font-size: 24rpx;
-  color: #7a5400;
+  color: #78350f;
+  line-height: 1.6;
 }
 
-.redeem-guide {
-  margin-top: 32rpx;
-  background: #ffffff;
-  border-radius: 20rpx;
-  padding: 28rpx 32rpx;
-  border: 2rpx solid #e5e7eb;
-}
-
-.redeem-title {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 12rpx;
-}
-
-.redeem-text {
+.medal-pending {
+  margin: 24rpx 32rpx;
+  padding: 40rpx 32rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  text-align: center;
   font-size: 26rpx;
   color: #6b7280;
   line-height: 1.7;
 }
 
+.ghost-btn {
+  margin: 32rpx;
+  background: #fff;
+  color: #00B050;
+  border: 2rpx solid #00B050;
+  border-radius: 44rpx;
+  font-size: 30rpx;
+}
+
 .loading {
   text-align: center;
   color: #9ca3af;
-  font-size: 26rpx;
-  padding: 40rpx 0;
+  padding: 60rpx 0;
+  font-size: 28rpx;
+}
+
+.empty {
+  text-align: center;
+  color: #9ca3af;
+  padding: 80rpx 40rpx;
+  font-size: 28rpx;
+  line-height: 1.7;
 }

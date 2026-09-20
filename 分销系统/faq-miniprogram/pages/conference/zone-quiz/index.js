@@ -1,6 +1,7 @@
 const app = getApp();
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+const SLOGAN = '欢迎开启您的母线能量探索之旅。完成六大主题展区探索并集齐六枚「能量印记」，即可领取专属「能量勋章」，前往手工工坊完成属于您的定制纪念手串。';
 
 Page({
   data: {
@@ -8,23 +9,74 @@ Page({
     zoneName: '',
     zone: null,
     questions: [],
-    // 答题状态：question_id -> { value: string(单选/填空) | string[](多选), type }
     answers: {},
-    submitting: false
+    submitting: false,
+    loading: false,
+    signedIn: false,
+    phone: '',
+    name: ''
   },
 
   onLoad(options) {
     const code = decodeURIComponent(options.code || '');
     const zoneName = decodeURIComponent(options.name || '');
     this.setData({ code, zoneName });
-    wx.setNavigationBarTitle({ title: zoneName || '展区答题' });
-    this.loadZone();
+    wx.setNavigationBarTitle({ title: zoneName || '大会打卡' });
+
+    // 读取本地签到缓存（同一手机号 4 个打卡点复用）
+    const phone = wx.getStorageSync('conferencePhone') || '';
+    const name = wx.getStorageSync('conferenceName') || '';
+    if (phone) {
+      this.setData({ signedIn: true, phone, name });
+      this.loadZone();
+    }
+  },
+
+  onInputName(e) {
+    this.setData({ name: e.detail.value });
+  },
+
+  onInputPhone(e) {
+    this.setData({ phone: e.detail.value });
+  },
+
+  // ── 姓名＋手机号自助签到 ──
+  async onSignIn() {
+    const name = String(this.data.name || '').trim();
+    const phone = String(this.data.phone || '').trim();
+    if (!name) {
+      wx.showToast({ title: '请填写姓名', icon: 'none' });
+      return;
+    }
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+      wx.showToast({ title: '请填写正确的手机号', icon: 'none' });
+      return;
+    }
+    try {
+      const res = await app.request({
+        url: '/api/conference/join',
+        method: 'POST',
+        data: { name, phone },
+        retryCount: 1,
+        dedupe: true
+      });
+      wx.setStorageSync('conferencePhone', res.phone);
+      wx.setStorageSync('conferenceName', res.name);
+      this.setData({ signedIn: true, phone: res.phone, name: res.name });
+      this.loadZone();
+    } catch (err) {
+      console.warn('conference join failed:', err);
+      wx.showToast({ title: '签到失败，请重试', icon: 'none' });
+    }
   },
 
   async loadZone() {
+    this.setData({ loading: true });
     try {
       const data = await app.request({
-        url: `/api/conference/zones/${this.data.code}`
+        url: `/api/conference/zones/${this.data.code}`,
+        data: { phone: this.data.phone },
+        retryCount: 1
       });
       const questions = (data.questions || []).map((q) => ({
         ...q,
@@ -38,6 +90,8 @@ Page({
     } catch (err) {
       console.warn('load zone quiz failed:', err);
       wx.showToast({ title: '加载失败', icon: 'none' });
+    } finally {
+      this.setData({ loading: false });
     }
   },
 
@@ -62,26 +116,19 @@ Page({
     });
   },
 
-  // ── 单选 / 判断题：点选即记录，不自动提交 ──
+  // ── 选项点击：按题型分流（多选切换/单选记录），绝不自动提交 ──
   onSelectOption(e) {
-    const { qid, label } = e.currentTarget.dataset;
+    const { qid, label, qtype } = e.currentTarget.dataset;
     const answers = { ...this.data.answers };
-    answers[qid] = { value: label, type: 'single' };
-    this.setData({
-      answers,
-      questions: this.syncSelectedFlags(this.data.questions, answers)
-    });
-  },
-
-  // ── 多选题：点选切换（支持多选），绝不自动提交 ──
-  onToggleMultiOption(e) {
-    const { qid, label } = e.currentTarget.dataset;
-    const answers = { ...this.data.answers };
-    const current = answers[qid] ? answers[qid].value || [] : [];
-    const next = current.indexOf(label) > -1
-      ? current.filter((item) => item !== label)
-      : [...current, label];
-    answers[qid] = { value: next, type: 'multi' };
+    if (qtype === 'multiple_choice') {
+      const current = answers[qid] ? answers[qid].value || [] : [];
+      const next = current.indexOf(label) > -1
+        ? current.filter((item) => item !== label)
+        : [...current, label];
+      answers[qid] = { value: next, type: 'multi' };
+    } else {
+      answers[qid] = { value: label, type: 'single' };
+    }
     this.setData({
       answers,
       questions: this.syncSelectedFlags(this.data.questions, answers)
@@ -128,25 +175,44 @@ Page({
       const res = await app.request({
         url: `/api/conference/zones/${this.data.code}/submit-quiz`,
         method: 'POST',
-        data: { answers: payload },
+        data: {
+          phone: this.data.phone,
+          name: this.data.name,
+          answers: payload
+        },
         timeout: 20000,
         retryCount: 1,
         dedupe: true
       });
 
-      let message = '提交成功';
       if (res.medal_earned) {
-        message = `集齐全部印记，获得能量勋章 ${res.medal_code || ''}`;
-      } else if (res.mark_earned) {
-        message = '恭喜获得本展区能量印记';
+        wx.showModal({
+          title: '集齐全部打卡点',
+          content: `恭喜集齐全部能量印章，获得专属能量勋章：${res.medal_code || ''}`,
+          confirmText: '查看勋章',
+          cancelText: '继续',
+          success: (confirmRes) => {
+            if (confirmRes.confirm) {
+              this.goToMedal();
+            }
+          }
+        });
+      } else if (res.stamp_earned) {
+        wx.showToast({ title: '打卡成功，获得本展区能量印章', icon: 'none', duration: 2000 });
+      } else {
+        wx.showToast({ title: '提交成功', icon: 'success' });
       }
-      wx.showToast({ title: message, icon: 'none', duration: 2500 });
-      setTimeout(() => wx.navigateBack(), 1200);
     } catch (err) {
       console.warn('submit conference quiz failed:', err);
       wx.showToast({ title: '提交失败，请重试', icon: 'none' });
     } finally {
       this.setData({ submitting: false });
     }
+  },
+
+  goToMedal() {
+    wx.navigateTo({
+      url: '/pages/conference/my-medal/index'
+    });
   }
 });

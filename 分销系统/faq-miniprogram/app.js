@@ -8,10 +8,11 @@ App({
     token: '',
     guestMode: false,
     runtimeConfig: null,
-    baseUrl: ''
+    baseUrl: '',
+    conferenceKiosk: false
   },
 
-  onLaunch() {
+  onLaunch(options) {
     this.installSafeConsole();
     const runtimeConfig = this.getRuntimeConfig(true);
 
@@ -31,6 +32,51 @@ App({
 
     this.syncAuthWithRuntimeConfig();
     this.getUserProfile();
+
+    // 分销商大会：解析小程序码 scene（如 conference_business）直达对应打卡点
+    this.handleConferenceScene(options);
+  },
+
+  onShow(options) {
+    // 扫码/分享进入时同样解析 scene（含从后台切回前台）
+    this.handleConferenceScene(options);
+  },
+
+  // 解析大会打卡点 scene：scene 以 conference_ 开头时取后半段为 code，
+  // reLaunch 到打卡点答题页（该页为本次"根入口"），并置 kiosk 隔离标记。
+  handleConferenceScene(options) {
+    if (!options || !options.scene) {
+      return;
+    }
+    let scene = '';
+    try {
+      scene = decodeURIComponent(options.scene);
+    } catch (e) {
+      scene = String(options.scene || '');
+    }
+    const raw = String(scene || '').trim();
+    if (!raw.startsWith('conference_')) {
+      return;
+    }
+    const code = raw.slice('conference_'.length).trim();
+    if (!code) {
+      return;
+    }
+    this.globalData.conferenceKiosk = true;
+    // 防死循环：当前已在打卡点答题页且 code 一致时不再重定向
+    const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
+    const current = pages.length ? pages[pages.length - 1] : null;
+    if (
+      current &&
+      current.route === 'pages/conference/zone-quiz/index' &&
+      current.options &&
+      current.options.code === code
+    ) {
+      return;
+    }
+    wx.reLaunch({
+      url: `/pages/conference/zone-quiz/index?code=${encodeURIComponent(code)}`
+    });
   },
 
   installSafeConsole() {

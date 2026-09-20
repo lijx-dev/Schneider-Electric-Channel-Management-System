@@ -1,6 +1,6 @@
 {
-  "navigationBarTitleText": "展区答题",
+  "navigationBarTitleText": "大会打卡",
   "navigationBarBackgroundColor": "#00B050",
   "navigationBarTextStyle": "white",
-  "usingComponents": {}
+  "backgroundColor": "#F5F7FA"
 }

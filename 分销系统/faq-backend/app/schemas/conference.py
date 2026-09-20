@@ -1,10 +1,16 @@
-"""分销商大会「能量印记·集章」模块 Pydantic 请求 Schema."""
+"""分销商大会「能量印章·集章」模块 Pydantic 请求 Schema."""
 
 from __future__ import annotations
 
 from typing import Optional
 
 from pydantic import BaseModel, Field
+
+
+class JoinPayload(BaseModel):
+    """姓名＋手机号自助签到"""
+    name: str = Field(..., min_length=1, max_length=50, description="参会人姓名")
+    phone: str = Field(..., description="手机号（11 位，不校验短信）")
 
 
 class ZoneAnswer(BaseModel):
@@ -15,9 +21,6 @@ class ZoneAnswer(BaseModel):
 
 class QuizSubmit(BaseModel):
     """提交题组答案"""
+    phone: str = Field(..., description="手机号")
     answers: list[ZoneAnswer] = Field(..., description="答案列表")
-
-
-class ActivityReport(BaseModel):
-    """上报活动计数（channel 展区步骤）"""
-    action: str = Field(..., description="动作类型：energy_view")
+    name: Optional[str] = Field(None, max_length=50, description="参会人姓名（可选，用于自动建档）")

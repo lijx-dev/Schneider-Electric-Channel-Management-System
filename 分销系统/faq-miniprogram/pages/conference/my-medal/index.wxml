@@ -1,37 +1,41 @@
 <view class="page">
-  <view class="slogan">
-    <text class="slogan-text">{{slogan}}</text>
-  </view>
-
-  <view class="medal-card" wx:if="{{medal && medal.granted}}">
-    <view class="medal-ring">
-      <view class="medal-circle">
-        <text class="medal-emoji">🎖️</text>
-      </view>
-    </view>
-    <text class="medal-title">能量勋章</text>
-    <text class="medal-code">编号 {{medal.medal_code}}</text>
-    <view class="medal-progress">
-      <text class="medal-progress-text">已集齐 {{medal.earned_zones.length}}/{{medal.total_active_zones}} 个展区印记</text>
-    </view>
-  </view>
-
-  <view class="medal-card pending" wx:if="{{medal && !medal.granted}}">
-    <view class="medal-ring pending-ring">
-      <view class="medal-circle pending-circle">
-        <text class="medal-emoji">🔒</text>
-      </view>
-    </view>
-    <text class="medal-title">尚未获得能量勋章</text>
-    <view class="medal-progress">
-      <text class="medal-progress-text">已集齐 {{medal.earned_zones.length}}/{{medal.total_active_zones}} 个展区印记，集齐后自动生成勋章</text>
-    </view>
-  </view>
-
-  <view class="redeem-guide">
-    <text class="redeem-title">兑换指引</text>
-    <text class="redeem-text">{{redeemGuide}}</text>
-  </view>
+  <image class="theme" src="/images/conference/theme.jpg" mode="widthFix"></image>
+  <view class="slogan">{{slogan}}</view>
 
   <view wx:if="{{loading}}" class="loading">加载中...</view>
+
+  <block wx:elif="{{zones.length > 0}}">
+    <!-- 总体进度 -->
+    <view class="progress-bar-wrap">
+      <text class="progress-text">已集齐 {{claimedCount}} / {{totalZones}} 枚能量印章</text>
+      <view class="progress-track">
+        <view class="progress-fill" style="width: {{totalZones ? (claimedCount / totalZones * 100) : 0}}%"></view>
+      </view>
+    </view>
+
+    <!-- 打卡点印章状态 -->
+    <view class="zone-card" wx:for="{{zones}}" wx:key="code">
+      <view class="zone-icon {{item.claimed ? 'claimed' : ''}}">{{item.claimed ? '✓' : '○'}}</view>
+      <view class="zone-info">
+        <text class="zone-name">{{item.name}}</text>
+        <text class="zone-status">{{item.claimed ? '已点亮印章' : '未完成'}}</text>
+      </view>
+    </view>
+
+    <!-- 电子勋章（集齐时展示） -->
+    <view class="medal-card" wx:if="{{medal.granted}}">
+      <view class="medal-badge">🏅</view>
+      <view class="medal-title">能量勋章</view>
+      <view class="medal-code">{{medal.medal_code}}</view>
+      <view class="medal-hint">{{redeemText}}</view>
+    </view>
+
+    <view class="medal-pending" wx:else>
+      <text>继续前往各打卡点扫码答题，集齐 {{totalZones}} 枚印章即可点亮能量勋章</text>
+    </view>
+
+    <button class="ghost-btn" wx:if="{{canGoBack}}" bindtap="goBackToZone">返回打卡点</button>
+  </block>
+
+  <view wx:else class="empty">暂未获得任何印章，请扫码进入打卡点开始答题</view>
 </view>
