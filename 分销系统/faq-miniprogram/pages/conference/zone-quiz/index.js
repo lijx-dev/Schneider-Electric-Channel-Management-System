@@ -18,7 +18,22 @@ Page({
   },
 
   onLoad(options) {
-    const code = decodeURIComponent(options.code || '');
+    // 小程序码（getwxacodeunlimit）扫码落点页时，展区 code 通过 scene 传入
+    // （scene=conference_<code>），而手动进入/开发者工具编译模式用 code 参数。
+    // 两者都解析，缺 code 时回退到 scene。
+    let code = decodeURIComponent(options.code || '');
+    if (!code && options.scene) {
+      let scene = '';
+      try {
+        scene = decodeURIComponent(options.scene);
+      } catch (e) {
+        scene = String(options.scene || '');
+      }
+      const raw = String(scene || '').trim();
+      if (raw.startsWith('conference_')) {
+        code = raw.slice('conference_'.length).trim();
+      }
+    }
     const zoneName = decodeURIComponent(options.name || '');
     this.setData({ code, zoneName });
     wx.setNavigationBarTitle({ title: zoneName || '大会打卡' });
