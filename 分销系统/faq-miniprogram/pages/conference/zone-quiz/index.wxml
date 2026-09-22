@@ -31,9 +31,18 @@
       </view>
       <view class="q-content">{{q.content}}</view>
 
-      <!-- 单选/多选/判断：选项 -->
+      <!-- 单选题/多选题：选项 -->
       <view class="option" wx:for="{{q.options}}" wx:key="label" wx:for-item="opt"
-        wx:if="{{q.question_type === 'single_choice' || q.question_type === 'multiple_choice' || q.question_type === 'true_false'}}"
+        wx:if="{{q.question_type === 'single_choice' || q.question_type === 'multiple_choice'}}"
+        bindtap="onSelectOption"
+        data-qid="{{q.id}}" data-label="{{opt.label}}" data-qtype="{{q.question_type}}">
+        <view class="option-check {{opt.selected ? 'checked' : ''}}">{{opt.label}}</view>
+        <text class="option-text">{{opt.text}}</text>
+      </view>
+
+      <!-- 判断题：选项 -->
+      <view class="option" wx:for="{{q.options}}" wx:key="label" wx:for-item="opt"
+        wx:if="{{q.question_type === 'true_false'}}"
         bindtap="onSelectOption"
         data-qid="{{q.id}}" data-label="{{opt.label}}" data-qtype="{{q.question_type}}">
         <view class="option-check {{opt.selected ? 'checked' : ''}}">{{opt.label}}</view>
@@ -43,10 +52,24 @@
       <!-- 填空题 -->
       <input class="fill-input" wx:if="{{q.question_type === 'fill_blank'}}" placeholder="请输入答案"
         data-qid="{{q.id}}" bindinput="onFillInput" />
+
+      <!-- 提交后反馈：对错 + 正确答案 -->
+      <view class="feedback" wx:if="{{q.feedback}}">
+        <text class="feedback-mark {{q.feedback.is_correct ? 'ok' : 'no'}}">
+          {{q.feedback.is_correct ? '✓ 答对' : '✗ 答错'}}
+        </text>
+        <text class="feedback-answer" wx:if="{{!q.feedback.is_correct}}">
+          正确答案：{{q.feedback.correct_answer}}
+        </text>
+      </view>
+    </view>
+
+    <view class="submit-tip" wx:if="{{submitted && !allCorrect}}">
+      答错的题目已标注，可修改后重新提交，次数不限。
     </view>
 
     <button class="primary-btn submit-btn" bindtap="onSubmit" disabled="{{submitting}}">
-      {{submitting ? '提交中...' : '提交答案'}}
+      {{submitting ? '提交中...' : (allCorrect ? '答题已完成' : '提交答案')}}
     </button>
   </view>
 

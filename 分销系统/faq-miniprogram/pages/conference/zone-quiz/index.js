@@ -13,6 +13,8 @@ Page({
     submitting: false,
     loading: false,
     signedIn: false,
+    submitted: false,
+    allCorrect: false,
     phone: '',
     name: ''
   },
@@ -161,6 +163,10 @@ Page({
   // ── 提交答案（独立按钮，多选也不会点选项即提交） ──
   async onSubmit() {
     if (this.data.submitting) return;
+    if (this.data.allCorrect) {
+      wx.showToast({ title: '本展区已全部答对，无需重复提交', icon: 'none' });
+      return;
+    }
 
     const questions = this.data.questions;
     const answers = this.data.answers;
@@ -214,15 +220,42 @@ Page({
         });
       } else if (res.stamp_earned) {
         wx.showToast({ title: '打卡成功，获得本展区能量印章', icon: 'none', duration: 2000 });
-      } else {
-        wx.showToast({ title: '提交成功', icon: 'success' });
+      } else if (res.completed) {
+        wx.showToast({ title: '本次全部答对，已获得印章', icon: 'none' });
       }
+
+      // 逐题答题结果（对错 + 正确答案），合并到题目上用于展示，答题仍不限次数
+      this.applyResults(res.results || []);
     } catch (err) {
       console.warn('submit conference quiz failed:', err);
       wx.showToast({ title: '提交失败，请重试', icon: 'none' });
     } finally {
       this.setData({ submitting: false });
     }
+  },
+
+  // 把后端返回的逐题对错/正确答案合并到 questions，供 WXML 展示
+  applyResults(results) {
+    const map = {};
+    (results || []).forEach((r) => {
+      map[r.question_id] = r;
+    });
+    const questions = (this.data.questions || []).map((q) => {
+      const fb = map[q.id];
+      return {
+        ...q,
+        feedback: fb
+          ? { is_correct: !!fb.is_correct, correct_answer: fb.correct_answer },
+          : null,
+        answered: !!(fb && fb.user_answer)
+      };
+    });
+    const allCorrect = (results || []).length > 0 && (results || []).every((r) => r.is_correct);
+    this.setData({
+      questions,
+      allCorrect,
+      submitted: (results || []).length > 0
+    });
   },
 
   goToMedal() {

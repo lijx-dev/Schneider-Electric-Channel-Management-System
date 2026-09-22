@@ -207,6 +207,63 @@ async def test_zone_window_expired_returns_403(test_db, conf_client):
     assert "未开放" in resp.json()["detail"]
 
 
+# ── e-extra) 答错不发印章 + 返回对错与正确答案 + 重答全对后发印章 ────────
+
+@pytest.mark.asyncio
+async def test_submit_quiz_grading_requires_all_correct(test_db, conf_client):
+    phone = "13900001999"
+    async with test_db() as session:
+        zone = await _create_quiz_zone(session, "grade", question_count=2)
+        questions = await _zone_questions(session, zone)
+        await session.commit()
+        zone_code = zone.code
+        qids = [q.id for q in questions]
+
+    # 第一题答错（标准答案为 A），第二题答对 → 不应发印章
+    answers = [
+        {"question_id": qids[0], "selected_answer": "B"},
+        {"question_id": qids[1], "selected_answer": "A"},
+    ]
+    first = await conf_client.post(
+        f"/api/conference/zones/{zone_code}/submit-quiz",
+        json={"phone": phone, "name": "孙八", "answers": answers},
+    )
+    assert first.status_code == 200
+    fd = first.json()["data"]
+    assert fd["stamp_earned"] is False
+    assert fd["completed"] is False
+    assert fd["total"] == 2
+    assert fd["correct"] == 1
+    assert len(fd["results"]) == 2
+    by_qid = {r["question_id"]: r for r in fd["results"]}
+    assert by_qid[qids[0]]["is_correct"] is False
+    assert by_qid[qids[0]]["correct_answer"] == "A"
+    assert by_qid[qids[1]]["is_correct"] is True
+
+    # 修正为全对后重答 → 发印章，且印章唯一
+    answers_ok = [
+        {"question_id": qids[0], "selected_answer": "A"},
+        {"question_id": qids[1], "selected_answer": "A"},
+    ]
+    second = await conf_client.post(
+        f"/api/conference/zones/{zone_code}/submit-quiz",
+        json={"phone": phone, "name": "孙八", "answers": answers_ok},
+    )
+    assert second.status_code == 200
+    sd = second.json()["data"]
+    assert sd["stamp_earned"] is True
+    assert sd["completed"] is True
+    assert sd["correct"] == 2
+
+    # 再次重答（仍全对）不重发印章
+    third = await conf_client.post(
+        f"/api/conference/zones/{zone_code}/submit-quiz",
+        json={"phone": phone, "name": "孙八", "answers": answers_ok},
+    )
+    assert third.status_code == 200
+    assert third.json()["data"]["stamp_earned"] is False
+
+
 # ── e) 集齐 4 个印章后 medal 返回 granted=true，且 medal_code 唯一 ─────────
 
 @pytest.mark.asyncio

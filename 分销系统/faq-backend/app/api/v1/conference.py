@@ -20,6 +20,7 @@ from app.services.conference import (
     check_zone_window,
     find_or_create_attendee,
     get_zone_progress,
+    grade_zone,
     grant_zone_mark,
     today_str,
     try_grant_medal,
@@ -229,13 +230,13 @@ async def submit_quiz(
 
     await db.flush()
 
-    # 结算：题组全部答完 → 发印章 → 尝试发勋章
-    progress = await get_zone_progress(db, phone, zone)
+    # 结算：按标准答案逐题判分，全部答对才发印章 → 尝试发勋章
+    grade = await grade_zone(db, phone, zone)
     stamp_earned = False
     medal_earned = False
     medal_code: Optional[str] = None
 
-    if progress.get("completed"):
+    if grade.get("completed"):
         stamp_earned = await grant_zone_mark(db, phone, zone.id)
         if stamp_earned:
             medal = await try_grant_medal(db, phone, (body.name or "").strip())
@@ -248,10 +249,14 @@ async def submit_quiz(
     return {
         "code": 0,
         "data": {
-            "claimed": progress.get("completed", False),
+            "claimed": grade.get("completed", False),
             "stamp_earned": stamp_earned,
             "medal_earned": medal_earned,
             "medal_code": medal_code,
+            "total": grade["total"],
+            "correct": grade["correct"],
+            "completed": grade["completed"],
+            "results": grade["results"],
         },
     }
 

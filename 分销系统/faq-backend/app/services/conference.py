@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+import re
 import secrets
 import string
 from datetime import datetime, timedelta, timezone
@@ -118,31 +119,142 @@ async def _count_questions_in_category(db: AsyncSession, category: str) -> int:
     return int(result.scalar() or 0)
 
 
-async def _count_answered(db: AsyncSession, phone: str, zone_id: int) -> int:
-    """手机号在该打卡点已答题目数（去重 question_id，不限日期）。
+def _norm_multi(value: str) -> str:
+    """多选答案归一化：大写 + 去重 + 排序（选项顺序不敏感）。"""
+    return "".join(sorted(dict.fromkeys((value or "").upper())))
 
-    说明：通关标准为「答完该题组全部题目即发印章」（不校验对错），
-    跨天答题同样累计，故不按 quiz_date 过滤；重复提交由唯一约束幂等。
+
+def _strip_text(value: str) -> str:
+    return re.sub(r"\s+", "", (value or "").strip())
+
+
+def _label_to_text(options: list | None, label: str) -> str:
+    """把选项 label（A/B/C…）转成对应选项文本；越界/无效时原样返回。"""
+    if not options:
+        return label
+    idx = ord((label or "")[:1].upper()) - ord("A")
+    if 0 <= idx < len(options):
+        return str(options[idx])
+    return label
+
+
+def _is_question_correct(question: Question, selected: str) -> bool:
+    """判定单题答案是否与标准答案一致。按题型区分匹配规则：
+
+    - single_choice: 选项 label 直接比较（大写）
+    - multiple_choice: 选项 label 归一化（大写+去重+排序）后比较
+    - true_false: 选项文本化后与标准答案（对/错/正确/错误）比较
+    - fill_blank: 去除空白后全文比较
     """
+    qtype = question.question_type
+    answer = _strip_text(question.answer or "")
+    selected = selected or ""
+
+    if qtype == "multiple_choice":
+        return _norm_multi(question.answer or "") == _norm_multi(selected)
+
+    if qtype == "true_false":
+        selected_text = _strip_text(_label_to_text(question.options, selected))
+        answer_text = _strip_text(question.answer or "")
+        return selected_text == answer_text
+
+    if qtype == "fill_blank":
+        return _strip_text(question.answer or "") == _strip_text(selected)
+
+    # single_choice 及默认：label 大写比较
+    return (question.answer or "").strip().upper() == selected.strip().upper()
+
+
+def _display_answer(question: Question) -> str:
+    """返回适合用户阅读的标准答案展示文本。"""
+    qtype = question.question_type
+    if qtype == "multiple_choice":
+        return "".join(sorted(dict.fromkeys((question.answer or "").upper())))
+    if qtype == "true_false":
+        return _strip_text(question.answer or "")
+    return (question.answer or "").strip()
+
+
+async def _load_zone_questions(db: AsyncSession, category: str) -> list[Question]:
     result = await db.execute(
-        select(func.count(func.distinct(ConferenceAnswer.question_id))).where(
+        select(Question)
+        .where(Question.category == category, Question.is_active.is_(True))
+        .order_by(Question.id)
+    )
+    return list(result.scalars().all())
+
+
+async def _load_answered_map(
+    db: AsyncSession, phone: str, zone_id: int
+) -> dict[int, str]:
+    """手机号在该打卡点的最近作答（question_id -> selected_answer，去重取最新）。"""
+    result = await db.execute(
+        select(ConferenceAnswer.question_id, ConferenceAnswer.selected_answer)
+        .where(
             ConferenceAnswer.phone == phone,
             ConferenceAnswer.zone_id == zone_id,
         )
+        .order_by(ConferenceAnswer.id.asc())
     )
-    return int(result.scalar() or 0)
+    answered: dict[int, str] = {}
+    for qid, selected in result.all():
+        answered[qid] = selected  # 后写覆盖先写 → 保留最新
+    return answered
+
+
+async def grade_zone(
+    db: AsyncSession, phone: str, zone: ConferenceZone
+) -> dict:
+    """按标准答案对手机号在该打卡点的作答逐题判分。
+
+    返回：
+      total      题组总题数
+      answered   已答题目数（去重）
+      correct    答对题数
+      completed  是否全部答对（=可发印章）
+      results    逐题结果（用于提交后展示对错与正确答案）
+    """
+    questions = await _load_zone_questions(db, zone.question_category)
+    total = len(questions)
+    answered_map = await _load_answered_map(db, phone, zone.id)
+
+    results = []
+    correct_count = 0
+    for q in questions:
+        selected = answered_map.get(q.id, "")
+        is_correct = bool(selected) and _is_question_correct(q, selected)
+        if is_correct:
+            correct_count += 1
+        results.append(
+            {
+                "question_id": q.id,
+                "question_type": q.question_type,
+                "is_correct": is_correct,
+                "user_answer": selected,
+                "correct_answer": _display_answer(q),
+            }
+        )
+
+    answered = len(answered_map)
+    completed = bool(total) and correct_count == total
+    return {
+        "total": total,
+        "answered": answered,
+        "correct": correct_count,
+        "completed": completed,
+        "results": results,
+    }
 
 
 async def get_zone_progress(
     db: AsyncSession, phone: str, zone: ConferenceZone
 ) -> dict:
-    """返回单打卡点进度：{"done","total","completed"}。"""
-    total = await _count_questions_in_category(db, zone.question_category)
-    done = await _count_answered(db, phone, zone.id)
+    """返回单打卡点进度：{"done","total","completed"}。通关=全部答对。"""
+    grade = await grade_zone(db, phone, zone)
     return {
-        "done": done,
-        "total": total,
-        "completed": bool(total) and done >= total,
+        "done": grade["answered"],
+        "total": grade["total"],
+        "completed": grade["completed"],
     }
 
 
