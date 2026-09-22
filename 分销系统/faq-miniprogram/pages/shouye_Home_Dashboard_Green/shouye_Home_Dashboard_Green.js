@@ -57,6 +57,7 @@ Page({
     showWeeklyQuizBadge: false,
     showSubscriptionGuide: false,
     lotteryNotice: null,
+    conferenceVideoNotice: null,
     // 认可计划
     recognitionRole: '',
     recognitionScore: 0,
@@ -234,6 +235,7 @@ Page({
       });
 
       this.loadLotteryNotice();
+      this.loadConferenceVideoNotice();
 
       // 每周答题提醒：检查是否展示订阅引导条
       this.checkSubscriptionGuide();
@@ -377,6 +379,42 @@ Page({
     }
 
     wx.navigateTo({ url: '/pages/reward-record/index' });
+  },
+
+  // 2026分销商大会拍视频奖励弹窗：进入首页时检查是否有未读活动奖励提醒
+  async loadConferenceVideoNotice() {
+    try {
+      const result = await app.request({
+        url: '/api/rewards/activity-notice',
+        retryCount: 0
+      });
+      if (result && result.has_notice) {
+        this.setData({ conferenceVideoNotice: result });
+      }
+    } catch (err) {
+      console.warn('Home conference video notice load failed:', err);
+    }
+  },
+
+  // 点击「知道了」：标记已读并关闭弹窗（下次不再弹）
+  async closeConferenceVideoNotice() {
+    const notice = this.data.conferenceVideoNotice;
+    if (!notice || !notice.transaction_id) {
+      this.setData({ conferenceVideoNotice: null });
+      return;
+    }
+
+    this.setData({ conferenceVideoNotice: null });
+    try {
+      await app.request({
+        url: '/api/rewards/notices/read',
+        method: 'POST',
+        data: { reward_transaction_ids: [notice.transaction_id] },
+        retryCount: 0
+      });
+    } catch (err) {
+      console.warn('mark conference video notice read failed:', err);
+    }
   },
 
   goToQuestionBank() {

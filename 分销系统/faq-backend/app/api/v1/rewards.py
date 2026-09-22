@@ -257,6 +257,40 @@ async def get_latest_reward_notice(
     return {"code": 0, "data": await build_latest_reward_notice(db, current_user_id)}
 
 
+@router.get("/rewards/activity-notice")
+async def get_activity_reward_notice(
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
+    """查询当前用户未读的「2026分销商大会拍视频奖励」活动提醒（首页弹窗用）。
+
+    只针对 type='activity_reward' 且 related_month='2026-09' 未读记录，
+    避免影响既有抽奖/月榜通知与已上线的历史活动奖励。
+    """
+    activity_month = "2026-09"
+    result = await db.execute(
+        select(EnergyTransaction)
+        .where(EnergyTransaction.user_id == current_user_id)
+        .where(EnergyTransaction.type == "activity_reward")
+        .where(EnergyTransaction.related_month == activity_month)
+        .where(EnergyTransaction.notice_read_at.is_(None))
+        .order_by(EnergyTransaction.created_at.desc(), EnergyTransaction.id.desc())
+        .limit(1)
+    )
+    transaction = result.scalar_one_or_none()
+    if not transaction:
+        return {"code": 0, "data": {"has_notice": False}}
+
+    return {
+        "code": 0,
+        "data": {
+            "has_notice": True,
+            "text": "感谢您为2026年分销商大会提供视频素材，特此奖励50格施能量！",
+            "transaction_id": transaction.id,
+        },
+    }
+
+
 @router.post("/rewards/notices/read")
 async def mark_reward_notice_read(
     payload: RewardNoticeReadRequest | None = None,

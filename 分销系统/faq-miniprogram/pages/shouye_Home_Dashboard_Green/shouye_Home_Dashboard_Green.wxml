@@ -271,5 +271,14 @@
         </view>
       </view>
     </view>
+
+    <!-- 2026分销商大会拍视频奖励弹窗 -->
+    <view wx:if="{{conferenceVideoNotice}}" class="conf-video-mask">
+      <view class="conf-video-dialog">
+        <view class="conf-video-title">🎉 奖励到账</view>
+        <view class="conf-video-text">{{conferenceVideoNotice.text}}</view>
+        <view class="conf-video-btn" bindtap="closeConferenceVideoNotice">知道了</view>
+      </view>
+    </view>
   </view>
 </view>

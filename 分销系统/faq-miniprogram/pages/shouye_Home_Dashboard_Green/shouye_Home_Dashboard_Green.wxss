@@ -730,3 +730,56 @@
   margin-top: 8rpx;
   display: block;
 }
+
+/* ── 2026分销商大会拍视频奖励弹窗 ───────────────────────────────────── */
+
+.conf-video-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.conf-video-dialog {
+  width: 580rpx;
+  background: #ffffff;
+  border-radius: 28rpx;
+  padding: 48rpx 40rpx 40rpx;
+  box-sizing: border-box;
+  box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.18);
+}
+
+.conf-video-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #00B050;
+  text-align: center;
+}
+
+.conf-video-text {
+  margin-top: 32rpx;
+  font-size: 28rpx;
+  line-height: 44rpx;
+  color: #333333;
+  text-align: center;
+}
+
+.conf-video-btn {
+  margin: 40rpx auto 0;
+  width: 320rpx;
+  height: 80rpx;
+  background: #00B050;
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+}
