@@ -245,7 +245,7 @@ Page({
       return {
         ...q,
         feedback: fb
-          ? { is_correct: !!fb.is_correct, correct_answer: fb.correct_answer },
+          ? { is_correct: !!fb.is_correct, correct_answer: fb.correct_answer }
           : null,
         answered: !!(fb && fb.user_answer)
       };
