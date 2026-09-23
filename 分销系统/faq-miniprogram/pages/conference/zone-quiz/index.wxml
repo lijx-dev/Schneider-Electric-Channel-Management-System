@@ -53,22 +53,19 @@
       <input class="fill-input" wx:if="{{q.question_type === 'fill_blank'}}" placeholder="请输入答案"
         data-qid="{{q.id}}" bindinput="onFillInput" />
 
-      <!-- 提交后反馈：对错 + 正确答案 -->
-      <view class="feedback" wx:if="{{q.feedback}}">
-        <text class="feedback-mark {{q.feedback.is_correct ? 'ok' : 'no'}}">
-          {{q.feedback.is_correct ? '✓ 答对' : '✗ 答错'}}
-        </text>
-        <text class="feedback-answer" wx:if="{{!q.feedback.is_correct}}">
-          正确答案：{{q.feedback.correct_answer}}
-        </text>
-      </view>
+      <!-- 提交后反馈：对错 + 正确答案（答题未全对时展示） -->
+    <view class="feedback" wx:if="{{q.feedback && !allCorrect}}">
+      <text class="feedback-mark {{q.feedback.is_correct ? 'ok' : 'no'}}">
+        {{q.feedback.is_correct ? '答对' : '答错，正确答案：' + q.feedback.correct_answer}}
+      </text>
+    </view>
     </view>
 
-    <view class="submit-tip" wx:if="{{submitted && !allCorrect}}">
-      答错的题目已标注，可修改后重新提交，次数不限。
-    </view>
-
-    <button class="primary-btn submit-btn" bindtap="onSubmit" disabled="{{submitting}}">
+    <!-- 第一次提交后（有错）→ 再做一次；做题页 → 提交答案 -->
+    <button wx:if="{{submitted && !allCorrect}}" class="primary-btn submit-btn" bindtap="onRestart">
+      再做一次
+    </button>
+    <button wx:else class="primary-btn submit-btn" bindtap="onSubmit" disabled="{{submitting}}">
       {{submitting ? '提交中...' : (allCorrect ? '答题已完成' : '提交答案')}}
     </button>
   </view>

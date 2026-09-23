@@ -258,6 +258,20 @@ Page({
     });
   },
 
+  // 收起对错/答案反馈，回到正常答题页（保留已选选项），可再次提交
+  onRestart() {
+    const questions = (this.data.questions || []).map((q) => ({
+      ...q,
+      feedback: null,
+      answered: false
+    }));
+    this.setData({
+      questions,
+      submitted: false,
+      allCorrect: false
+    });
+  },
+
   goToMedal() {
     wx.navigateTo({
       url: '/pages/conference/my-medal/index'
