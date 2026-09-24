@@ -690,7 +690,7 @@ async def get_survey_progress(
 
 @router.get("/points")
 async def get_my_points(
-    user_id: str = Depends(require_specialist),
+    user_id: str = Depends(require_specialist_or_manager),
     db: AsyncSession = Depends(get_db),
 ):
     """获取我的积分和等级."""
@@ -762,7 +762,7 @@ async def get_points_ranking(
 
 @router.get("/points/transactions")
 async def get_points_transactions(
-    user_id: str = Depends(require_specialist),
+    user_id: str = Depends(require_specialist_or_manager),
     db: AsyncSession = Depends(get_db),
 ):
     """获取积分明细."""
