@@ -663,11 +663,24 @@
   }
 
   async function recCalcMonthly() {
-    if (!confirm('确定要计算' + recEl('recMonthlyMonth').value + '的月度评选吗？将自动计算微光之星和销圈人气王。')) return;
+    var month = recEl('recMonthlyMonth').value;
+    if (!confirm('确定要计算' + month + '的月度评选吗？将自动计算微光之星和销圈人气王。')) return;
     try {
+      // 同月重复检测：计算接口为追加写入，重复计算会产生重复获奖记录
+      var existing = [];
+      try {
+        var unpub = await request(REC_API + '/awards/results?published=false');
+        existing = (Array.isArray(unpub) ? unpub : []).filter(function(a) {
+          return a.award_month === month && (a.award_type === 'monthly_star' || a.award_type === 'monthly_mvp');
+        });
+      } catch (e) { /* 查询失败不阻塞计算 */ }
+      if (existing.length) {
+        var names = existing.map(function(a) { return recAwardTypeLabel(a.award_type) + '-' + a.user_name; }).join('、');
+        if (!confirm(month + ' 已存在 ' + existing.length + ' 条未发布的月度获奖记录（' + names + '）。\n继续计算会再追加一批记录，可能导致重复，是否继续？')) return;
+      }
       var data = await request(REC_API + '/awards/calculate-monthly', {
         method: 'POST',
-        body: { month: recEl('recMonthlyMonth').value }
+        body: { month: month }
       });
       alert('计算完成，共产生 ' + (data.results ? data.results.length : 0) + ' 条获奖记录');
       recLoadMonthlyAwards();

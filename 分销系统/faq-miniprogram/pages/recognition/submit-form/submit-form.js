@@ -15,6 +15,8 @@ Page({
     // 微光提名专用
     nomineeId: '',
     nomineeName: '',
+    nomineeList: [],
+    nomineeIndex: -1,
     eventDescription: '',
     positiveImpact: '',
     // 底部
@@ -45,6 +47,7 @@ Page({
       });
       if (result && result.is_nomination) {
         this.setData({ loading: false });
+        this.loadNominees();
         return;
       }
       const items = (result && result.items) || [];
@@ -140,9 +143,29 @@ Page({
     this.setData({ customItems });
   },
 
-  // 微光提名专用
-  onNomineeInput(e) {
-    this.setData({ nomineeId: e.detail.value });
+  // 微光提名专用：加载候选人员
+  async loadNominees() {
+    try {
+      const list = await app.request({ url: '/api/recognition/nominees' });
+      const myId = app.globalData.userId || '';
+      // 过滤掉自己，避免自提
+      const nomineeList = (list || []).filter(u => u.id !== myId);
+      this.setData({ nomineeList });
+    } catch (err) {
+      console.error('Load nominees error:', err);
+      wx.showToast({ title: '加载提名候选人失败', icon: 'none' });
+    }
+  },
+
+  onNomineeChange(e) {
+    const index = Number(e.detail.value);
+    const item = this.data.nomineeList[index];
+    if (!item) return;
+    this.setData({
+      nomineeIndex: index,
+      nomineeId: item.id,
+      nomineeName: item.real_name
+    });
   },
 
   onEventInput(e) {
@@ -182,7 +205,7 @@ Page({
     // 校验
     if (this.data.isNomination) {
       if (!contentJson.nominee_id) {
-        wx.showToast({ title: '请输入被提名人ID', icon: 'none' });
+        wx.showToast({ title: '请选择被提名人', icon: 'none' });
         return;
       }
       if (!contentJson.event_description) {

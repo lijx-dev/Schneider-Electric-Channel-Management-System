@@ -13,7 +13,11 @@
     <block wx:if="{{isNomination}}">
       <view class="form-section">
         <text class="section-title">被提名人</text>
-        <input class="form-input" placeholder="请输入被提名人ID" value="{{nomineeId}}" bindinput="onNomineeInput" />
+        <picker mode="selector" range="{{nomineeList}}" range-key="real_name" value="{{nomineeIndex}}" bindchange="onNomineeChange">
+          <view class="picker-value {{nomineeId ? '' : 'picker-placeholder'}}">
+            {{nomineeId ? nomineeName : '请选择被提名人'}}
+          </view>
+        </picker>
       </view>
       <view class="form-section">
         <text class="section-title">事件描述</text>

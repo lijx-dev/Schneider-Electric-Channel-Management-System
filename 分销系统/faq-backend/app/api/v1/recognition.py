@@ -72,6 +72,7 @@ from app.services.recognition import (
     get_form_config,
     get_level_info,
     get_rule_value,
+    resolve_nominee_user_ids,
     _get_user_names,
 )
 
@@ -162,10 +163,17 @@ async def create_submission(
     if body.submission_type not in SUBMISSION_TYPE_MAP:
         return {"code": 1, "message": f"不支持的申报类型: {body.submission_type}"}
 
-    # 微光提名校验：不可自提
+    # 微光提名校验：被提名人必须有效且不可自提
     if body.submission_type == "nomination":
         nominee_id = body.content_json.get("nominee_id", "")
-        if nominee_id == user_id:
+        nominee_id = str(nominee_id).strip() if nominee_id is not None else ""
+        if not nominee_id:
+            return {"code": 1, "message": "请选择被提名人"}
+        resolved, _unresolved = await resolve_nominee_user_ids(db, [nominee_id])
+        target_id = resolved.get(nominee_id)
+        if not target_id:
+            return {"code": 1, "message": "未找到被提名人，请从列表中选择"}
+        if target_id == user_id:
             return {"code": 1, "message": "不可提名自己"}
 
     sub = RecognitionSubmission(
@@ -267,6 +275,7 @@ async def get_nomination_stats(
         try:
             content = json.loads(s.content_json) if isinstance(s.content_json, str) else s.content_json
             nominee_id = content.get("nominee_id", "")
+            nominee_id = str(nominee_id).strip() if nominee_id is not None else ""
             if nominee_id:
                 if nominee_id not in counts:
                     counts[nominee_id] = {"nominee_id": nominee_id, "nominee_name": "", "count": 0}
@@ -274,8 +283,17 @@ async def get_nomination_stats(
         except (json.JSONDecodeError, AttributeError):
             pass
 
-    # 补全名称
+    # 被提名人可能存的是用户ID或姓名，统一解析为真实 user_id
     if counts:
+        resolved, _unresolved = await resolve_nominee_user_ids(db, list(counts.keys()))
+        merged: dict[str, dict] = {}
+        for raw_value, info in counts.items():
+            user_id = resolved.get(raw_value, raw_value)
+            if user_id not in merged:
+                merged[user_id] = {"nominee_id": user_id, "nominee_name": "", "count": 0}
+            merged[user_id]["count"] += info["count"]
+        counts = merged
+
         names = await _get_user_names(db, list(counts.keys()))
         for uid, info in counts.items():
             info["nominee_name"] = names.get(uid, uid)
@@ -975,7 +993,7 @@ async def publish_awards(
 async def get_award_results(
     year: Optional[int] = Query(None),
     month: Optional[str] = Query(None),
-    type: Optional[str] = Query(None),
+    type: Optional[list[str]] = Query(None),
     published: Optional[bool] = Query(None),
     user_id: str = Depends(require_specialist_or_manager),
     db: AsyncSession = Depends(get_db),
@@ -987,7 +1005,7 @@ async def get_award_results(
     if month:
         conditions.append(RecognitionAward.award_month == month)
     if type:
-        conditions.append(RecognitionAward.award_type == type)
+        conditions.append(RecognitionAward.award_type.in_(type))
     if published is not None:
         conditions.append(RecognitionAward.published == published)
 
@@ -1320,6 +1338,32 @@ async def delete_scoring_criteria(
 # ═══════════════════════════════════════════════════════════════════════════
 # 用户管理
 # ═══════════════════════════════════════════════════════════════════════════
+
+@router.get("/nominees")
+async def get_nominee_candidates(
+    user_id: str = Depends(require_specialist_or_manager),
+    db: AsyncSession = Depends(get_db),
+):
+    """微光提名候选人员列表（非分销商角色的内部同事）."""
+    result = await db.execute(
+        select(User)
+        .where(User.recognition_role.in_(["sales", "specialist", "manager"]))
+        .order_by(User.real_name)
+    )
+    users = result.scalars().all()
+    return {
+        "code": 0,
+        "data": [
+            {
+                "id": u.id,
+                "real_name": u.real_name or u.id,
+                "company": u.company,
+                "recognition_role": u.recognition_role,
+            }
+            for u in users
+        ],
+    }
+
 
 @router.get("/users")
 async def get_recognition_users(

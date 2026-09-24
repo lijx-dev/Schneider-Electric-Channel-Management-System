@@ -8,7 +8,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.recognition import (
@@ -90,6 +90,44 @@ async def _get_user_names(db: AsyncSession, user_ids: list[str]) -> dict[str, st
     return {row.id: row.real_name or row.id for row in result}
 
 
+async def resolve_nominee_user_ids(
+    db: AsyncSession, raw_values: list[str]
+) -> tuple[dict[str, str], list[str]]:
+    """把提名里的「被提名人」标识解析为真实用户ID。
+
+    历史上该字段既可能存用户ID，也可能存姓名（前端为自由输入）。
+    返回 (原始值 -> user_id 映射, 无法唯一匹配的原始值列表)。
+    姓名重名无法唯一确定时视为无法匹配。
+    """
+    cleaned = {str(v).strip() for v in raw_values if v and str(v).strip()}
+    if not cleaned:
+        return {}, []
+
+    result = await db.execute(
+        select(User.id, User.real_name).where(
+            or_(User.id.in_(cleaned), User.real_name.in_(cleaned))
+        )
+    )
+    rows = result.all()
+
+    by_id = {row.id for row in rows if row.id in cleaned}
+    name_to_ids: dict[str, list[str]] = defaultdict(list)
+    for row in rows:
+        if row.real_name and row.real_name in cleaned:
+            name_to_ids[row.real_name].append(row.id)
+
+    resolved: dict[str, str] = {}
+    unresolved: list[str] = []
+    for value in cleaned:
+        if value in by_id:
+            resolved[value] = value
+        elif len(name_to_ids.get(value, [])) == 1:
+            resolved[value] = name_to_ids[value][0]
+        else:
+            unresolved.append(value)
+    return resolved, unresolved
+
+
 # ── 月度微光之星评选 ─────────────────────────────────────────────────────
 
 async def calculate_monthly_star(db: AsyncSession, month: str) -> list[dict]:
@@ -108,15 +146,28 @@ async def calculate_monthly_star(db: AsyncSession, month: str) -> list[dict]:
     )
     submissions = nominations.scalars().all()
 
-    nominee_counts: dict[str, int] = defaultdict(int)
+    raw_counts: dict[str, int] = defaultdict(int)
     for sub in submissions:
         try:
             content = json.loads(sub.content_json) if isinstance(sub.content_json, str) else sub.content_json
             nominee_id = content.get("nominee_id", "")
+            nominee_id = str(nominee_id).strip() if nominee_id is not None else ""
             if nominee_id:
-                nominee_counts[nominee_id] += 1
+                raw_counts[nominee_id] += 1
         except (json.JSONDecodeError, AttributeError):
             pass
+
+    if not raw_counts:
+        return []
+
+    # 被提名人可能存的是用户ID或姓名，统一解析为真实 user_id
+    resolved, _unresolved = await resolve_nominee_user_ids(db, list(raw_counts.keys()))
+
+    nominee_counts: dict[str, int] = defaultdict(int)
+    for raw_value, count in raw_counts.items():
+        user_id = resolved.get(raw_value)
+        if user_id:
+            nominee_counts[user_id] += count
 
     if not nominee_counts:
         return []
