@@ -18,8 +18,8 @@
     <button class="primary-btn" bindtap="onSignIn">签到并开始答题</button>
   </view>
 
-  <!-- 已签到：题目 -->
-  <view class="card" wx:if="{{signedIn && !loading}}">
+  <!-- 已签到且未获总勋章：题目 -->
+  <view class="card" wx:if="{{signedIn && !loading && !showCompleted}}">
     <view class="card-title">完成以下题目，点亮本展区印章</view>
 
     <view class="question" wx:for="{{questions}}" wx:key="id" wx:for-item="q">
@@ -61,13 +61,34 @@
     </view>
     </view>
 
-    <!-- 第一次提交后（有错）→ 再做一次；做题页 → 提交答案 -->
+    <!-- 第一次提交后（有错）→ 再做一次；未答 → 提交答案 -->
     <button wx:if="{{submitted && !allCorrect}}" class="primary-btn submit-btn" bindtap="onRestart">
       再做一次
     </button>
-    <button wx:else class="primary-btn submit-btn" bindtap="onSubmit" disabled="{{submitting}}">
-      {{submitting ? '提交中...' : (allCorrect ? '答题已完成' : '提交答案')}}
+    <button wx:elif="{{!allCorrect}}" class="primary-btn submit-btn" bindtap="onSubmit" disabled="{{submitting}}">
+      {{submitting ? '提交中...' : '提交答案'}}
     </button>
+  </view>
+
+  <!-- 已获总勋章：完成页（扫码进入时展示，避免找不到勋章入口） -->
+  <view class="card" wx:if="{{signedIn && !loading && showCompleted}}">
+    <view class="celebrate-badge">🏅</view>
+    <view class="celebrate-title">您已完成四个展区的打卡，已获得勋章</view>
+    <view class="celebrate-medal-code" wx:if="{{completedMedalCode}}">勋章编码：{{completedMedalCode}}</view>
+    <button class="primary-btn submit-btn" bindtap="goToMedal">查看勋章</button>
+  </view>
+
+  <!-- 庆祝弹层：全对/集齐勋章 -->
+  <view class="celebration" wx:if="{{celebrate}}">
+    <view class="celebration-panel">
+      <view class="celebrate-badge">{{celebrateHasMedal ? '🏅' : '🏆'}}</view>
+      <view class="celebrate-title">{{celebrateText}}</view>
+      <view class="celebrate-medal-code" wx:if="{{celebrateHasMedal && celebrateMedalCode}}">勋章编码：{{celebrateMedalCode}}</view>
+      <view class="celebrate-actions">
+        <button wx:if="{{celebrateHasMedal}}" class="primary-btn" bindtap="closeCelebrateAndGoMedal">查看勋章</button>
+        <button wx:else class="primary-btn" bindtap="closeCelebrate">知道了</button>
+      </view>
+    </view>
   </view>
 
   <view wx:if="{{loading}}" class="loading">加载中...</view>

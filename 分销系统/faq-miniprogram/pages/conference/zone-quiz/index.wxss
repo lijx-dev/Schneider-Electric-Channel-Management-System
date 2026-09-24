@@ -195,3 +195,53 @@
   font-size: 26rpx;
   text-align: center;
 }
+
+/* ── 庆祝弹层 ── */
+.celebration {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.celebration-panel {
+  width: 560rpx;
+  padding: 48rpx 32rpx 40rpx;
+  background: #ffffff;
+  border-radius: 24rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.celebrate-badge {
+  font-size: 120rpx;
+  line-height: 1.2;
+  text-align: center;
+}
+.celebrate-title {
+  margin-top: 24rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #0f172a;
+  text-align: center;
+  line-height: 1.5;
+}
+.celebrate-medal-code {
+  margin-top: 16rpx;
+  font-size: 26rpx;
+  color: #b45309;
+  letter-spacing: 2rpx;
+}
+.celebrate-actions {
+  margin-top: 36rpx;
+  display: flex;
+  justify-content: center;
+}
+.celebrate-actions .primary-btn {
+  margin: 0;
+}

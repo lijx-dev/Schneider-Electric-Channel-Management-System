@@ -16,7 +16,15 @@ Page({
     submitted: false,
     allCorrect: false,
     phone: '',
-    name: ''
+    name: '',
+    // 庆祝弹层
+    celebrate: false,
+    celebrateText: '',
+    celebrateHasMedal: false,
+    celebrateMedalCode: '',
+    // 已完成全部展区（已获总勋章）→ 直接展示完成页
+    showCompleted: false,
+    completedMedalCode: ''
   },
 
   onLoad(options) {
@@ -104,11 +112,33 @@ Page({
         }))
       }));
       this.setData({ zone: data, questions });
+
+      // 若已集齐全部展区获得总勋章 → 扫任意码都展示完成页（避免找不到勋章入口）
+      this.checkMedalGranted();
     } catch (err) {
       console.warn('load zone quiz failed:', err);
       wx.showToast({ title: '加载失败', icon: 'none' });
     } finally {
       this.setData({ loading: false });
+    }
+  },
+
+  async checkMedalGranted() {
+    if (!this.data.phone) return;
+    try {
+      const medal = await app.request({
+        url: '/api/conference/medal',
+        data: { phone: this.data.phone },
+        retryCount: 1
+      });
+      if (medal && medal.granted) {
+        this.setData({
+          showCompleted: true,
+          completedMedalCode: medal.medal_code || ''
+        });
+      }
+    } catch (err) {
+      console.warn('check medal granted failed:', err);
     }
   },
 
@@ -207,21 +237,28 @@ Page({
       });
 
       if (res.medal_earned) {
-        wx.showModal({
-          title: '集齐全部打卡点',
-          content: `恭喜集齐全部能量印章，获得专属能量勋章：${res.medal_code || ''}`,
-          confirmText: '查看勋章',
-          cancelText: '继续',
-          success: (confirmRes) => {
-            if (confirmRes.confirm) {
-              this.goToMedal();
-            }
-          }
+        // 集齐全部展区 → 显示勋章完成页
+        this.setData({
+          celebrate: true,
+          celebrateText: '恭喜完成全部展区打卡并集齐能量勋章！',
+          celebrateHasMedal: true,
+          celebrateMedalCode: res.medal_code || ''
         });
       } else if (res.stamp_earned) {
-        wx.showToast({ title: '打卡成功，获得本展区能量印章', icon: 'none', duration: 2000 });
+        // 本展区首次全对 → 庆祝弹层展示奖杯，提示移步下一展区
+        this.setData({
+          celebrate: true,
+          celebrateText: '本展区打卡完成，请移步到下一个展区吧！',
+          celebrateHasMedal: false,
+          celebrateMedalCode: ''
+        });
       } else if (res.completed) {
-        wx.showToast({ title: '本次全部答对，已获得印章', icon: 'none' });
+        this.setData({
+          celebrate: true,
+          celebrateText: '本展区已全部答对并获得印章！',
+          celebrateHasMedal: false,
+          celebrateMedalCode: ''
+        });
       }
 
       // 逐题答题结果（对错 + 正确答案），合并到题目上用于展示，答题仍不限次数
@@ -232,6 +269,32 @@ Page({
     } finally {
       this.setData({ submitting: false });
     }
+  },
+
+  closeCelebrate() {
+    this.setData({ celebrate: false });
+  },
+
+  closeCelebrateAndGoMedal() {
+    this.setData({ celebrate: false });
+    this.goToMedal();
+  },
+
+  // 重做一次：清掉原有答案与选项选中，重新做题
+  onRestart() {
+    const answers = {};
+    const questions = (this.data.questions || []).map((q) => ({
+      ...q,
+      feedback: null,
+      answered: false,
+      options: (q.options || []).map((opt) => ({ ...opt, selected: false }))
+    }));
+    this.setData({
+      questions,
+      answers,
+      submitted: false,
+      allCorrect: false
+    });
   },
 
   // 把后端返回的逐题对错/正确答案合并到 questions，供 WXML 展示
@@ -255,20 +318,6 @@ Page({
       questions,
       allCorrect,
       submitted: (results || []).length > 0
-    });
-  },
-
-  // 收起对错/答案反馈，回到正常答题页（保留已选选项），可再次提交
-  onRestart() {
-    const questions = (this.data.questions || []).map((q) => ({
-      ...q,
-      feedback: null,
-      answered: false
-    }));
-    this.setData({
-      questions,
-      submitted: false,
-      allCorrect: false
     });
   },
 
