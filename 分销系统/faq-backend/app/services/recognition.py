@@ -191,54 +191,75 @@ async def calculate_monthly_star(db: AsyncSession, month: str) -> list[dict]:
 # ── 月度销圈人气王评选 ───────────────────────────────────────────────────
 
 async def calculate_sales_mvp(db: AsyncSession, month: str) -> list[dict]:
-    """每个专员取所有销售总分的「中位数」."""
+    """销圈人气王：满意度 × 人气（有效评分人数）双维加权.
+
+    - 有效评分：仅计入认可角色为 sales 的评分人提交的评分
+      （自动排除管理员/经理的测试数据，也避免自评、跨角色评分）
+    - 单项得分：按已填维度的均值折算到 20 分制，漏填维度不再被当成差评
+    - 满意度 = 有效评分折算均值 / 20；人气因子 = min(有效人数, cap) / cap
+    - 综合分 = 满意度 × 人气因子 × 100；有效人数不足门槛不出榜
+    - 并列规则：综合分 → 有效评分人数 → 折算均值 → user_id，结果可复现
+    """
     max_winners = int(await get_rule_value(db, "monthly_mvp_max_winners", "2"))
     rank1_points = int(await get_rule_value(db, "monthly_mvp_rank1_points", "50"))
     rank2_points = int(await get_rule_value(db, "monthly_mvp_rank2_points", "20"))
+    popularity_cap = int(await get_rule_value(db, "monthly_mvp_popularity_cap", "15"))
+    min_raters = int(await get_rule_value(db, "monthly_mvp_min_raters", "5"))
 
-    # 获取当月所有评分
+    # 仅统计销售提交的当月评分
     result = await db.execute(
-        select(RecognitionSurvey).where(RecognitionSurvey.survey_month == month)
+        select(RecognitionSurvey)
+        .join(User, User.id == RecognitionSurvey.rater_id)
+        .where(
+            RecognitionSurvey.survey_month == month,
+            User.recognition_role == "sales",
+        )
     )
     surveys = result.scalars().all()
 
     if not surveys:
         return []
 
-    # 按专员(target_id)分组
+    # 按专员(target_id)分组，单项得分折算到 20 分制
     specialist_scores: dict[str, list[float]] = defaultdict(list)
     for s in surveys:
         dims = [s.score_efficiency, s.score_response, s.score_training, s.score_communication]
-        valid = [d for d in dims if d is not None]
+        valid = [float(d) for d in dims if d is not None]
         if valid:
-            total = sum(valid)
-            specialist_scores[s.target_id].append(float(total))
+            specialist_scores[s.target_id].append(statistics.mean(valid) * 4)
 
-    if not specialist_scores:
+    ranked = []
+    for specialist_id, scores in specialist_scores.items():
+        rater_count = len(scores)
+        if rater_count < min_raters:
+            continue
+        avg_score = statistics.mean(scores)
+        satisfaction = avg_score / 20
+        popularity = min(rater_count, popularity_cap) / popularity_cap
+        ranked.append({
+            "user_id": specialist_id,
+            "rater_count": rater_count,
+            "avg_score": round(avg_score, 3),
+            "satisfaction": round(satisfaction, 4),
+            "popularity": round(popularity, 4),
+            "score": round(satisfaction * popularity * 100, 2),
+        })
+
+    if not ranked:
         return []
 
-    # 计算每个专员的中位数，排序
-    medians = []
-    for specialist_id, scores in specialist_scores.items():
-        med = statistics.median(scores) if scores else 0
-        medians.append((specialist_id, med, len(scores)))
+    ranked.sort(key=lambda x: (-x["score"], -x["rater_count"], -x["avg_score"], x["user_id"]))
+    winners = ranked[:max_winners]
 
-    medians.sort(key=lambda x: x[1], reverse=True)
-    winners = medians[:max_winners]
-
-    user_ids = [uid for uid, _, _ in winners]
-    names = await _get_user_names(db, user_ids)
+    names = await _get_user_names(db, [w["user_id"] for w in winners])
 
     results = []
-    for rank, (uid, median_val, rater_count) in enumerate(winners, 1):
-        pts = rank1_points if rank == 1 else rank2_points
+    for rank, item in enumerate(winners, 1):
         results.append({
-            "user_id": uid,
-            "user_name": names.get(uid, uid),
+            **item,
+            "user_name": names.get(item["user_id"], item["user_id"]),
             "rank": rank,
-            "median_score": round(median_val, 2),
-            "rater_count": rater_count,
-            "points": pts,
+            "points": rank1_points if rank == 1 else rank2_points,
         })
     return results
 

@@ -861,7 +861,7 @@ async def calculate_monthly(
             award_type="monthly_mvp",
             award_name="销圈人气王",
             rank=mvp["rank"],
-            score=mvp["median_score"],
+            score=mvp["score"],
             points_awarded=mvp["points"],
             award_month=month,
             award_year=year,
