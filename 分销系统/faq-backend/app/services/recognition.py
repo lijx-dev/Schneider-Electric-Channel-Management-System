@@ -203,7 +203,7 @@ async def calculate_sales_mvp(db: AsyncSession, month: str) -> list[dict]:
     max_winners = int(await get_rule_value(db, "monthly_mvp_max_winners", "2"))
     rank1_points = int(await get_rule_value(db, "monthly_mvp_rank1_points", "50"))
     rank2_points = int(await get_rule_value(db, "monthly_mvp_rank2_points", "20"))
-    popularity_cap = int(await get_rule_value(db, "monthly_mvp_popularity_cap", "15"))
+    popularity_cap = int(await get_rule_value(db, "monthly_mvp_popularity_cap", "20"))
     min_raters = int(await get_rule_value(db, "monthly_mvp_min_raters", "5"))
 
     # 仅统计销售提交的当月评分
