@@ -129,7 +129,7 @@ async def _build_submission_response(db: AsyncSession, sub: RecognitionSubmissio
 @router.get("/submissions/form-config")
 async def get_submission_form_config(
     type: str = Query(..., description="申报类型"),
-    user_id: str = Depends(require_specialist),
+    user_id: str = Depends(require_specialist_or_manager),
     db: AsyncSession = Depends(get_db),
 ):
     """获取某类型申报表单的预定义选项（从scoring_criteria动态加载）."""
@@ -156,12 +156,17 @@ async def get_submission_form_config(
 @router.post("/submissions")
 async def create_submission(
     body: SubmissionCreate,
-    user_id: str = Depends(require_specialist),
+    user_id: str = Depends(require_specialist_or_manager),
     db: AsyncSession = Depends(get_db),
 ):
     """提交申报（含5种类型）."""
     if body.submission_type not in SUBMISSION_TYPE_MAP:
         return {"code": 1, "message": f"不支持的申报类型: {body.submission_type}"}
+
+    # 经理仅有微光提名权限，季度奖项申报仍限专员
+    role_result = await db.execute(select(User.recognition_role).where(User.id == user_id))
+    if role_result.scalar_one_or_none() == "manager" and body.submission_type != "nomination":
+        return {"code": 1, "message": "经理仅可发起微光提名"}
 
     # 微光提名校验：被提名人必须有效且不可自提
     if body.submission_type == "nomination":
@@ -198,7 +203,7 @@ async def create_submission(
 async def update_submission(
     submission_id: int,
     body: SubmissionUpdate,
-    user_id: str = Depends(require_specialist),
+    user_id: str = Depends(require_specialist_or_manager),
     db: AsyncSession = Depends(get_db),
 ):
     """修改申报（仅草稿状态可修改）."""
@@ -235,7 +240,7 @@ async def update_submission(
 @router.get("/submissions")
 async def get_my_submissions(
     type: Optional[str] = Query(None, description="按类型筛选"),
-    user_id: str = Depends(require_specialist),
+    user_id: str = Depends(require_specialist_or_manager),
     db: AsyncSession = Depends(get_db),
 ):
     """获取我的申报列表."""
@@ -834,6 +839,26 @@ async def calculate_monthly(
     month = body.month
     year = int(month.split("-")[0])
 
+    # 幂等覆盖：先清掉该月未发布的旧结果，避免重复点击累积出多份记录。
+    # 已发布的记录不动（积分已发放），此时直接拒绝重算，需先撤销发布。
+    published_result = await db.execute(
+        select(RecognitionAward.id).where(
+            RecognitionAward.award_month == month,
+            RecognitionAward.award_type.in_(("monthly_star", "monthly_mvp")),
+            RecognitionAward.published == True,
+        )
+    )
+    if published_result.first():
+        return {"code": 1, "message": f"{month} 的评选结果已发布，请先撤销发布后再重新计算"}
+
+    await db.execute(
+        delete(RecognitionAward).where(
+            RecognitionAward.award_month == month,
+            RecognitionAward.award_type.in_(("monthly_star", "monthly_mvp")),
+            RecognitionAward.published == False,
+        )
+    )
+
     results = []
 
     # 微光之星
@@ -885,6 +910,26 @@ async def calculate_quarterly(
     if not body.quarter or not body.year:
         return {"code": 1, "message": "请指定季度和年份"}
 
+    # 幂等覆盖：同季度同奖项只保留本次计算结果
+    quarter_label = f"{body.year}-Q{body.quarter}"
+    published_result = await db.execute(
+        select(RecognitionAward.id).where(
+            RecognitionAward.award_quarter == quarter_label,
+            RecognitionAward.award_type.in_(QUARTERLY_AWARD_TYPES),
+            RecognitionAward.published == True,
+        )
+    )
+    if published_result.first():
+        return {"code": 1, "message": f"{quarter_label} 的评选结果已发布，请先撤销发布后再重新计算"}
+
+    await db.execute(
+        delete(RecognitionAward).where(
+            RecognitionAward.award_quarter == quarter_label,
+            RecognitionAward.award_type.in_(QUARTERLY_AWARD_TYPES),
+            RecognitionAward.published == False,
+        )
+    )
+
     results = []
     for award_type in QUARTERLY_AWARD_TYPES:
         winners = await calculate_quarterly_award(db, award_type, body.quarter, body.year)
@@ -896,7 +941,7 @@ async def calculate_quarterly(
                 rank=w["rank"],
                 score=w["score"],
                 points_awarded=w["points"],
-                award_quarter=f"{body.year}-Q{body.quarter}",
+                award_quarter=quarter_label,
                 award_year=body.year,
                 published=False,
                 created_at=datetime.now(timezone.utc),
@@ -922,6 +967,25 @@ async def calculate_annual(
     """触发年度评选计算."""
     if not body.year:
         return {"code": 1, "message": "请指定年份"}
+
+    # 幂等覆盖：同年度只保留本次计算结果
+    published_result = await db.execute(
+        select(RecognitionAward.id).where(
+            RecognitionAward.award_year == body.year,
+            RecognitionAward.award_type == "annual_star",
+            RecognitionAward.published == True,
+        )
+    )
+    if published_result.first():
+        return {"code": 1, "message": f"{body.year} 的评选结果已发布，请先撤销发布后再重新计算"}
+
+    await db.execute(
+        delete(RecognitionAward).where(
+            RecognitionAward.award_year == body.year,
+            RecognitionAward.award_type == "annual_star",
+            RecognitionAward.published == False,
+        )
+    )
 
     winners = await calculate_annual_star(db, body.year)
     results = []

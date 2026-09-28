@@ -523,6 +523,12 @@ Page({
     wx.navigateTo({ url: '/pages/recognition/submit/submit' });
   },
 
+  // 经理端的微光提名入口：直接进提名表单
+  goToRecognitionNominate() {
+    if (!app.requireLogin()) return;
+    wx.navigateTo({ url: '/pages/recognition/submit-form/submit-form?type=nomination' });
+  },
+
   goToRecognitionMyAwards() {
     if (!app.requireLogin()) return;
     wx.navigateTo({ url: '/pages/recognition/my-awards/my-awards' });

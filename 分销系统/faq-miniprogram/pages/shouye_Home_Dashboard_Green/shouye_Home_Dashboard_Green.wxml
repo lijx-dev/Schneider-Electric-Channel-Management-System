@@ -136,6 +136,12 @@
           </view>
         </view>
         <view class="recognition-entry-grid">
+          <view class="recognition-entry-item" bindtap="goToRecognitionNominate">
+            <view class="recognition-entry-icon-wrap">
+              <text class="recognition-entry-icon">📝</text>
+            </view>
+            <text class="recognition-entry-text">微光提名</text>
+          </view>
           <view class="recognition-entry-item" bindtap="goToManagerReview">
             <view class="recognition-entry-icon-wrap">
               <text class="recognition-entry-icon">✅</text>
