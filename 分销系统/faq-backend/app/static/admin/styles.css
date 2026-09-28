@@ -684,6 +684,51 @@ th {
   word-break: break-all;
 }
 
+.rec-item {
+  padding: 6px 0;
+  border-bottom: 1px dashed #f0f0f0;
+}
+
+.rec-item:last-child {
+  border-bottom: none;
+}
+
+.rec-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.rec-item-help {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.rec-item-value {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.rec-item-desc {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.rec-empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .rec-rule-value {
   background: #f8fafc;
   border: 1px solid #e5e7eb;

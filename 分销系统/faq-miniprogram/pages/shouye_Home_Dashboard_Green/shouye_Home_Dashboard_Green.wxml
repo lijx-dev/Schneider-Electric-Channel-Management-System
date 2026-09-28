@@ -136,11 +136,11 @@
           </view>
         </view>
         <view class="recognition-entry-grid">
-          <view class="recognition-entry-item" bindtap="goToRecognitionNominate">
+          <view class="recognition-entry-item" bindtap="goToRecognitionSubmit">
             <view class="recognition-entry-icon-wrap">
               <text class="recognition-entry-icon">📝</text>
             </view>
-            <text class="recognition-entry-text">微光提名</text>
+            <text class="recognition-entry-text">成就申报</text>
           </view>
           <view class="recognition-entry-item" bindtap="goToManagerReview">
             <view class="recognition-entry-icon-wrap">
@@ -164,7 +164,7 @@
             <view class="recognition-entry-icon-wrap">
               <text class="recognition-entry-icon">🏆</text>
             </view>
-            <text class="recognition-entry-text">奖项管理</text>
+            <text class="recognition-entry-text">评选结果</text>
           </view>
         </view>
       </view>

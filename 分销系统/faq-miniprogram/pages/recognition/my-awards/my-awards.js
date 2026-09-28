@@ -1,8 +1,22 @@
 const app = getApp();
 
+// 经理端「评选结果」分组顺序
+const AWARD_TYPE_ORDER = [
+  'monthly_star',
+  'monthly_mvp',
+  'order_guardian',
+  'distributor_pioneer',
+  'distributor_mentor',
+  'efficiency_innovator',
+  'annual_star'
+];
+
 Page({
   data: {
     loading: true,
+    // 经理端：展示全量已发布评选结果，不展示个人等级卡片与积分明细
+    isManager: false,
+    awardGroups: [],
     // 积分
     totalScore: 0,
     level: { level: '启明星', level_icon: '☆' },
@@ -22,10 +36,28 @@ Page({
   },
 
   async loadAll() {
+    const recognitionRole = (app.globalData.userInfo && app.globalData.userInfo.recognition_role) || '';
+    const isManager = recognitionRole === 'manager';
+    this.setData({ isManager });
+
     try {
+      if (isManager) {
+        // 经理端：全量已发布评选结果，按奖项类型分组
+        const awardsResult = await app.request({
+          url: '/api/recognition/awards/results?published=true'
+        });
+        const awards = Array.isArray(awardsResult) ? awardsResult : [];
+        this.setData({
+          loading: false,
+          awards,
+          awardGroups: this.buildAwardGroups(awards)
+        });
+        return;
+      }
+
       const [pointsResult, awardsResult, transactionsResult] = await Promise.all([
         app.request({ url: '/api/recognition/points' }),
-        app.request({ url: '/api/recognition/awards/results?published=true' }),
+        app.request({ url: '/api/recognition/awards/results?published=true&mine=true' }),
         app.request({ url: '/api/recognition/points/transactions' })
       ]);
 
@@ -53,6 +85,25 @@ Page({
     }
   },
 
+  // 经理端：把评奖结果按奖项类型分组，未知类型排在已知类型之后
+  buildAwardGroups(awards) {
+    const grouped = {};
+    (awards || []).forEach((item) => {
+      const type = (item && item.award_type) || 'other';
+      if (!grouped[type]) grouped[type] = [];
+      grouped[type].push(item);
+    });
+
+    const orderedTypes = AWARD_TYPE_ORDER.filter((type) => grouped[type] && grouped[type].length)
+      .concat(Object.keys(grouped).filter((type) => AWARD_TYPE_ORDER.indexOf(type) < 0));
+
+    return orderedTypes.map((type) => ({
+      type,
+      typeName: this.getAwardTypeName(type),
+      items: grouped[type]
+    }));
+  },
+
   calcProgress(score, pointsResult) {
     const s = score || 0;
     const level = (pointsResult && pointsResult.level) || '启明星';
@@ -76,8 +127,9 @@ Page({
       order_guardian: '报备秩序卫士',
       distributor_pioneer: '分销商支持先锋',
       distributor_mentor: '分销商成长伯乐',
-      efficiency_innovator: '效率提升创新',
-      annual_star: '年度渠道之星'
+      efficiency_innovator: '效能提升创新者',
+      annual_star: '年度渠道之星',
+      other: '其他奖项'
     };
     return map[type] || type;
   },

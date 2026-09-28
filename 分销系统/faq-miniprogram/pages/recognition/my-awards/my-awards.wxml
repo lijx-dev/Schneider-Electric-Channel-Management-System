@@ -4,8 +4,8 @@
   </view>
 
   <view wx:else>
-    <!-- 积分等级卡片 -->
-    <view class="level-card">
+    <!-- 积分等级卡片（经理端不展示，个人积分为 0 无意义） -->
+    <view wx:if="{{!isManager}}" class="level-card">
       <view class="level-header">
         <view class="level-badge">
           <text class="level-icon">{{level.level_icon}}</text>
@@ -21,8 +21,8 @@
       </view>
     </view>
 
-    <!-- Tab 切换 -->
-    <view class="tab-bar">
+    <!-- Tab 切换（经理端不展示积分明细） -->
+    <view wx:if="{{!isManager}}" class="tab-bar">
       <view class="tab-item {{activeTab === 'awards' ? 'tab-active' : ''}}" data-tab="awards" bindtap="switchTab">
         <text>获奖记录</text>
       </view>
@@ -31,8 +31,34 @@
       </view>
     </view>
 
+    <!-- 经理端：全量评选结果（按奖项类型分组） -->
+    <view wx:if="{{isManager}}" class="result-groups">
+      <view wx:if="{{awardGroups.length === 0}}" class="empty-wrap">
+        <text class="empty-text">暂无已发布的评选结果</text>
+      </view>
+      <view wx:for="{{awardGroups}}" wx:key="type" class="result-group">
+        <view class="result-group-head">
+          <text class="result-group-title">{{item.typeName}}</text>
+          <text class="result-group-count">{{item.items.length}} 人</text>
+        </view>
+        <view wx:for="{{item.items}}" wx:for-item="award" wx:key="id" class="award-card">
+          <view class="award-left">
+            <text class="award-type">{{award.user_name}}</text>
+            <text class="award-period">
+              {{award.award_month || award.award_quarter || (award.award_year + '年')}}
+            </text>
+          </view>
+          <view class="award-right">
+            <text class="award-rank" wx:if="{{award.rank}}">第{{award.rank}}名</text>
+            <text class="award-points">+{{award.points_awarded}} 积分</text>
+            <text class="award-status">{{award.published ? '已发布' : '未发布'}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
     <!-- 获奖记录 -->
-    <view wx:if="{{activeTab === 'awards'}}" class="award-list">
+    <view wx:if="{{!isManager && activeTab === 'awards'}}" class="award-list">
       <view wx:if="{{awards.length === 0}}" class="empty-wrap">
         <text class="empty-text">暂无获奖记录</text>
       </view>
@@ -51,7 +77,7 @@
     </view>
 
     <!-- 积分明细 -->
-    <view wx:if="{{activeTab === 'transactions'}}" class="transaction-list">
+    <view wx:if="{{!isManager && activeTab === 'transactions'}}" class="transaction-list">
       <view wx:if="{{transactions.length === 0}}" class="empty-wrap">
         <text class="empty-text">暂无积分记录</text>
       </view>

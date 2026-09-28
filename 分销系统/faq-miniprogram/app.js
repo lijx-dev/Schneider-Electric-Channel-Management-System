@@ -426,7 +426,7 @@ App({
     return consumed;
   },
 
-  async refreshCurrentUserProfile({ userId = this.globalData.userId } = {}) {
+  async refreshCurrentUserProfile({ userId = this.globalData.userId, skipAuthRedirect = false } = {}) {
     if (!userId) {
       return null;
     }
@@ -435,6 +435,7 @@ App({
       url: `/api/user/rank?user_id=${userId}`,
       retryCount: 1,
       timeout: 20000,
+      skipAuthRedirect,
       debugTag: 'refresh-current-user-profile'
     });
 
@@ -760,6 +761,99 @@ App({
     return result;
   },
 
+  // 解析 JWT 的 exp 判断是否过期；解析失败（格式不合法）按过期处理。
+  isTokenExpired(token) {
+    const parts = String(token || '').trim().split('.');
+    if (parts.length < 2) {
+      return true;
+    }
+
+    try {
+      let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (base64.length % 4 !== 0) {
+        base64 += '=';
+      }
+      const bytes = new Uint8Array(wx.base64ToArrayBuffer(base64));
+      let payloadText = '';
+      for (let i = 0; i < bytes.length; i += 1) {
+        payloadText += String.fromCharCode(bytes[i]);
+      }
+      const exp = Number((JSON.parse(payloadText) || {}).exp);
+      if (!exp) {
+        return true;
+      }
+      // 提前 60 秒判定过期，避免请求途中刚好失效
+      return exp * 1000 - 60000 <= Date.now();
+    } catch (err) {
+      return true;
+    }
+  },
+
+  // 静默重登：用 wx.login 的 code 换新 token，避免 token 过期把用户踢到登录页。
+  // 单例 Promise 防止并发重复登录；返回 boolean 表示是否续期成功。
+  silentRelogin() {
+    if (this.globalData.guestMode || wx.getStorageSync('guestMode')) {
+      return Promise.resolve(false);
+    }
+
+    // 从未登录过（无 userId 也无 token）：没必要尝试换 token，直接交给原有跳转逻辑
+    if (!this.globalData.userId && !this.globalData.token) {
+      return Promise.resolve(false);
+    }
+
+    if (this._silentReloginPromise) {
+      return this._silentReloginPromise;
+    }
+
+    this._silentReloginPromise = (async () => {
+      try {
+        const code = await new Promise((resolve) => {
+          wx.login({
+            success: (res) => resolve((res && res.code) || ''),
+            fail: () => resolve('')
+          });
+        });
+
+        if (!code) {
+          return false;
+        }
+
+        const res = await this.request({
+          url: '/api/auth/login',
+          method: 'POST',
+          data: { code },
+          retryCount: 0,
+          timeout: 10000,
+          skipAuthRedirect: true,
+          debugTag: 'silent-relogin'
+        });
+
+        const token = (res && res.token) || '';
+        if (!token) {
+          return false;
+        }
+
+        const user = this.normalizeUserInfo((res && res.user) || {});
+        this.setUserInfo(user);
+        this.globalData.userId = user.id || this.globalData.userId;
+        this.globalData.token = token;
+        this.globalData.guestMode = false;
+
+        wx.setStorageSync('userId', this.globalData.userId);
+        wx.setStorageSync('token', token);
+        wx.removeStorageSync('guestMode');
+        return true;
+      } catch (err) {
+        console.warn('silent relogin failed:', err);
+        return false;
+      } finally {
+        this._silentReloginPromise = null;
+      }
+    })();
+
+    return this._silentReloginPromise;
+  },
+
   checkLogin(autoRedirect = true) {
     if (this.globalData.guestMode) {
       return true;
@@ -772,6 +866,16 @@ App({
         });
       }
       return false;
+    }
+
+    // token 已过期：后台静默续期；续期失败才走原有清态 + 跳登录页逻辑。
+    // 这里不阻塞调用方，请求层遇到 401 还有一次静默重登重放兜底。
+    if (this.isTokenExpired(this.globalData.token)) {
+      this.silentRelogin().then((recovered) => {
+        if (!recovered) {
+          this.handleUnauthorized();
+        }
+      });
     }
 
     if (autoRedirect && this.shouldRequireDisclaimer()) {
@@ -858,19 +962,26 @@ App({
     wx.removeStorageSync('userInfo');
   },
 
-  handleUnauthorized() {
+  // 401 处理：token 过期属于可恢复场景，先静默重登；成功返回 true 交由调用方重放请求。
+  async handleUnauthorized() {
+    const recovered = await this.silentRelogin();
+    if (recovered) {
+      return true;
+    }
+
     this.clearAuthState();
 
     // guest 模式下不强制跳登录页：审核要求用户取消登录后能正常浏览体验，
     // 不得反复弹窗强制登录。游客仍可浏览内容，仅在主动操作（答题、提问等）时引导登录。
     if (this.globalData.guestMode || wx.getStorageSync('guestMode')) {
       this.globalData.guestMode = true;
-      return;
+      return false;
     }
 
     wx.navigateTo({
       url: '/pages/login/login'
     });
+    return false;
   },
 
   requireLogin() {
@@ -920,7 +1031,7 @@ App({
       return inflightRequests.get(dedupKey);
     }
 
-    const runRequest = (retryLeft) => new Promise((resolve, reject) => {
+    const runRequest = (retryLeft, authRetried = false) => new Promise((resolve, reject) => {
       let transportMode = 'callContainer';
 
       const header = {
@@ -959,9 +1070,25 @@ App({
           }
           // skipAuthRedirect=true 时（示例：游客可浏览的公共内容接口）不弹登录页，
           // 仅按普通失败处理，页面自行降级（如使用本地兜底数据）。
-          if (!options.skipAuthRedirect) {
-            this.handleUnauthorized();
+          if (options.skipAuthRedirect) {
+            reject(res.data || { message: 'Unauthorized' });
+            return;
           }
+
+          // token 过期：先静默重登，成功则用新 token 重放一次当前请求（只重放一次）。
+          if (!authRetried) {
+            this.handleUnauthorized()
+              .then((recovered) => {
+                if (!recovered) {
+                  reject(res.data || { message: 'Unauthorized' });
+                  return;
+                }
+                runRequest(retryLeft, true).then(resolve).catch(reject);
+              })
+              .catch(() => reject(res.data || { message: 'Unauthorized' }));
+            return;
+          }
+
           reject(res.data || { message: 'Unauthorized' });
           return;
         }

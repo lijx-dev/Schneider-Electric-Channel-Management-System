@@ -164,6 +164,41 @@
   display: block;
 }
 
+/* 经理端：评选结果分组 */
+.result-groups {
+  padding: 24rpx;
+}
+
+.result-group {
+  margin-bottom: 24rpx;
+}
+
+.result-group-head {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 8rpx 12rpx;
+}
+
+.result-group-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.result-group-count {
+  font-size: 22rpx;
+  color: #94a3b8;
+}
+
+.award-status {
+  font-size: 22rpx;
+  color: #94a3b8;
+  margin-top: 4rpx;
+  display: block;
+}
+
 /* 积分明细 */
 .transaction-list {
   padding: 0 24rpx;

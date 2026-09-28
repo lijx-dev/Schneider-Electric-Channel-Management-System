@@ -175,7 +175,21 @@ Page({
         console.warn('Home energy sync error:', syncErr);
       }
 
-      const rankProfile = await app.refreshCurrentUserProfile();
+      // 用户资料刷新单独容错：token 失效或接口异常时降级到本地缓存，
+      // 不阻断页面其它数据渲染，也不影响 15 秒自动刷新。
+      let rankProfile = null;
+      try {
+        rankProfile = await app.refreshCurrentUserProfile({ skipAuthRedirect: true });
+      } catch (profileErr) {
+        console.warn('Home refresh profile error:', profileErr);
+        rankProfile = app.globalData.userInfo || null;
+      }
+
+      if (!rankProfile) {
+        // 拿不到任何用户资料（接口失败且无缓存）：保留当前界面，避免误判成游客视图
+        return;
+      }
+
       const rankData = await app.resolveAvatarFields(rankProfile, {
         avatarField: 'avatar_url',
         fileIdField: 'avatar_file_id'
@@ -521,12 +535,6 @@ Page({
   goToRecognitionSubmit() {
     if (!app.requireLogin()) return;
     wx.navigateTo({ url: '/pages/recognition/submit/submit' });
-  },
-
-  // 经理端的微光提名入口：直接进提名表单
-  goToRecognitionNominate() {
-    if (!app.requireLogin()) return;
-    wx.navigateTo({ url: '/pages/recognition/submit-form/submit-form?type=nomination' });
   },
 
   goToRecognitionMyAwards() {

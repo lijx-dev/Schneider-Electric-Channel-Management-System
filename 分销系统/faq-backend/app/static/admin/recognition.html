@@ -443,7 +443,7 @@
   function recEl(id) { return document.getElementById(id); }
 
   function recSubTypeLabel(type) {
-    var map = { nomination: '微光提名', order_guardian: '报备秩序', distributor_pioneer: '分销商支持', distributor_mentor: '分销商成长', efficiency_innovator: '效能提升' };
+    var map = { nomination: '微光提名', order_guardian: '报备秩序卫士', distributor_pioneer: '分销商支持先锋', distributor_mentor: '分销商成长伯乐', efficiency_innovator: '效能提升创新者' };
     return map[type] || type;
   }
 
@@ -464,6 +464,108 @@
 
   function recPublishedLabel(pub) {
     return pub ? '<span class="rec-status rec-status-approved">已发布</span>' : '<span class="rec-status rec-status-submitted">未发布</span>';
+  }
+
+  // 行内文本渲染（不输出 JSON），把值按控件类型转成中文可读形式
+  function recValueHtml(value) {
+    if (value === null || value === undefined) return '<span class="rec-empty">未填写</span>';
+    if (typeof value === 'boolean') return value ? '已勾选' : '<span class="rec-empty">未勾选</span>';
+    if (Array.isArray(value)) {
+      var list = value.filter(function(v) { return v !== null && v !== undefined && String(v).trim() !== ''; });
+      if (!list.length) return '<span class="rec-empty">未填写</span>';
+      return list.map(function(v) { return escapeHtml(typeof v === 'object' ? JSON.stringify(v) : v); }).join('、');
+    }
+    if (typeof value === 'object') {
+      var keys = Object.keys(value);
+      if (!keys.length) return '<span class="rec-empty">未填写</span>';
+      return keys.map(function(k) { return escapeHtml(k) + '：' + escapeHtml(value[k]); }).join('；');
+    }
+    if (String(value).trim() === '') return '<span class="rec-empty">未填写</span>';
+    return escapeHtml(value);
+  }
+
+  // 自定义项（[{name, description}]）
+  function recCustomHtml(custom) {
+    var items = (Array.isArray(custom) ? custom : []).filter(function(c) {
+      return c && (String(c.name || '').trim() || String(c.description || '').trim());
+    });
+    if (!items.length) return '<p class="rec-empty">无</p>';
+    return items.map(function(c) {
+      var name = String(c.name || '').trim();
+      var desc = String(c.description || '').trim();
+      return '<div class="rec-item">' +
+        '<div class="rec-item-name">' + (name ? escapeHtml(name) : '未命名') + '</div>' +
+        (desc ? '<div class="rec-item-desc">' + escapeHtml(desc) + '</div>' : '') +
+      '</div>';
+    }).join('');
+  }
+
+  // 预定义项：按评分标准的 sort_order 逐项渲染中文项目名；标准缺失的 key 回退为 key 本身
+  function recPredefinedHtml(predefined, criteriaMap) {
+    var values = predefined && typeof predefined === 'object' ? predefined : {};
+    var valueKeys = Object.keys(values);
+    var ordered = [];
+    var seen = {};
+    Object.keys(criteriaMap || {})
+      .sort(function(a, b) {
+        return (Number(criteriaMap[a].sort_order) || 0) - (Number(criteriaMap[b].sort_order) || 0);
+      })
+      .forEach(function(key) { ordered.push(key); seen[key] = true; });
+    valueKeys.forEach(function(key) { if (!seen[key]) ordered.push(key); });
+    if (!ordered.length) return '<p class="rec-empty">无</p>';
+
+    return ordered.map(function(key) {
+      var item = criteriaMap ? criteriaMap[key] : null;
+      var name = (item && item.item_name) ? item.item_name : key;
+      var help = (item && item.item_help_text) ? '<div class="rec-item-help">' + escapeHtml(item.item_help_text) + '</div>' : '';
+      return '<div class="rec-item">' +
+        '<div class="rec-item-name">' + escapeHtml(name) + '</div>' +
+        help +
+        '<div class="rec-item-value">' + recValueHtml(values[key]) + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  // 无 predefined/custom 结构时的通用渲染（如微光提名），key 用中文标签兜底
+  function recFlatKeyLabel(key) {
+    var map = {
+      nominee_id: '被提名人',
+      event_description: '事迹描述',
+      positive_impact: '正向影响'
+    };
+    return map[key] || key;
+  }
+
+  function recFlatContentHtml(content) {
+    var keys = Object.keys(content || {});
+    if (!keys.length) return '<p class="rec-empty">无</p>';
+    return keys.map(function(key) {
+      return '<div class="rec-item">' +
+        '<div class="rec-item-name">' + escapeHtml(recFlatKeyLabel(key)) + '</div>' +
+        '<div class="rec-item-value">' + recValueHtml(content[key]) + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  // 评分标准懒加载缓存：award_type -> { item_key: criteria }
+  var recCriteriaCache = {};
+
+  async function recLoadCriteriaMap(submissionType) {
+    if (recCriteriaCache[submissionType]) {
+      return recCriteriaCache[submissionType];
+    }
+    try {
+      var list = await request(REC_API + '/scoring-criteria?award_type=' + encodeURIComponent(submissionType));
+      var map = {};
+      (Array.isArray(list) ? list : []).forEach(function(c) {
+        if (c && c.item_key && !map[c.item_key]) map[c.item_key] = c;
+      });
+      recCriteriaCache[submissionType] = map;
+      return map;
+    } catch (e) {
+      // 拉取失败不缓存，交由调用方回退为「key：值」渲染，保证信息不丢
+      return null;
+    }
   }
 
   // 弹窗
@@ -547,7 +649,7 @@
     });
   }
 
-  function recShowDetail(id) {
+  async function recShowDetail(id) {
     var s = recState.submissions.find(function(item) { return item.id === id; });
     if (!s) return;
     var content = s.content_json;
@@ -561,30 +663,36 @@
       '<div><strong>审核评分：</strong>' + (s.review_score != null ? s.review_score + '分' : '-') + '</div>' +
       '<div><strong>审核意见：</strong>' + escapeHtml(s.review_comment || '-') + '</div>' +
     '</div>';
+
     html += '<h4 style="margin-top:16px;">申报内容</h4>';
     if (content && typeof content === 'object') {
-      if (content.predefined) {
-        html += '<div class="rec-content-section"><strong>预定义项：</strong><pre class="rec-json">' + escapeHtml(JSON.stringify(content.predefined, null, 2)) + '</pre></div>';
-      }
-      if (content.custom) {
-        html += '<div class="rec-content-section"><strong>自定义项：</strong><pre class="rec-json">' + escapeHtml(JSON.stringify(content.custom, null, 2)) + '</pre></div>';
-      }
-      if (!content.predefined && !content.custom) {
-        html += '<pre class="rec-json">' + escapeHtml(JSON.stringify(content, null, 2)) + '</pre>';
+      if (content.predefined || content.custom) {
+        var criteriaMap = await recLoadCriteriaMap(s.submission_type);
+        if (content.predefined) {
+          html += '<div class="rec-content-section"><strong>预定义项：</strong>' +
+            recPredefinedHtml(content.predefined, criteriaMap) + '</div>';
+        }
+        if (content.custom) {
+          html += '<div class="rec-content-section"><strong>自定义项：</strong>' +
+            recCustomHtml(content.custom) + '</div>';
+        }
+      } else {
+        html += '<div class="rec-content-section">' + recFlatContentHtml(content) + '</div>';
       }
     } else {
-      html += '<pre class="rec-json">' + escapeHtml(JSON.stringify(content, null, 2)) + '</pre>';
+      html += '<div class="rec-content-section"><p class="rec-empty">无</p></div>';
     }
+
     recEl('recReviewModalBody').innerHTML = html;
     recEl('recReviewModalFoot').innerHTML = '<button class="ghost-btn" id="recDetailCloseBtn">关闭</button>';
     recShowModal('recReviewModal');
     recEl('recDetailCloseBtn').addEventListener('click', function() { recHideModal('recReviewModal'); });
   }
 
-  function recShowReview(id) {
+  async function recShowReview(id) {
     var s = recState.submissions.find(function(item) { return item.id === id; });
     if (!s) return;
-    recShowDetail(id);
+    await recShowDetail(id);
     var footHtml = '<label style="display:flex;align-items:center;gap:8px;margin-right:auto;">' +
       '<span>审核意见</span><input id="recReviewComment" placeholder="输入审核意见" style="width:200px;">' +
     '</label>' +

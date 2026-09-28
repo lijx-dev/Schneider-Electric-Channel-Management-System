@@ -163,11 +163,6 @@ async def create_submission(
     if body.submission_type not in SUBMISSION_TYPE_MAP:
         return {"code": 1, "message": f"不支持的申报类型: {body.submission_type}"}
 
-    # 经理仅有微光提名权限，季度奖项申报仍限专员
-    role_result = await db.execute(select(User.recognition_role).where(User.id == user_id))
-    if role_result.scalar_one_or_none() == "manager" and body.submission_type != "nomination":
-        return {"code": 1, "message": "经理仅可发起微光提名"}
-
     # 微光提名校验：被提名人必须有效且不可自提
     if body.submission_type == "nomination":
         nominee_id = body.content_json.get("nominee_id", "")
@@ -1059,6 +1054,7 @@ async def get_award_results(
     month: Optional[str] = Query(None),
     type: Optional[list[str]] = Query(None),
     published: Optional[bool] = Query(None),
+    mine: bool = Query(False, description="仅返回当前登录人的获奖记录"),
     user_id: str = Depends(require_specialist_or_manager),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1072,6 +1068,8 @@ async def get_award_results(
         conditions.append(RecognitionAward.award_type.in_(type))
     if published is not None:
         conditions.append(RecognitionAward.published == published)
+    if mine:
+        conditions.append(RecognitionAward.user_id == user_id)
 
     result = await db.execute(
         select(RecognitionAward)
