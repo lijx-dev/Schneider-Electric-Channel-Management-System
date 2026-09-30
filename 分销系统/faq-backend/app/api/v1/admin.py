@@ -3041,15 +3041,28 @@ async def export_conference_zone_attendees(
 
 QRCODE_STATIC_DIR = Path(__file__).resolve().parents[2] / "static" / "conference-qrcodes"
 CONFERENCE_QR_PAGE = "pages/conference/zone-quiz/index"
-# 中心徽标素材：圆形「All in」徽标 + 「分销商大会」，由主题图裁切预制
-QR_CENTER_BADGE = Path(__file__).resolve().parents[2] / "static" / "conference" / "qr-center-badge.png"
+# 中心徽标素材目录：圆形「All in」徽标 + 「分销商大会」（+ 展区小字），由主题图裁切预制
+QR_CENTER_BADGE_DIR = Path(__file__).resolve().parents[2] / "static" / "conference"
 # 微信小程序码中心保留区（logo 区）直径约占码宽 44%，覆盖该区域不影响可识别性
 QR_CENTER_RESERVE_RATIO = 0.44
 
 
-def _compose_qrcode_center(image: bytes) -> bytes:
+def _qrcode_center_badge(zone_code: str | None) -> Path:
+    """按展区取中心徽标素材；无该展区素材时回退到不带展区名的通用素材。
+
+    展区名以小字印在「分销商大会」下方，避免四个展区的打卡码混用。
+    """
+    if zone_code:
+        candidate = QR_CENTER_BADGE_DIR / f"qr-center-badge-{zone_code}.png"
+        if candidate.exists():
+            return candidate
+    return QR_CENTER_BADGE_DIR / "qr-center-badge.png"
+
+
+def _compose_qrcode_center(image: bytes, zone_code: str | None = None) -> bytes:
     """把微信原始码中心保留区替换为大会徽标图层；素材缺失时原样返回。"""
-    if not QR_CENTER_BADGE.exists():
+    badge_path = _qrcode_center_badge(zone_code)
+    if not badge_path.exists():
         return image
 
     with Image.open(BytesIO(image)) as raw:
@@ -3065,7 +3078,7 @@ def _compose_qrcode_center(image: bytes) -> bytes:
     cover = cover.resize((reserve, reserve), Image.LANCZOS)
     base.paste(Image.new("RGBA", (reserve, reserve), (255, 255, 255, 255)), (left, top), cover)
 
-    with Image.open(QR_CENTER_BADGE) as badge_raw:
+    with Image.open(badge_path) as badge_raw:
         badge = badge_raw.convert("RGBA").resize((reserve, reserve), Image.LANCZOS)
     base.alpha_composite(badge, (left, top))
 
@@ -3087,7 +3100,7 @@ async def _generate_zone_qrcode(zone: ConferenceZone, raw: bool = False) -> dict
             detail="未配置 WECHAT_APPID/WECHAT_SECRET（或调试环境），无法生成小程序码",
         )
     if not raw:
-        image = _compose_qrcode_center(image)
+        image = _compose_qrcode_center(image, zone.code)
     QRCODE_STATIC_DIR.mkdir(parents=True, exist_ok=True)
     filename = f"{zone.code}{'-raw' if raw else ''}.png"
     (QRCODE_STATIC_DIR / filename).write_bytes(image)
