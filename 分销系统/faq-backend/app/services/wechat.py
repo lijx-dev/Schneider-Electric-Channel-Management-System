@@ -158,9 +158,15 @@ async def get_user_phone_number(code: str) -> str:
     return phone_number
 
 
-async def get_unlimited_qrcode(scene: str, page: str, env_version: str = "release") -> bytes:
+async def get_unlimited_qrcode(
+    scene: str,
+    page: str,
+    env_version: str = "release",
+    width: int = 1280,
+) -> bytes:
     """生成小程序码（getwxacodeunlimit，不限制数量，scene 最大 32 字符）。
 
+    width 取 280~1280；默认 1280 便于印刷与中心徽标合成。
     返回 PNG 图片字节；微信接口返回 JSON 错误时抛 ValueError。
     """
     if settings.DEBUG and not settings.WECHAT_APPID:
@@ -175,6 +181,7 @@ async def get_unlimited_qrcode(scene: str, page: str, env_version: str = "releas
     payload = {
         "scene": scene,
         "page": page,
+        "width": width,
         "check_path": False,
         "env_version": env_version,
     }

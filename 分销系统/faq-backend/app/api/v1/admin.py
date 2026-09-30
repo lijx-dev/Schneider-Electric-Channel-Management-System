@@ -16,6 +16,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from pydantic import BaseModel, Field
+from PIL import Image, ImageDraw
 from sqlalchemy import and_, case, distinct, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -3040,10 +3041,44 @@ async def export_conference_zone_attendees(
 
 QRCODE_STATIC_DIR = Path(__file__).resolve().parents[2] / "static" / "conference-qrcodes"
 CONFERENCE_QR_PAGE = "pages/conference/zone-quiz/index"
+# 中心徽标素材：圆形「All in」徽标 + 「分销商大会」，由主题图裁切预制
+QR_CENTER_BADGE = Path(__file__).resolve().parents[2] / "static" / "conference" / "qr-center-badge.png"
+# 微信小程序码中心保留区（logo 区）直径约占码宽 44%，覆盖该区域不影响可识别性
+QR_CENTER_RESERVE_RATIO = 0.44
 
 
-async def _generate_zone_qrcode(zone: ConferenceZone) -> dict:
-    """生成单个打卡点小程序码并落盘到 static/conference-qrcodes/。"""
+def _compose_qrcode_center(image: bytes) -> bytes:
+    """把微信原始码中心保留区替换为大会徽标图层；素材缺失时原样返回。"""
+    if not QR_CENTER_BADGE.exists():
+        return image
+
+    with Image.open(BytesIO(image)) as raw:
+        base = raw.convert("RGBA")
+    width, height = base.size
+    reserve = max(1, round(min(width, height) * QR_CENTER_RESERVE_RATIO))
+    left = (width - reserve) // 2
+    top = (height - reserve) // 2
+
+    # 先用白色圆形盖住微信按账号资料绘制的中心内容（该区域本身即为码的 logo 保留区）
+    cover = Image.new("L", (reserve * 2, reserve * 2), 0)
+    ImageDraw.Draw(cover).ellipse((0, 0, reserve * 2 - 1, reserve * 2 - 1), fill=255)
+    cover = cover.resize((reserve, reserve), Image.LANCZOS)
+    base.paste(Image.new("RGBA", (reserve, reserve), (255, 255, 255, 255)), (left, top), cover)
+
+    with Image.open(QR_CENTER_BADGE) as badge_raw:
+        badge = badge_raw.convert("RGBA").resize((reserve, reserve), Image.LANCZOS)
+    base.alpha_composite(badge, (left, top))
+
+    buffer = BytesIO()
+    base.convert("RGB").save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+async def _generate_zone_qrcode(zone: ConferenceZone, raw: bool = False) -> dict:
+    """生成单个打卡点小程序码并落盘到 static/conference-qrcodes/。
+
+    raw=True 时输出微信原始码（不做中心徽标合成），便于出问题时回退比对。
+    """
     scene = f"conference_{zone.code}"
     image = await get_unlimited_qrcode(scene=scene, page=CONFERENCE_QR_PAGE)
     if not image:
@@ -3051,8 +3086,10 @@ async def _generate_zone_qrcode(zone: ConferenceZone) -> dict:
             status_code=503,
             detail="未配置 WECHAT_APPID/WECHAT_SECRET（或调试环境），无法生成小程序码",
         )
+    if not raw:
+        image = _compose_qrcode_center(image)
     QRCODE_STATIC_DIR.mkdir(parents=True, exist_ok=True)
-    filename = f"{zone.code}.png"
+    filename = f"{zone.code}{'-raw' if raw else ''}.png"
     (QRCODE_STATIC_DIR / filename).write_bytes(image)
     return {
         "zone_id": zone.id,
@@ -3067,17 +3104,19 @@ async def _generate_zone_qrcode(zone: ConferenceZone) -> dict:
 @router.post("/conference/zones/{zone_id}/qrcode")
 async def generate_conference_zone_qrcode(
     zone_id: int,
+    raw: bool = Query(False, description="true 则输出微信原始码（不做中心徽标合成）"),
     db: AsyncSession = Depends(get_db),
     _: str = Depends(get_current_admin),
 ) -> dict:
     zone = await db.get(ConferenceZone, zone_id)
     if not zone:
         raise HTTPException(status_code=404, detail="打卡点不存在")
-    return {"code": 0, "data": await _generate_zone_qrcode(zone)}
+    return {"code": 0, "data": await _generate_zone_qrcode(zone, raw=raw)}
 
 
 @router.post("/conference/qrcodes")
 async def generate_all_conference_qrcodes(
+    raw: bool = Query(False, description="true 则输出微信原始码（不做中心徽标合成）"),
     db: AsyncSession = Depends(get_db),
     _: str = Depends(get_current_admin),
 ) -> dict:
@@ -3086,7 +3125,7 @@ async def generate_all_conference_qrcodes(
         .where(ConferenceZone.is_active.is_(True))
         .order_by(ConferenceZone.sort_order, ConferenceZone.id)
     )
-    results = [await _generate_zone_qrcode(z) for z in zones.scalars().all()]
+    results = [await _generate_zone_qrcode(z, raw=raw) for z in zones.scalars().all()]
     if not results:
         raise HTTPException(status_code=400, detail="当前没有启用的打卡点")
     return {"code": 0, "data": results}
