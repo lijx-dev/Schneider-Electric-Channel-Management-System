@@ -4,11 +4,16 @@
 幂等执行（可重复运行）：
 a) 向 questions 表导入 4 个题组题目：
    - conference_business（商务展区，docx 原文 Q1-Q5，Q2 为多选题）
-   - conference_new_v   （New V 展区，3 道占位题）
-   - conference_digital （数字化展区，3 道占位题）
-   - conference_channel （渠道智能赋能展区，3 道占位题）
+   - conference_new_v   （I-Line V Pro 展区，3 题，Q3 为多选题）
+   - conference_digital （数字母线展区，3 道多选题）
+   - conference_channel （渠道智能赋能展区，3 道单选题）
+
 b) 向 conference_zones 插入 4 条打卡点配置（code 唯一冲突时跳过）
 c) 打印导入结果统计
+
+注意：本脚本按 (category, content) 幂等新增，不会替换已入库的旧占位题。
+已部署环境如需把旧占位题替换为真实题，请运行
+scripts/replace_conference_placeholder_questions.py（原位 UPDATE，不删除数据）。
 
 用法:
   cd faq-backend
@@ -84,30 +89,103 @@ BUSINESS_QUESTIONS = [
     },
 ]
 
-# ── 占位题组（conference_new_v / conference_digital / conference_channel）──
-def _placeholder_questions(category: str, zone_name: str, count: int) -> list[dict]:
-    """生成占位单选题，题干注明占位，后补真实题。"""
-    questions = []
-    for index in range(1, count + 1):
-        questions.append(
-            {
-                "question_type": "single_choice",
-                "content": f"{zone_name}占位题 {index}/{count}（占位题，待替换为真实题目）",
-                "options": ["选项A", "选项B", "选项C", "选项D"],
-                "answer": "A",
-                "difficulty": 1,
-                "is_active": True,
-                "category": category,
-            }
-        )
-    return questions
+# ── I-Line V Pro 展区题组（category='conference_new_v'）────────────────
+NEW_V_QUESTIONS = [
+    {
+        "question_type": "single_choice",
+        "content": "I-Line V Pro 防护等级最高是多少？",
+        "options": ["IP54", "IP65", "IP66"],
+        "answer": "C",
+        "difficulty": 1,
+        "is_active": True,
+        "category": "conference_new_v",
+    },
+    {
+        "question_type": "single_choice",
+        "content": "I-Line V Pro 的电流等级是多少？",
+        "options": ["630~5000A", "630A~6300A", "400A~3200A"],
+        "answer": "B",
+        "difficulty": 1,
+        "is_active": True,
+        "category": "conference_new_v",
+    },
+    {
+        "question_type": "multiple_choice",
+        "content": "I-Line V Pro 将获得的认证包括哪些？（多选题）",
+        "options": ["CQC认证", "KEMA-KEUR 认证", "CB认证", "CE认证"],
+        "answer": "ABCD",
+        "difficulty": 1,
+        "is_active": True,
+        "category": "conference_new_v",
+    },
+]
 
+# ── 数字母线展区题组（category='conference_digital'）────────────────────
+DIGITAL_QUESTIONS = [
+    {
+        "question_type": "multiple_choice",
+        "content": "施耐德电气数字母线3.0可以监测母线哪些参数？（多选题）",
+        "options": ["母线温度", "水浸", "电能", "关键绝缘材料健康状态"],
+        "answer": "ABCD",
+        "difficulty": 1,
+        "is_active": True,
+        "category": "conference_digital",
+    },
+    {
+        "question_type": "multiple_choice",
+        "content": "施耐德电气数字母线3.0在行业内最为领先的2个方案是什么？（多选题）",
+        "options": [
+            "母线AI温度智算方案",
+            "母线关键绝缘材料健康状态监控方案",
+            "母线温度采集方案",
+            "母线基本电能参数采集方案",
+        ],
+        "answer": "AB",
+        "difficulty": 1,
+        "is_active": True,
+        "category": "conference_digital",
+    },
+    {
+        "question_type": "multiple_choice",
+        "content": "施耐德电气数字母线整体解决方案可以赋能项目哪些过程？（多选题）",
+        "options": ["设计", "生产", "交付", "运维"],
+        "answer": "ABCD",
+        "difficulty": 1,
+        "is_active": True,
+        "category": "conference_digital",
+    },
+]
 
-PLACEHOLDER_QUESTIONS = (
-    _placeholder_questions("conference_new_v", "New V 展区", 3)
-    + _placeholder_questions("conference_digital", "数字化展区", 3)
-    + _placeholder_questions("conference_channel", "渠道智能赋能展区", 3)
-)
+# ── 渠道智能赋能展区题组（category='conference_channel'）────────────────
+CHANNEL_QUESTIONS = [
+    {
+        "question_type": "single_choice",
+        "content": "关于2027年度分销商评级标准，AAA级分销商要求的培训参与率是多少？",
+        "options": ["≥50%", "≥70%", "90%", "100%"],
+        "answer": "B",
+        "difficulty": 1,
+        "is_active": True,
+        "category": "conference_channel",
+    },
+    {
+        "question_type": "single_choice",
+        "content": "紧密合作激励政策中，项目申请返点的最低合同未税金额要求是多少？",
+        "options": ["50万元", "80万元", "100万元", "200万元"],
+        "answer": "C",
+        "difficulty": 1,
+        "is_active": True,
+        "category": "conference_channel",
+    },
+    {
+        "question_type": "single_choice",
+        "content": "2026年季度达标施能量奖励中，完成单季度出货指标后可获得多少施能量？",
+        "options": ["500格", "1000格", "2000格", "5000格"],
+        "answer": "B",
+        "difficulty": 1,
+        "is_active": True,
+        "category": "conference_channel",
+    },
+]
 
 # ── 打卡点配置（code 唯一冲突时跳过）──────────────────────────────────────
 ZONES = [
@@ -176,7 +254,12 @@ async def _import_zone(session, zone_data: dict) -> bool:
 
 
 async def main() -> None:
-    all_questions = BUSINESS_QUESTIONS + PLACEHOLDER_QUESTIONS
+    all_questions = (
+        BUSINESS_QUESTIONS
+        + NEW_V_QUESTIONS
+        + DIGITAL_QUESTIONS
+        + CHANNEL_QUESTIONS
+    )
 
     async with AsyncSessionLocal() as session:
         inserted_questions = 0
@@ -195,8 +278,8 @@ async def main() -> None:
     async with AsyncSessionLocal() as session:
         for category, label in [
             ("conference_business", "商务展区题组"),
-            ("conference_new_v", "New V 展区题组"),
-            ("conference_digital", "数字化展区题组"),
+            ("conference_new_v", "I-Line V Pro 展区题组"),
+            ("conference_digital", "数字母线展区题组"),
             ("conference_channel", "渠道智能赋能展区题组"),
         ]:
             count = await session.scalar(
