@@ -3,7 +3,7 @@
 
 幂等执行（可重复运行）：
 a) 向 questions 表导入 4 个题组题目：
-   - conference_business（商务展区，docx 原文 Q1-Q5，Q2 为多选题）
+   - conference_business（商务展区，docx 原文 Q1-Q3，Q2 为多选题；Q4/Q5 已停用）
    - conference_new_v   （I-Line V Pro 展区，3 题，Q3 为多选题）
    - conference_digital （数字母线展区，3 道多选题）
    - conference_channel （渠道智能赋能展区，3 道单选题）
@@ -69,25 +69,12 @@ BUSINESS_QUESTIONS = [
         "is_active": True,
         "category": "conference_business",
     },
-    {
-        "question_type": "single_choice",
-        "content": "合同（订货单）金额大于多少万，必须原件快递施耐德进行归档？",
-        "options": ["50万", "60万", "70万"],
-        "answer": "A",
-        "difficulty": 1,
-        "is_active": True,
-        "category": "conference_business",
-    },
-    {
-        "question_type": "single_choice",
-        "content": "铜母线产品合同：当铜现货市场含税均价≥多少万元/吨时，调整系数T值为80%？",
-        "options": ["6万", "7万", "8万"],
-        "answer": "B",
-        "difficulty": 1,
-        "is_active": True,
-        "category": "conference_business",
-    },
 ]
+
+# 商务展区原 Q4/Q5 已停用（答题只保留前 3 题），题干保留于此供停用脚本精确匹配：
+#   Q4 合同（订货单）金额大于多少万，必须原件快递施耐德进行归档？
+#   Q5 铜母线产品合同：当铜现货市场含税均价≥多少万元/吨时，调整系数T值为80%？
+# 已部署环境由 replace_conference_placeholder_questions.py 置 is_active=False，不删除数据。
 
 # ── I-Line V Pro 展区题组（category='conference_new_v'）────────────────
 NEW_V_QUESTIONS = [
