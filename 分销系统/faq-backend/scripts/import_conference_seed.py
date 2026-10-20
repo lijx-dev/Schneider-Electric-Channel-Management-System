@@ -148,7 +148,7 @@ CHANNEL_QUESTIONS = [
     {
         "question_type": "single_choice",
         "content": "关于2027年度分销商评级标准，AAA级分销商要求的培训参与率是多少？",
-        "options": ["≥50%", "≥70%", "90%", "100%"],
+        "options": ["≥50%", "≥70%", "≥90%", "100%"],
         "answer": "B",
         "difficulty": 1,
         "is_active": True,
