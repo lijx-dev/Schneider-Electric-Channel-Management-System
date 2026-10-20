@@ -2274,7 +2274,7 @@ const DEFAULT_PRODUCT_GUIDE_TREE = normalizeGuideTreeContent(PRODUCT_GUIDE_TREE)
 
 Page({
   data: {
-    assistantAvatar: '../../图标/Gemini_Generated_Image_aicku5aicku5aick.png',
+    assistantAvatar: '../../图标/施小睿头像.png',
     userInfo: null,
     inputValue: '',
     voiceSupported: true,
