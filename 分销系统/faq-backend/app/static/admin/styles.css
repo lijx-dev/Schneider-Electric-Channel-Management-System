@@ -426,6 +426,31 @@ th {
   font-weight: 700;
 }
 
+/* 舍得每周排行榜：列较多，禁止自动换行导致姓名/岗位被挤成两行 */
+.shede-weekly-table {
+  min-width: 1080px;
+}
+
+.shede-weekly-table th,
+.shede-weekly-table td {
+  white-space: nowrap;
+}
+
+.shede-weekly-table th:nth-child(2),
+.shede-weekly-table td:nth-child(2) {
+  min-width: 82px;
+}
+
+.shede-weekly-table th:nth-child(3),
+.shede-weekly-table td:nth-child(3) {
+  min-width: 64px;
+}
+
+.shede-weekly-table th:nth-child(12),
+.shede-weekly-table td:nth-child(12) {
+  min-width: 96px;
+}
+
 .row-actions {
   display: flex;
   gap: 8px;
