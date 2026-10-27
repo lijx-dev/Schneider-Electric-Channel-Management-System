@@ -120,6 +120,7 @@
             <th>得分</th>
             <th>积分</th>
             <th>状态</th>
+            <th>操作</th>
           </tr>
         </thead>
         <tbody id="recQuarterlyAwardsBody"></tbody>
@@ -304,7 +305,7 @@
 <div class="modal-overlay hidden" id="recReviewModal">
   <div class="modal-box modal-lg">
     <div class="modal-head">
-      <h3>申报详情</h3>
+      <h3 id="recReviewModalTitle">申报详情</h3>
       <button class="modal-close" id="recReviewModalClose">&times;</button>
     </div>
     <div class="modal-body" id="recReviewModalBody"></div>
@@ -536,13 +537,18 @@
     return map[key] || key;
   }
 
-  function recFlatContentHtml(content) {
+  function recFlatContentHtml(content, nomineeName) {
     var keys = Object.keys(content || {});
     if (!keys.length) return '<p class="rec-empty">无</p>';
     return keys.map(function(key) {
+      var value = content[key];
+      // 被提名人存的是 user_id，有姓名时优先展示姓名，并附 ID 便于核对
+      if (key === 'nominee_id' && nomineeName) {
+        value = nomineeName + '（' + value + '）';
+      }
       return '<div class="rec-item">' +
         '<div class="rec-item-name">' + escapeHtml(recFlatKeyLabel(key)) + '</div>' +
-        '<div class="rec-item-value">' + recValueHtml(content[key]) + '</div>' +
+        '<div class="rec-item-value">' + recValueHtml(value) + '</div>' +
       '</div>';
     }).join('');
   }
@@ -677,12 +683,13 @@
             recCustomHtml(content.custom) + '</div>';
         }
       } else {
-        html += '<div class="rec-content-section">' + recFlatContentHtml(content) + '</div>';
+        html += '<div class="rec-content-section">' + recFlatContentHtml(content, s.nominee_name) + '</div>';
       }
     } else {
       html += '<div class="rec-content-section"><p class="rec-empty">无</p></div>';
     }
 
+    recEl('recReviewModalTitle').textContent = '申报详情';
     recEl('recReviewModalBody').innerHTML = html;
     recEl('recReviewModalFoot').innerHTML = '<button class="ghost-btn" id="recDetailCloseBtn">关闭</button>';
     recShowModal('recReviewModal');
@@ -818,7 +825,7 @@
       });
       recRenderQuarterlyAwards();
     } catch (e) {
-      recEl('recQuarterlyAwardsBody').innerHTML = '<tr><td colspan="7" style="color:var(--danger);">加载失败：' + escapeHtml(e.message) + '</td></tr>';
+      recEl('recQuarterlyAwardsBody').innerHTML = '<tr><td colspan="8" style="color:var(--danger);">加载失败：' + escapeHtml(e.message) + '</td></tr>';
     }
   }
 
@@ -832,10 +839,57 @@
         '<td>' + (a.score != null ? a.score.toFixed(1) : '-') + '</td>' +
         '<td>' + escapeHtml(a.points_awarded) + '</td>' +
         '<td>' + recPublishedLabel(a.published) + '</td>' +
+        '<td><button class="ghost-btn rec-score-detail-btn" data-id="' + a.id + '">明细</button></td>' +
       '</tr>';
-    }).join('') || '<tr><td colspan="7">暂无数据，请先点击"计算季度评选"</td></tr>';
+    }).join('') || '<tr><td colspan="8">暂无数据，请先点击"计算季度评选"</td></tr>';
 
     recEl('recSelectAllQuarterly').checked = false;
+
+    recEl('recQuarterlyAwardsBody').querySelectorAll('.rec-score-detail-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() { recShowScoreDetail(parseInt(this.getAttribute('data-id'))); });
+    });
+  }
+
+  async function recShowScoreDetail(id) {
+    try {
+      var data = await request(REC_API + '/awards/' + id + '/score-breakdown');
+      var items = Array.isArray(data.items) ? data.items : [];
+      var rows = items.map(function(it) {
+        var isReview = it.item_type === 'review_score';
+        return '<tr>' +
+          '<td>' + escapeHtml(it.name || it.key) + '</td>' +
+          '<td>' + (isReview ? '-' : escapeHtml(it.count) + ' 条') + '</td>' +
+          '<td>' + (isReview ? '-' : escapeHtml(it.points_per_unit) + ' 分') + '</td>' +
+          '<td>' + escapeHtml(it.points) + ' 分</td>' +
+        '</tr>';
+      }).join('') || '<tr><td colspan="4">未找到对应的申报记录</td></tr>';
+
+      var html = '<div class="rec-detail-grid">' +
+        '<div><strong>奖项：</strong>' + escapeHtml(data.award_name) + '</div>' +
+        '<div><strong>获奖人：</strong>' + escapeHtml(data.user_name) + '</div>' +
+        '<div><strong>季度：</strong>' + escapeHtml(data.award_quarter || '-') + '</div>' +
+        '<div><strong>存档得分：</strong>' + (data.saved_score != null ? data.saved_score.toFixed(1) : '-') + '</div>' +
+      '</div>';
+
+      html += '<h4 style="margin-top:16px;">得分明细</h4>' +
+        '<div class="table-wrap"><table><thead><tr><th>项目</th><th>数量</th><th>单价</th><th>得分</th></tr></thead><tbody>' +
+        rows +
+        '<tr><td><strong>合计</strong></td><td>-</td><td>-</td><td><strong>' + escapeHtml(data.computed_score) + ' 分</strong></td></tr>' +
+        '</tbody></table></div>' +
+        '<p style="margin-top:12px;color:var(--muted);">计分口径：预定义项按有效条目数 × 单价计分；自定义项每条 ' + escapeHtml(data.custom_points) + ' 分；经理审核评分直接加分。</p>';
+
+      if (data.saved_score != null && data.computed_score != null && Math.abs(data.saved_score - data.computed_score) > 0.001) {
+        html += '<p style="margin-top:8px;color:#d97706;">提示：存档得分与按当前口径重新计算的结果不一致，该记录可能是按旧口径生成的。</p>';
+      }
+
+      recEl('recReviewModalTitle').textContent = '得分明细';
+      recEl('recReviewModalBody').innerHTML = html;
+      recEl('recReviewModalFoot').innerHTML = '<button class="ghost-btn" id="recScoreDetailCloseBtn">关闭</button>';
+      recShowModal('recReviewModal');
+      recEl('recScoreDetailCloseBtn').addEventListener('click', function() { recHideModal('recReviewModal'); });
+    } catch (e) {
+      alert('加载得分明细失败：' + e.message);
+    }
   }
 
   async function recCalcQuarterly() {

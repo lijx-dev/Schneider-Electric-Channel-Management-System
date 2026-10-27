@@ -68,6 +68,7 @@ from app.services.recognition import (
     calculate_sales_mvp,
     calculate_quarterly_award,
     calculate_annual_star,
+    score_quarterly_content,
     award_points,
     get_form_config,
     get_level_info,
@@ -101,12 +102,23 @@ async def _build_submission_response(db: AsyncSession, sub: RecognitionSubmissio
     except (json.JSONDecodeError, AttributeError):
         content = sub.content_json
 
+    # 微光提名的被提名人存的是 user_id，后台展示时解析成姓名
+    nominee_name = None
+    if sub.submission_type == "nomination" and isinstance(content, dict):
+        nominee_id = str(content.get("nominee_id") or "").strip()
+        if nominee_id:
+            resolved, _unresolved = await resolve_nominee_user_ids(db, [nominee_id])
+            target_id = resolved.get(nominee_id)
+            if target_id:
+                nominee_name = await _get_user_name(db, target_id)
+
     return {
         "id": sub.id,
         "applicant_id": sub.applicant_id,
         "applicant_name": await _get_user_name(db, sub.applicant_id),
         "submission_type": sub.submission_type,
         "content_json": content,
+        "nominee_name": nominee_name,
         "attachments": sub.attachments,
         "status": sub.status,
         "reviewed_by": sub.reviewed_by,
@@ -1101,6 +1113,83 @@ async def get_award_results(
         })
 
     return {"code": 0, "data": data}
+
+
+@router.get("/awards/{award_id}/score-breakdown")
+async def get_award_score_breakdown(
+    award_id: int,
+    user_id: str = Depends(require_manager),
+    db: AsyncSession = Depends(get_db),
+):
+    """季度获奖记录的得分明细（按当前计分口径重新计算，便于管理员核对）."""
+    result = await db.execute(
+        select(RecognitionAward).where(RecognitionAward.id == award_id)
+    )
+    award = result.scalar_one_or_none()
+    if not award:
+        return {"code": 1, "message": "获奖记录不存在"}
+    if award.award_type not in QUARTERLY_AWARD_TYPES:
+        return {"code": 1, "message": "仅季度奖项支持得分明细"}
+
+    quarter = None
+    if award.award_quarter and "-Q" in award.award_quarter:
+        quarter_text = award.award_quarter.split("-Q", 1)[1]
+        if quarter_text.isdigit():
+            quarter = int(quarter_text)
+
+    sub_result = await db.execute(
+        select(RecognitionSubmission)
+        .where(
+            RecognitionSubmission.submission_type == award.award_type,
+            RecognitionSubmission.applicant_id == award.user_id,
+            RecognitionSubmission.quarter == quarter,
+            RecognitionSubmission.year == award.award_year,
+            RecognitionSubmission.status == "approved",
+        )
+        .order_by(RecognitionSubmission.created_at.desc())
+        .limit(1)
+    )
+    submission = sub_result.scalar_one_or_none()
+
+    criteria_result = await db.execute(
+        select(RecognitionScoringCriteria)
+        .where(
+            RecognitionScoringCriteria.award_type == award.award_type,
+            RecognitionScoringCriteria.is_active == True,
+        )
+        .order_by(RecognitionScoringCriteria.sort_order)
+    )
+    criteria = criteria_result.scalars().all()
+
+    custom_points = int(await get_rule_value(db, "quarterly_custom_points", "10"))
+
+    content = {}
+    if submission and submission.content_json:
+        try:
+            content = json.loads(submission.content_json) if isinstance(submission.content_json, str) else submission.content_json
+        except (json.JSONDecodeError, TypeError):
+            content = {}
+
+    review_score = submission.review_score if submission else None
+    computed_score, items = score_quarterly_content(content, criteria, review_score, custom_points)
+
+    names = await _get_user_names(db, [award.user_id])
+    return {
+        "code": 0,
+        "data": {
+            "award_id": award.id,
+            "award_type": award.award_type,
+            "award_name": AWARD_TYPE_MAP.get(award.award_type, award.award_name),
+            "award_quarter": award.award_quarter,
+            "user_name": names.get(award.user_id, award.user_id),
+            "submission_id": submission.id if submission else None,
+            "custom_points": custom_points,
+            "review_score": review_score,
+            "computed_score": computed_score,
+            "saved_score": float(award.score) if award.score is not None else None,
+            "items": items,
+        },
+    }
 
 
 @router.get("/ranking")

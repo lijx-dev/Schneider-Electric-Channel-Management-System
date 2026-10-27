@@ -44,7 +44,7 @@ AWARD_TYPE_MAP = {
     "order_guardian": "报备秩序卫士",
     "distributor_pioneer": "分销商支持先锋",
     "distributor_mentor": "分销商成长伯乐",
-    "efficiency_innovator": "效率提升创新",
+    "efficiency_innovator": "效能提升创新者",
     "annual_star": "年度渠道之星",
 }
 
@@ -266,12 +266,97 @@ async def calculate_sales_mvp(db: AsyncSession, month: str) -> list[dict]:
 
 # ── 季度奖项评选（动态评分标准）──────────────────────────────────────────
 
+def score_quarterly_content(
+    content: Optional[dict],
+    criteria: list[RecognitionScoringCriteria],
+    review_score: Optional[int],
+    custom_points: int,
+) -> tuple[int, list[dict]]:
+    """计算单条季度申报的得分，并返回可展示的逐项明细。
+
+    计分口径：
+    - 预定义项：条目数 × 单项分值（受 max_points 上限约束），空条目不计分
+    - 自定义项：每条 custom_points 分
+    - 经理审核评分：直接加分
+    """
+    predefined = content.get("predefined", {}) if isinstance(content, dict) else {}
+    if not isinstance(predefined, dict):
+        predefined = {}
+
+    score = 0
+    items: list[dict] = []
+
+    for criterion in criteria:
+        raw_value = predefined.get(criterion.item_key)
+        count = 0
+        if criterion.item_type == "checkbox":
+            count = 1 if raw_value else 0
+        elif criterion.item_type == "text_list":
+            if isinstance(raw_value, list):
+                # 过滤空字符串，避免 ["": ] 这类空条目被当成有效产出
+                count = len([v for v in raw_value if str(v or "").strip()])
+            elif raw_value is not None and str(raw_value).strip():
+                count = 1
+        elif criterion.item_type == "text_number":
+            if raw_value is not None and str(raw_value).strip():
+                count = 1
+
+        points = count * criterion.points_per_unit
+        if criterion.max_points is not None:
+            points = min(points, criterion.max_points)
+        score += points
+        items.append({
+            "key": criterion.item_key,
+            "name": criterion.item_name,
+            "item_type": criterion.item_type,
+            "count": count,
+            "points_per_unit": criterion.points_per_unit,
+            "points": points,
+        })
+
+    custom = content.get("custom") if isinstance(content, dict) else None
+    custom_count = 0
+    if isinstance(custom, list):
+        for item in custom:
+            if isinstance(item, dict):
+                if str(item.get("name") or "").strip() or str(item.get("description") or "").strip():
+                    custom_count += 1
+            elif str(item or "").strip():
+                custom_count += 1
+
+    if custom_count:
+        custom_score = custom_count * custom_points
+        score += custom_score
+        items.append({
+            "key": "custom",
+            "name": "自定义项",
+            "item_type": "custom",
+            "count": custom_count,
+            "points_per_unit": custom_points,
+            "points": custom_score,
+        })
+
+    if review_score:
+        score += int(review_score)
+        items.append({
+            "key": "review_score",
+            "name": "经理审核评分",
+            "item_type": "review_score",
+            "count": 1,
+            "points_per_unit": int(review_score),
+            "points": int(review_score),
+        })
+
+    return score, items
+
+
 async def calculate_quarterly_award(
     db: AsyncSession, award_type: str, quarter: int, year: int
 ) -> list[dict]:
     """从 scoring_criteria 动态读取评分标准，计算得分，取前 max_winners 名."""
     max_winners = int(await get_rule_value(db, "quarterly_max_winners", "2"))
     points = int(await get_rule_value(db, "quarterly_points", "50"))
+    custom_points = int(await get_rule_value(db, "quarterly_custom_points", "10"))
 
     # 1. 读取评分标准
     criteria_result = await db.execute(
@@ -302,37 +387,11 @@ async def calculate_quarterly_award(
     # 3. 按动态标准计算得分
     scored = []
     for sub in submissions:
-        score = 0
         try:
             content = json.loads(sub.content_json) if isinstance(sub.content_json, str) else sub.content_json
         except (json.JSONDecodeError, AttributeError):
             content = {}
-        predefined = content.get("predefined", {})
-
-        for criterion in criteria:
-            if criterion.item_key not in predefined:
-                continue
-            item_data = predefined[criterion.item_key]
-
-            if criterion.item_type == "checkbox":
-                # 勾选框：勾选即得分
-                if item_data:
-                    score += criterion.points_per_unit
-            elif criterion.item_type in ("text_list", "text_number"):
-                # 列表型：按条目数计分
-                if isinstance(item_data, list):
-                    count = len(item_data)
-                    pts = count * criterion.points_per_unit
-                    if criterion.max_points is not None:
-                        pts = min(pts, criterion.max_points)
-                    score += pts
-                elif item_data:
-                    score += criterion.points_per_unit
-
-        # 经理审核评分作为额外加分
-        if sub.review_score:
-            score += sub.review_score
-
+        score, _items = score_quarterly_content(content, criteria, sub.review_score, custom_points)
         scored.append((sub, score))
 
     # 4. 排序取前N名
