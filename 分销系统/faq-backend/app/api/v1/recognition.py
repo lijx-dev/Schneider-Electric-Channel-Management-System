@@ -1566,3 +1566,272 @@ async def update_user_role(
     user.recognition_role = body.recognition_role
     await db.flush()
     return {"code": 0, "data": {"message": "角色更新成功"}}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 数据导出（后台「数据导出」Tab）
+# ═══════════════════════════════════════════════════════════════════════════
+
+SUBMISSION_STATUS_LABELS = {
+    "draft": "草稿",
+    "submitted": "待审核",
+    "approved": "已通过",
+    "rejected": "已驳回",
+}
+
+NOMINATION_FIELD_LABELS = {
+    "nominee_id": "被提名人",
+    "event_description": "事迹描述",
+    "positive_impact": "正向影响",
+}
+
+
+def _format_submission_content(content, item_names: dict, nominee_names: dict) -> str:
+    """把申报内容 JSON 转成 Excel 可读文本（预定义项用评分标准中文名）."""
+    if not isinstance(content, dict):
+        return "" if content is None else str(content)
+
+    parts: list[str] = []
+    predefined = content.get("predefined")
+    if isinstance(predefined, dict):
+        for key, value in predefined.items():
+            label = item_names.get(key, key)
+            if isinstance(value, bool):
+                if value:
+                    parts.append(f"{label}：已勾选")
+                continue
+            if isinstance(value, list):
+                items = [str(v).strip() for v in value if str(v or "").strip()]
+                if items:
+                    parts.append(f"{label}：" + "；".join(items))
+                continue
+            text = str(value or "").strip()
+            if text:
+                parts.append(f"{label}：{text}")
+
+        custom = content.get("custom")
+        if isinstance(custom, list):
+            for item in custom:
+                if isinstance(item, dict):
+                    name = str(item.get("name") or "").strip()
+                    desc = str(item.get("description") or "").strip()
+                    if name or desc:
+                        parts.append(f"自定义-{name or '未命名'}：{desc}")
+                elif str(item or "").strip():
+                    parts.append(f"自定义：{str(item).strip()}")
+        return "；".join(parts)
+
+    # 微光提名：扁平结构（nominee_id / event_description / positive_impact）
+    for key, value in content.items():
+        label = NOMINATION_FIELD_LABELS.get(key, key)
+        if key == "nominee_id":
+            nominee_id = str(value or "").strip()
+            if nominee_id:
+                parts.append(f"{label}：{nominee_names.get(nominee_id, nominee_id)}（{nominee_id}）")
+            continue
+        if isinstance(value, list):
+            items = [str(v).strip() for v in value if str(v or "").strip()]
+            if items:
+                parts.append(f"{label}：" + "；".join(items))
+            continue
+        text = str(value or "").strip()
+        if text:
+            parts.append(f"{label}：{text}")
+    return "；".join(parts)
+
+
+def _style_export_sheet(sheet) -> None:
+    """统一导出 Excel 的样式：表头加粗、冻结首行、筛选、自适应列宽."""
+    from openpyxl.styles import Font
+
+    for cell in sheet[1]:
+        cell.font = Font(bold=True)
+    sheet.auto_filter.ref = sheet.dimensions
+    sheet.freeze_panes = "A2"
+    for column_cells in sheet.columns:
+        max_length = max(len(str(cell.value or "")) for cell in column_cells)
+        sheet.column_dimensions[column_cells[0].column_letter].width = min(max(max_length + 2, 10), 40)
+
+
+def _export_response(workbook, filename: str) -> StreamingResponse:
+    stream = BytesIO()
+    workbook.save(stream)
+    stream.seek(0)
+    return StreamingResponse(
+        stream,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+    )
+
+
+@router.get("/submissions/export")
+async def export_submissions(
+    month: Optional[str] = Query(None, description="申报月份，如 2026-09；不传则导出全部"),
+    user_id: str = Depends(require_manager),
+    db: AsyncSession = Depends(get_db),
+):
+    """导出申报（提名）记录 Excel."""
+    from openpyxl import Workbook
+
+    conditions = []
+    if month:
+        conditions.append(RecognitionSubmission.submission_month == month)
+
+    result = await db.execute(
+        select(RecognitionSubmission)
+        .where(*conditions)
+        .order_by(RecognitionSubmission.created_at.desc())
+    )
+    submissions = result.scalars().all()
+
+    user_ids = {s.applicant_id for s in submissions}
+    contents = []
+    for s in submissions:
+        try:
+            contents.append(json.loads(s.content_json) if isinstance(s.content_json, str) else s.content_json)
+        except (json.JSONDecodeError, TypeError):
+            contents.append({})
+
+    nominee_ids = set()
+    for content in contents:
+        if isinstance(content, dict):
+            nominee_id = str(content.get("nominee_id") or "").strip()
+            if nominee_id:
+                nominee_ids.add(nominee_id)
+
+    names = await _get_user_names(db, list(user_ids | nominee_ids | {s.reviewed_by for s in submissions if s.reviewed_by}))
+
+    types = {s.submission_type for s in submissions}
+    item_names: dict[str, dict] = {}
+    if types:
+        criteria_result = await db.execute(
+            select(RecognitionScoringCriteria).where(RecognitionScoringCriteria.award_type.in_(types))
+        )
+        for criterion in criteria_result.scalars().all():
+            item_names.setdefault(criterion.award_type, {})[criterion.item_key] = criterion.item_name
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "申报记录"
+    sheet.append([
+        "申报ID", "申报人", "申报类型", "被提名人", "状态",
+        "季度", "年度", "申报月份", "审核人", "审核时间", "审核评分", "审核意见",
+        "申报内容", "提交时间",
+    ])
+
+    for sub, content in zip(submissions, contents):
+        nominee_text = ""
+        if isinstance(content, dict):
+            nominee_id = str(content.get("nominee_id") or "").strip()
+            if nominee_id:
+                nominee_text = f"{names.get(nominee_id, nominee_id)}（{nominee_id}）"
+
+        sheet.append([
+            sub.id,
+            names.get(sub.applicant_id, sub.applicant_id),
+            SUBMISSION_TYPE_MAP.get(sub.submission_type, sub.submission_type),
+            nominee_text,
+            SUBMISSION_STATUS_LABELS.get(sub.status, sub.status),
+            f"Q{sub.quarter}" if sub.quarter else "",
+            sub.year or "",
+            sub.submission_month or "",
+            names.get(sub.reviewed_by, sub.reviewed_by) if sub.reviewed_by else "",
+            sub.reviewed_at.strftime("%Y-%m-%d %H:%M:%S") if sub.reviewed_at else "",
+            sub.review_score if sub.review_score is not None else "",
+            sub.review_comment or "",
+            _format_submission_content(content, item_names.get(sub.submission_type, {}), names),
+            sub.created_at.strftime("%Y-%m-%d %H:%M:%S") if sub.created_at else "",
+        ])
+
+    _style_export_sheet(sheet)
+    return _export_response(workbook, f"申报记录-{month or '全部'}.xlsx")
+
+
+@router.get("/points/export")
+async def export_points(
+    user_id: str = Depends(require_manager),
+    db: AsyncSession = Depends(get_db),
+):
+    """导出积分明细 Excel."""
+    from openpyxl import Workbook
+
+    result = await db.execute(
+        select(RecognitionPoints).order_by(RecognitionPoints.created_at.desc())
+    )
+    points = result.scalars().all()
+
+    names = await _get_user_names(db, [p.user_id for p in points])
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "积分明细"
+    sheet.append(["记录ID", "用户", "积分变动", "变动原因", "关联奖项", "关联月份", "关联季度", "时间"])
+
+    total = 0
+    for p in points:
+        total += p.point_change
+        sheet.append([
+            p.id,
+            names.get(p.user_id, p.user_id),
+            p.point_change,
+            p.reason,
+            AWARD_TYPE_MAP.get(p.award_type, p.award_type) if p.award_type else "",
+            p.related_month or "",
+            p.related_quarter or "",
+            p.created_at.strftime("%Y-%m-%d %H:%M:%S") if p.created_at else "",
+        ])
+
+    sheet.append(["合计", "", total, "", "", "", "", ""])
+
+    _style_export_sheet(sheet)
+    return _export_response(workbook, f"积分明细-{datetime.now().strftime('%Y-%m-%d')}.xlsx")
+
+
+@router.get("/awards/export")
+async def export_awards(
+    year: Optional[int] = Query(None, description="获奖年度，不传则导出全部"),
+    user_id: str = Depends(require_manager),
+    db: AsyncSession = Depends(get_db),
+):
+    """导出获奖记录 Excel."""
+    from openpyxl import Workbook
+
+    conditions = []
+    if year:
+        conditions.append(RecognitionAward.award_year == year)
+
+    result = await db.execute(
+        select(RecognitionAward)
+        .where(*conditions)
+        .order_by(RecognitionAward.award_year.desc(), RecognitionAward.created_at.desc())
+    )
+    awards = result.scalars().all()
+
+    names = await _get_user_names(db, [a.user_id for a in awards])
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "获奖记录"
+    sheet.append([
+        "获奖ID", "获奖人", "奖项类型", "奖项名称", "名次",
+        "得分", "获得积分", "获奖月份", "获奖季度", "年度", "发布状态", "创建时间",
+    ])
+
+    for a in awards:
+        sheet.append([
+            a.id,
+            names.get(a.user_id, a.user_id),
+            AWARD_TYPE_MAP.get(a.award_type, a.award_type),
+            a.award_name,
+            a.rank if a.rank is not None else "",
+            float(a.score) if a.score is not None else "",
+            a.points_awarded,
+            a.award_month or "",
+            a.award_quarter or "",
+            a.award_year,
+            "已发布" if a.published else "未发布",
+            a.created_at.strftime("%Y-%m-%d %H:%M:%S") if a.created_at else "",
+        ])
+
+    _style_export_sheet(sheet)
+    return _export_response(workbook, f"获奖记录-{year or '全部'}.xlsx")
