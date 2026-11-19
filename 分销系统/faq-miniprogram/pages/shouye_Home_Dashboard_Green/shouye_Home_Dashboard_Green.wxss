@@ -783,3 +783,50 @@
   justify-content: center;
   border-radius: 999rpx;
 }
+
+/* ===== 施能量积分清零公告弹窗 ===== */
+.expire-dialog {
+  width: 620rpx;
+  max-height: 78vh;
+  overflow-y: auto;
+}
+
+.expire-paragraph {
+  margin-top: 24rpx;
+  font-size: 27rpx;
+  line-height: 44rpx;
+  color: #333333;
+  text-align: left;
+}
+
+.expire-strong {
+  color: #FA8C16;
+  font-weight: 700;
+}
+
+.expire-actions {
+  display: flex;
+  margin-top: 40rpx;
+}
+
+.expire-btn {
+  flex: 1;
+  height: 80rpx;
+  font-size: 27rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+}
+
+.expire-btn-ghost {
+  margin-right: 20rpx;
+  color: #666666;
+  background: #F2F3F5;
+}
+
+.expire-btn-primary {
+  color: #ffffff;
+  background: #FA8C16;
+}

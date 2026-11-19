@@ -222,6 +222,20 @@
       >开启提醒</view>
     </view>
 
+    <view
+      wx:if="{{showEnergyExpireBanner}}"
+      style="margin:24rpx 24rpx 0; background:#FFF4E6; border:2rpx solid #FA8C16; border-radius:16rpx; padding:20rpx 24rpx; display:flex; align-items:center; justify-content:space-between;"
+    >
+      <view style="flex:1; margin-right:16rpx;">
+        <view style="font-size:26rpx; color:#333333; font-weight:600;">施能量积分兑换截止提醒</view>
+        <view style="font-size:22rpx; color:#666666; margin-top:4rpx;">12月31日 24:00 统一清零，请尽快兑换心仪礼物</view>
+      </view>
+      <view
+        bindtap="goToEnergyMallFromExpireNotice"
+        style="background:#FA8C16; color:#ffffff; font-size:24rpx; padding:12rpx 24rpx; border-radius:999rpx; flex-shrink:0;"
+      >去兑换</view>
+    </view>
+
     <view class="flex-col group_9">
       <view class="flex-row justify-between items-center">
         <view class="flex-row">
@@ -284,6 +298,19 @@
         <view class="conf-video-title">🎉 奖励到账</view>
         <view class="conf-video-text">{{conferenceVideoNotice.text}}</view>
         <view class="conf-video-btn" bindtap="closeConferenceVideoNotice">知道了</view>
+      </view>
+    </view>
+
+    <view wx:if="{{energyExpireNoticeVisible}}" class="conf-video-mask">
+      <view class="conf-video-dialog expire-dialog">
+        <view class="conf-video-title">施能量积分兑换截止提醒</view>
+        <view class="expire-paragraph">各位分销商伙伴：</view>
+        <view class="expire-paragraph">您在赋能小程序的施能量积分将于 <text class="expire-strong">12月31日24:00</text> 统一清零，请务必在此之前前往能量商城兑换心仪礼物，逾期积分不可恢复。</view>
+        <view class="expire-paragraph">感谢您的学习投入！如有疑问，欢迎随时联系我们。</view>
+        <view class="expire-actions">
+          <view class="expire-btn expire-btn-ghost" bindtap="closeEnergyExpireNotice">知道了</view>
+          <view class="expire-btn expire-btn-primary" bindtap="goToEnergyMallFromExpireNotice">去能量商城兑换</view>
+        </view>
       </view>
     </view>
   </view>

@@ -58,6 +58,9 @@ Page({
     showSubscriptionGuide: false,
     lotteryNotice: null,
     conferenceVideoNotice: null,
+    // 施能量积分清零公告：首页常驻提醒条 + 每日一次的提示弹窗
+    showEnergyExpireBanner: false,
+    energyExpireNoticeVisible: false,
     // 认可计划
     recognitionRole: '',
     recognitionScore: 0,
@@ -249,7 +252,9 @@ Page({
       });
 
       this.loadLotteryNotice();
-      this.loadConferenceVideoNotice();
+      // 先取奖励弹窗状态，再判断积分清零公告，避免两个居中弹窗同时叠加
+      await this.loadConferenceVideoNotice();
+      this.checkEnergyExpireNotice();
 
       // 每周答题提醒：检查是否展示订阅引导条
       this.checkSubscriptionGuide();
@@ -415,10 +420,12 @@ Page({
     const notice = this.data.conferenceVideoNotice;
     if (!notice || !notice.transaction_id) {
       this.setData({ conferenceVideoNotice: null });
+      this.showPendingEnergyExpireNotice();
       return;
     }
 
     this.setData({ conferenceVideoNotice: null });
+    this.showPendingEnergyExpireNotice();
     try {
       await app.request({
         url: '/api/rewards/notices/read',
@@ -429,6 +436,78 @@ Page({
     } catch (err) {
       console.warn('mark conference video notice read failed:', err);
     }
+  },
+
+  // ============ 施能量积分清零公告（2026-12-31 24:00） ============
+  isEnergyExpireNoticeActive() {
+    // 截止时间：2026-12-31 23:59:59（本地时间），过期后不再展示
+    return new Date() <= new Date(2026, 11, 31, 23, 59, 59);
+  },
+
+  getEnergyExpirePopupKey() {
+    return `energyExpirePopup_2026_${app.globalData.userId || 'guest'}`;
+  },
+
+  // 首页加载用户信息后调用：显示常驻提醒条，并按「每天一次」弹提示窗
+  checkEnergyExpireNotice() {
+    if (app.globalData.guestMode || !app.globalData.userId) {
+      return;
+    }
+
+    if (!this.isEnergyExpireNoticeActive()) {
+      this.setData({ showEnergyExpireBanner: false, energyExpireNoticeVisible: false });
+      return;
+    }
+
+    // 常驻提醒条：截至 12-31 前一直显示，不随关闭动作消失
+    this.setData({ showEnergyExpireBanner: true });
+
+    // 当天已弹过则不再打扰
+    let lastShownDate = '';
+    try {
+      lastShownDate = wx.getStorageSync(this.getEnergyExpirePopupKey()) || '';
+    } catch (err) {
+      lastShownDate = '';
+    }
+    if (lastShownDate === this.todayString()) {
+      return;
+    }
+
+    // 与奖励弹窗互斥：先记挂起，等奖励弹窗关闭后再弹
+    if (this.data.conferenceVideoNotice) {
+      this._pendingEnergyExpirePopup = true;
+      return;
+    }
+
+    this.showEnergyExpirePopup();
+  },
+
+  showEnergyExpirePopup() {
+    try {
+      wx.setStorageSync(this.getEnergyExpirePopupKey(), this.todayString());
+    } catch (err) {
+      console.warn('mark energy expire popup shown failed:', err);
+    }
+    this.setData({ energyExpireNoticeVisible: true });
+  },
+
+  showPendingEnergyExpireNotice() {
+    if (!this._pendingEnergyExpirePopup) {
+      return;
+    }
+    this._pendingEnergyExpirePopup = false;
+    if (this.isEnergyExpireNoticeActive()) {
+      this.showEnergyExpirePopup();
+    }
+  },
+
+  closeEnergyExpireNotice() {
+    this.setData({ energyExpireNoticeVisible: false });
+  },
+
+  goToEnergyMallFromExpireNotice() {
+    this.setData({ energyExpireNoticeVisible: false });
+    wx.switchTab({ url: '/pages/energy-mall/index' });
   },
 
   goToQuestionBank() {
